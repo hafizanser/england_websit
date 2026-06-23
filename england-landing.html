@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#271C12" />
+<title>England by MT Traders — Pakistan ka apna FMCG partner</title>
+<meta name="description" content="Asli England maal, fixed wholesale rate. Ek WhatsApp message pe 50+ cities mein agle din delivery — 30+ products ek hi jagah." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&family=Noto+Nastaliq+Urdu:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --cream:#F6F0E4; --cream-soft:#FBF8F1; --cream-2:#EFE6D5;
+    --gold:#B98F43; --gold-2:#CBA45C; --gold-soft:#E9DBBC;
+    --brown:#271C12; --brown-2:#34281A; --ink:#221A0F; --muted:#6E614C;
+    --wa:#25D366; --wa-h:#1EBE5A; --green:#0F3D24;
+    --r:16px; --shadow:0 10px 30px -16px rgba(39,28,18,.45);
+    --navh:62px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:72px;-webkit-text-size-adjust:100%}
+  body{font-family:'Outfit',system-ui,-apple-system,sans-serif;background:var(--cream);color:var(--ink);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  img{max-width:100%;display:block}
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  ul{list-style:none}
+  svg{display:block;flex-shrink:0}
+  .wrap{width:100%;max-width:1180px;margin:0 auto;padding:0 16px}
+  section{padding:42px 0}
+  h1,h2,h3{font-weight:800;letter-spacing:-.02em;line-height:1.1;color:var(--brown)}
+  .urdu{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2.2}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);background:rgba(185,143,67,.1);border:1px solid rgba(185,143,67,.28);padding:7px 13px;border-radius:999px}
+  .sec-head{max-width:660px;margin-bottom:24px}
+  .sec-head h2{font-size:clamp(24px,5.4vw,38px);margin-top:14px}
+  .sec-head .urdu{color:var(--gold);font-size:15px;margin-top:6px}
+  .sec-head p{color:var(--muted);margin-top:10px;font-size:15.5px}
+  .center{text-align:center;margin-left:auto;margin-right:auto}
+
+  /* buttons */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:700;font-size:15px;padding:14px 20px;border-radius:14px;min-height:52px;transition:transform .12s ease,background .2s ease,box-shadow .2s ease,color .2s ease;text-align:center}
+  .btn:active{transform:scale(.97)}
+  .btn-wa{background:var(--wa);color:#fff;box-shadow:0 10px 22px -10px rgba(37,211,102,.7)}
+  .btn-outline{background:#fff;color:var(--brown);border:1.5px solid var(--gold-soft)}
+  .btn-gold{background:linear-gradient(100deg,var(--gold-2),var(--gold));color:#2a1f0e}
+  .btn-block{width:100%}
+  @media (hover:hover){
+    .btn-wa:hover{background:var(--wa-h)}
+    .btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+    .lift{transition:transform .25s ease,box-shadow .25s ease}
+    .lift:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+  }
+
+  /* fade-up */
+  .fade{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s ease}
+  .fade.in{opacity:1;transform:none}
+
+  /* 1. announcement */
+  .announce{background:var(--brown);color:var(--gold-soft);font-size:12.5px;letter-spacing:.02em;overflow:hidden;white-space:nowrap;padding-top:env(safe-area-inset-top)}
+  .marquee{display:flex;width:max-content;animation:marq 26s linear infinite;will-change:transform}
+  .marquee span{display:inline-flex;align-items:center;gap:10px;padding:8px 26px;border-right:1px solid rgba(233,219,188,.18)}
+  .marquee .dot{color:var(--gold-2)}
+  @keyframes marq{to{transform:translateX(-50%)}}
+
+  /* 2. header */
+  .site-head{position:sticky;top:0;z-index:80;background:rgba(251,248,241,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--cream-2)}
+  .head-row{display:flex;align-items:center;gap:12px;padding:11px 0}
+  .logo{font-family:'Playfair Display',serif;font-weight:800;font-size:18px;letter-spacing:.01em;color:#2c2010;background:linear-gradient(100deg,var(--gold-soft),var(--gold-2) 55%,var(--gold));padding:7px 16px;border-radius:999px;box-shadow:0 5px 14px -6px rgba(185,143,67,.6)}
+  .head-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .icon-btn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:var(--brown);border:1px solid var(--cream-2);background:#fff}
+  .icon-btn:active{transform:scale(.94)}
+  .searchbar{max-height:0;overflow:hidden;transition:max-height .3s ease}
+  .searchbar.open{max-height:80px}
+  .searchbar form{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--cream-2);border-radius:12px;padding:10px 14px;margin:0 0 12px}
+  .searchbar input{flex:1;border:none;outline:none;font-size:15px;background:transparent;color:var(--brown);min-width:0}
+
+  /* drawer */
+  .scrim{position:fixed;inset:0;background:rgba(39,28,18,.5);backdrop-filter:blur(2px);opacity:0;visibility:hidden;transition:.3s;z-index:90}
+  .scrim.on{opacity:1;visibility:visible}
+  .drawer{position:fixed;top:0;right:0;height:100dvh;width:84%;max-width:340px;background:var(--cream-soft);z-index:95;transform:translateX(100%);transition:transform .35s cubic-bezier(.2,.7,.2,1);display:flex;flex-direction:column;box-shadow:-20px 0 50px -20px rgba(39,28,18,.5);padding-top:env(safe-area-inset-top)}
+  .drawer.open{transform:none}
+  .drawer-top{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--cream-2)}
+  .drawer nav{display:flex;flex-direction:column;padding:10px 8px;gap:2px;overflow-y:auto}
+  .drawer nav a{display:flex;align-items:center;justify-content:space-between;padding:15px 14px;border-radius:12px;font-weight:600;color:var(--brown)}
+  .drawer nav a:active{background:var(--cream-2)}
+  .drawer-foot{margin-top:auto;padding:16px}
+
+  /* 3. hero */
+  .hero{padding:22px 0 30px}
+  .hero-grid{display:grid;gap:22px}
+  .hero h1{font-size:clamp(27px,7.6vw,50px);margin:14px 0 8px}
+  .hero h1 em{font-style:normal;color:var(--gold)}
+  .hero .urdu{color:var(--gold);font-size:clamp(15px,4.6vw,20px);margin-bottom:12px}
+  .hero .sub{color:var(--muted);font-size:16.5px;max-width:560px}
+  .hero .sub b{color:var(--brown)}
+  .proof{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:18px;padding:9px 14px;background:var(--cream-soft);border:1px solid var(--cream-2);border-radius:999px;font-size:13.5px;font-weight:600;color:var(--brown-2)}
+  .proof .stars{display:inline-flex;color:var(--gold)}
+  .proof .sep{width:4px;height:4px;border-radius:50%;background:var(--gold-soft)}
+  .hero-cta{display:flex;flex-direction:column;gap:11px;margin-top:20px}
+  .ticks{display:flex;flex-wrap:wrap;gap:9px 16px;margin-top:18px}
+  .tick{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--brown-2)}
+  .tick svg{color:var(--wa)}
+  .hero-media{position:relative}
+  .hero-img{aspect-ratio:4/3;border-radius:20px;border:1px solid var(--cream-2);background:radial-gradient(120% 120% at 70% 20%,#fff,var(--cream-2));display:grid;place-items:center;color:var(--muted);font-weight:600;overflow:hidden}
+  .hero-img span{display:inline-flex;align-items:center;gap:8px;font-size:14px;opacity:.7}
+  .hero-chip{position:absolute;left:14px;bottom:14px;display:flex;align-items:center;gap:11px;background:#fff;border:1px solid var(--cream-2);border-radius:14px;padding:11px 14px;box-shadow:var(--shadow);max-width:calc(100% - 28px)}
+  .hero-chip .ic{width:38px;height:38px;border-radius:11px;background:rgba(185,143,67,.14);color:var(--gold);display:grid;place-items:center;flex-shrink:0}
+  .hero-chip .t{font-size:11.5px;color:var(--muted);line-height:1.2}
+  .hero-chip .n{font-size:15px;font-weight:800;color:var(--brown);line-height:1.1}
+  @media(min-width:480px){.hero-cta{flex-direction:row}.hero-cta .btn{flex:1}}
+  @media(min-width:900px){.hero-grid{grid-template-columns:1.05fr .95fr;align-items:center;gap:34px}.hero{padding:40px 0 48px}}
+
+  /* 4. stats */
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .stat{position:relative;background:var(--cream-soft);border:1px solid var(--cream-2);border-radius:16px;padding:18px 16px;overflow:hidden}
+  .stat .num{font-size:clamp(22px,6vw,30px);font-weight:800;color:var(--brown);line-height:1}
+  .stat .lbl{font-size:13px;color:var(--muted);margin-top:6px;font-weight:600}
+  .stat .wm{position:absolute;right:8px;bottom:0;font-family:'Noto Nastaliq Urdu',serif;color:rgba(185,143,67,.13);font-size:26px;pointer-events:none}
+  @media(min-width:680px){.stats{grid-template-columns:repeat(4,1fr)}}
+
+  /* 5. products */
+  .prodgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .prod{background:#fff;border:1px solid var(--cream-2);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+  .prod .pic{aspect-ratio:1/1;background:radial-gradient(120% 120% at 70% 20%,#fff,var(--cream-2));display:grid;place-items:center;color:var(--muted);position:relative}
+  .prod .pic .ph{font-size:12px;opacity:.6;display:inline-flex;align-items:center;gap:6px}
+  .prod .body{padding:13px;display:flex;flex-direction:column;gap:9px;flex:1}
+  .tag{align-self:flex-start;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gold);background:rgba(185,143,67,.12);padding:4px 9px;border-radius:999px}
+  .prod .nm{font-weight:700;font-size:14.5px;color:var(--brown);line-height:1.25}
+  .unit-toggle{display:inline-flex;background:var(--cream-2);border-radius:11px;padding:3px;align-self:flex-start}
+  .unit-toggle button{padding:7px 12px;border-radius:8px;font-size:12.5px;font-weight:700;color:var(--muted);transition:.2s}
+  .unit-toggle button.on{background:#fff;color:var(--brown);box-shadow:0 1px 5px rgba(39,28,18,.14)}
+  .price{font-size:17px;font-weight:800;color:var(--brown);min-height:24px}
+  .price .u{font-size:12px;font-weight:600;color:var(--muted)}
+  .price .confirm{font-size:13px;font-weight:700;color:var(--gold)}
+  .prod .btn{margin-top:auto;width:100%;min-height:46px;padding:11px;font-size:14px}
+  #noResults{display:none;text-align:center;color:var(--muted);padding:24px;font-weight:600}
+  @media(min-width:680px){.prodgrid{grid-template-columns:repeat(3,1fr)}}
+  @media(min-width:900px){.prodgrid{grid-template-columns:repeat(4,1fr)}}
+
+  /* 6. categories */
+  .catgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .cat{background:var(--cream-soft);border:1px solid var(--cream-2);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:104px}
+  .cat .ic{width:44px;height:44px;border-radius:12px;background:rgba(185,143,67,.13);color:var(--gold);display:grid;place-items:center}
+  .cat .nm{font-weight:700;font-size:14.5px;color:var(--brown)}
+  .cat .ur{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;font-size:12.5px;color:var(--muted)}
+  .cat.dark{background:var(--brown);color:var(--cream);justify-content:center;align-items:flex-start}
+  .cat.dark .big{font-size:24px;font-weight:800;color:var(--gold-2)}
+  .cat.dark .nm{color:var(--cream)}
+  @media(min-width:680px){.catgrid{grid-template-columns:repeat(4,1fr)}}
+
+  /* 7. offers */
+  .offergrid{display:grid;gap:14px}
+  .offer{background:#fff;border:1px solid var(--cream-2);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+  .offer .oh{background:var(--green);color:#fff;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .offer .oh .k{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;opacity:.85}
+  .free-badge{background:linear-gradient(100deg,var(--gold-soft),var(--gold-2));color:#2a1f0e;font-weight:800;font-size:12px;padding:5px 11px;border-radius:999px;letter-spacing:.04em}
+  .offer .ob{padding:16px;display:flex;flex-direction:column;gap:9px;flex:1}
+  .offer .ob h3{font-size:18px}
+  .offer .ob p{color:var(--muted);font-size:14.5px}
+  .offer .val{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--green);background:rgba(15,61,36,.08);padding:7px 11px;border-radius:10px;align-self:flex-start}
+  .offer .btn{margin-top:auto}
+  @media(min-width:680px){.offergrid{grid-template-columns:1fr 1fr}}
+
+  /* 8. PAS */
+  .pas{display:grid;gap:14px}
+  .pas .pcard{border-radius:18px;padding:22px}
+  .pas .prob{background:var(--brown);color:var(--cream)}
+  .pas .solve{background:var(--green);color:#fff}
+  .pas .k{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+  .pas h3{font-size:21px;margin:10px 0 8px;color:inherit}
+  .pas p{font-size:15px;opacity:.92}
+  .pas .solve .btn{margin-top:16px}
+  @media(min-width:680px){.pas{grid-template-columns:1fr 1fr}}
+
+  /* 9. why */
+  .why-stat{background:linear-gradient(110deg,var(--brown),var(--brown-2));color:var(--cream);border-radius:18px;padding:22px;display:flex;align-items:center;gap:18px;margin-bottom:16px}
+  .why-stat .pc{font-size:clamp(38px,11vw,56px);font-weight:800;color:var(--gold-2);line-height:1}
+  .why-stat .tx{font-size:15px;opacity:.9}
+  .whygrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .why-c{background:var(--cream-soft);border:1px solid var(--cream-2);border-radius:16px;padding:18px}
+  .why-c .ic{width:44px;height:44px;border-radius:12px;background:rgba(185,143,67,.13);color:var(--gold);display:grid;place-items:center;margin-bottom:12px}
+  .why-c h4{font-size:15.5px;color:var(--brown)}
+  .why-c p{font-size:13.5px;color:var(--muted);margin-top:5px}
+  @media(min-width:900px){.whygrid{grid-template-columns:repeat(4,1fr)}}
+
+  /* 10. how */
+  .how{display:grid;gap:14px}
+  .step{background:var(--cream-soft);border:1px solid var(--cream-2);border-radius:16px;padding:20px;position:relative}
+  .step .n{width:42px;height:42px;border-radius:50%;background:linear-gradient(100deg,var(--gold-2),var(--gold));color:#2a1f0e;font-weight:800;display:grid;place-items:center;font-size:18px;margin-bottom:12px}
+  .step h4{font-size:16px}
+  .step .ur{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;color:var(--gold);font-size:13px;margin:4px 0 8px}
+  .step p{font-size:14px;color:var(--muted)}
+  .timetag{display:inline-flex;align-items:center;gap:8px;margin-top:18px;background:rgba(15,61,36,.08);color:var(--green);font-weight:700;font-size:13.5px;padding:10px 15px;border-radius:999px}
+  @media(min-width:680px){.how{grid-template-columns:repeat(3,1fr)}}
+
+  /* 11. cities */
+  .chips{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;max-width:760px;margin:0 auto}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--cream-soft);border:1px solid var(--cream-2);border-radius:999px;padding:9px 15px;font-weight:600;font-size:13.5px;color:var(--brown-2)}
+  .chip svg{color:var(--gold)}
+  .chip.more{background:var(--brown);color:var(--cream);border-color:var(--brown)}
+
+  /* 12. reviews */
+  .rev-head{display:inline-flex;align-items:center;gap:10px;background:var(--cream-soft);border:1px solid var(--cream-2);border-radius:999px;padding:10px 18px;font-weight:700;color:var(--brown);margin:0 auto 22px}
+  .rev-head .stars{display:inline-flex;color:var(--gold)}
+  .revgrid{display:grid;gap:14px}
+  .rev{background:#fff;border:1px solid var(--cream-2);border-radius:18px;padding:18px}
+  .rev .stars{display:inline-flex;color:var(--gold);margin-bottom:10px}
+  .rev q{display:block;font-size:15px;color:var(--brown-2);line-height:1.55}
+  .rev q:before,.rev q:after{content:''}
+  .rev .who{display:flex;align-items:center;gap:11px;margin-top:14px;padding-top:14px;border-top:1px solid var(--cream-2)}
+  .av{width:42px;height:42px;border-radius:50%;background:linear-gradient(120deg,var(--gold-soft),var(--gold-2));color:#2a1f0e;font-weight:800;display:grid;place-items:center;flex-shrink:0}
+  .rev .nm{font-weight:700;font-size:14px;color:var(--brown);display:flex;align-items:center;gap:6px}
+  .rev .verified{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--wa)}
+  .rev .shop{font-size:12.5px;color:var(--muted)}
+  @media(min-width:680px){.revgrid{grid-template-columns:repeat(3,1fr)}}
+
+  /* 13. closer */
+  .closer{background:linear-gradient(160deg,var(--green),#0b2e1b)}
+  .closer .box{text-align:center;max-width:640px;margin:0 auto;color:#fff}
+  .closer h2{color:#fff;font-size:clamp(24px,6vw,38px)}
+  .closer .urdu{color:var(--gold-2);margin-top:8px;font-size:16px}
+  .closer .urg{display:inline-flex;align-items:center;gap:8px;margin-top:16px;background:rgba(203,164,92,.16);color:var(--gold-soft);font-weight:700;font-size:13.5px;padding:9px 16px;border-radius:999px}
+  .closer p.proofline{color:rgba(255,255,255,.8);margin-top:14px;font-size:14.5px}
+  .closer .acts{display:flex;flex-direction:column;gap:11px;margin:22px 0 16px}
+  .closer .btn-outline{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+  .closer .ticks{justify-content:center}
+  .closer .tick{color:rgba(255,255,255,.9)}
+  .closer .tick svg{color:var(--gold-2)}
+  @media(min-width:480px){.closer .acts{flex-direction:row;justify-content:center}.closer .acts .btn{flex:1;max-width:280px}}
+
+  /* 14. partner */
+  .partner-card{background:var(--cream-soft);border:1px solid var(--cream-2);border-radius:18px;overflow:hidden}
+  .partner-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px;text-align:left;font-weight:800;font-size:18px;color:var(--brown)}
+  .partner-toggle .chev{transition:transform .3s}
+  .partner-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
+  .partner-panel{max-height:0;overflow:hidden;transition:max-height .45s ease}
+  .partner-panel.open{max-height:900px}
+  .partner-inner{padding:0 20px 22px}
+  .partner-mini{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .pmini{flex:1;min-width:120px;background:#fff;border:1px solid var(--cream-2);border-radius:14px;padding:14px}
+  .pmini .n{font-size:24px;font-weight:800;color:var(--gold)}
+  .pmini .t{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .field label{font-size:13px;font-weight:700;color:var(--brown-2)}
+  .field input{border:1px solid var(--cream-2);background:#fff;border-radius:12px;padding:13px 14px;font-size:16px;color:var(--brown);outline:none;min-height:50px}
+  .field input:focus{border-color:var(--gold)}
+  .partner-ticks{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:14px}
+
+  /* 15. footer */
+  .footer{background:var(--brown);color:var(--cream-soft);padding:40px 0 calc(var(--navh) + 36px)}
+  .foot-grid{display:grid;gap:26px}
+  .footer .logo{display:inline-block;margin-bottom:14px}
+  .foot-blurb{font-size:14px;color:rgba(246,240,228,.72);max-width:320px}
+  .foot-blurb .urdu{color:var(--gold-2);font-size:13px;margin-top:8px}
+  .foot-soc{display:flex;gap:10px;margin-top:16px}
+  .foot-soc a{width:40px;height:40px;border-radius:11px;border:1px solid rgba(233,219,188,.2);display:grid;place-items:center;color:var(--cream-soft)}
+  .foot-soc a:hover{background:var(--gold);color:#2a1f0e;border-color:var(--gold)}
+  .foot-col h5{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--gold-2);margin-bottom:12px}
+  .foot-col a,.foot-col p{display:block;font-size:14px;color:rgba(246,240,228,.78);padding:5px 0}
+  .foot-col a:hover{color:#fff}
+  .foot-wa{margin-top:18px}
+  .foot-bottom{border-top:1px solid rgba(233,219,188,.15);margin-top:28px;padding-top:18px;font-size:12.5px;color:rgba(246,240,228,.5)}
+  @media(min-width:680px){.foot-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+
+  /* 16. bottom nav + fab */
+  .botnav{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;background:rgba(251,248,241,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--cream-2);padding-bottom:env(safe-area-inset-bottom)}
+  .botnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:var(--navh);font-size:10.5px;font-weight:600;color:var(--muted)}
+  .botnav a.on{color:var(--gold)}
+  .botnav a:active{transform:scale(.94)}
+  .fab{position:fixed;right:16px;bottom:calc(var(--navh) + env(safe-area-inset-bottom) + 14px);z-index:71;width:56px;height:56px;border-radius:50%;background:var(--wa);color:#fff;display:grid;place-items:center;box-shadow:0 12px 26px -8px rgba(37,211,102,.75)}
+  .fab:active{transform:scale(.93)}
+  @media(min-width:900px){.botnav{display:none}.fab{bottom:24px;width:60px;height:60px}.footer{padding-bottom:44px}}
+
+  @media (prefers-reduced-motion:reduce){
+    *{scroll-behavior:auto!important}
+    .fade{opacity:1;transform:none;transition:none}
+    .marquee{animation:none}
+  }
+</style>
+</head>
+<body id="home">
+
+<!-- 1. ANNOUNCEMENT -->
+<div class="announce" aria-label="Elaan">
+  <div class="marquee" id="marquee">
+    <span><svg class="dot" viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> اگلے دن ڈلیوری — 50+ شہروں میں</span>
+    <span class="urdu">اصل مال، تھوک ریٹ — واٹس ایپ پر آرڈر</span>
+    <span><svg class="dot" viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> Rs.5,000+ order pe FREE delivery</span>
+    <span><svg class="dot" viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> 12,400+ dukaandaar ka bharosa</span>
+    <!-- duplicate for seamless loop -->
+    <span><svg class="dot" viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> اگلے دن ڈلیوری — 50+ شہروں میں</span>
+    <span class="urdu">اصل مال، تھوک ریٹ — واٹس ایپ پر آرڈر</span>
+    <span><svg class="dot" viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> Rs.5,000+ order pe FREE delivery</span>
+    <span><svg class="dot" viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> 12,400+ dukaandaar ka bharosa</span>
+  </div>
+</div>
+
+<!-- 2. HEADER -->
+<header class="site-head">
+  <div class="wrap">
+    <div class="head-row">
+      <a href="#home" class="logo">England</a>
+      <div class="head-actions">
+        <button class="icon-btn" id="searchBtn" aria-label="Maal dhondein">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+        <button class="icon-btn" id="hamb" aria-label="Menu kholein">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="searchbar" id="searchBar">
+      <form id="searchForm">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="searchInput" type="search" placeholder="Maal dhondein… (jaise: tissue, soap)" aria-label="Maal dhondein" />
+      </form>
+    </div>
+  </div>
+</header>
+
+<!-- DRAWER -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Menu">
+  <div class="drawer-top">
+    <span class="logo">England</span>
+    <button class="icon-btn" id="drawerClose" aria-label="Band karein">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <nav>
+    <a href="#home">Home <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+    <a href="#shop">Shop / Products <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+    <a href="#categories">Categories <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+    <a href="#offers">Offers <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+    <a href="#partner">Partner banein <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+    <a href="#raabta">Raabta <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+  </nav>
+  <div class="drawer-foot">
+    <a class="btn btn-wa btn-block wa-link" data-msg="Assalam o alaikum England! Main order karna chahta hoon.">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.157 5.335 5.494 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.535-.927zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413z"/></svg>
+      WhatsApp pe order
+    </a>
+  </div>
+</aside>
+
+<!-- 3. HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div class="fade">
+        <span class="eyebrow"><span style="width:7px;height:7px;border-radius:50%;background:var(--gold);display:inline-block"></span> Pakistan ka apna FMCG partner</span>
+        <h1>Aaj order, kal subah maal — <em>dukaan band kiye baghair.</em></h1>
+        <div class="urdu">آج آرڈر، کل صبح مال — دکان بند کیے بغیر</div>
+        <p class="sub">Asli England maal, fixed wholesale rate. Ek WhatsApp message pe <b>50+ cities</b> mein <b>agle din delivery</b> — 30+ products ek hi jagah.</p>
+
+        <div class="proof">
+          <span class="stars">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg>
+          </span>
+          <strong>4.9</strong><span class="sep"></span>12,400+ dukaandaar<span class="sep"></span>98.4% on-time
+        </div>
+
+        <div class="hero-cta">
+          <a class="btn btn-wa wa-link" data-msg="Assalam o alaikum England! Main 30 second mein order karna chahta hoon. Meri dukaan ka order yeh hai:">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.157 5.335 5.494 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.535-.927zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413z"/></svg>
+            WhatsApp pe order — 30 sec
+          </a>
+          <a class="btn btn-outline" href="#shop">Catalog kholo &amp; order</a>
+        </div>
+
+        <div class="ticks">
+          <span class="tick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Asli maal guarantee</span>
+          <span class="tick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Rs.5,000+ order pe free delivery</span>
+          <span class="tick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Agle din delivery</span>
+        </div>
+      </div>
+
+      <div class="hero-media fade">
+        <div class="hero-img">
+          <span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg> Product image</span>
+        </div>
+        <div class="hero-chip">
+          <span class="ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18M3 12h18M3 17h18"/></svg></span>
+          <span><span class="t">Ek hi jagah</span><br><span class="n">30+ Products</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. STATS -->
+<section style="padding-top:8px">
+  <div class="wrap">
+    <div class="stats fade">
+      <div class="stat"><div class="num">12,400+</div><div class="lbl">Active dukaandaar</div><span class="wm">دکاندار</span></div>
+      <div class="stat"><div class="num">50+</div><div class="lbl">Cities mein delivery</div><span class="wm">شہر</span></div>
+      <div class="stat"><div class="num">30+</div><div class="lbl">Products available</div><span class="wm">پروڈکٹس</span></div>
+      <div class="stat"><div class="num">98.4%</div><div class="lbl">On-time delivery</div><span class="wm">وقت پر</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. TOP SELLING / PRODUCTS -->
+<section id="shop">
+  <div class="wrap">
+    <div class="sec-head fade">
+      <span class="eyebrow">Top selling</span>
+      <h2>Sab se zyada bikne wale products</h2>
+      <div class="urdu">سب سے زیادہ بکنے والے</div>
+      <p>Wahi maal jo aapke customer roz maangte hain — fixed wholesale rate pe. Unit chunein aur seedha order karein.</p>
+    </div>
+
+    <div class="prodgrid fade">
+      <!-- Ispaghol -->
+      <article class="prod" data-name="England Bemisal Ispaghol" data-carton="17000" data-unit2="Box" data-box="">
+        <div class="pic"><span class="ph"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg> Image</span></div>
+        <div class="body">
+          <span class="tag">Ispaghol</span>
+          <div class="nm">England Bemisal Ispaghol</div>
+          <div class="unit-toggle" role="group" aria-label="Unit">
+            <button type="button" data-unit="carton" class="on">Carton</button>
+            <button type="button" data-unit="alt">Box</button>
+          </div>
+          <div class="price"></div>
+          <button class="btn btn-wa order" type="button">Order karein</button>
+        </div>
+      </article>
+
+      <!-- Hello Doctor -->
+      <article class="prod" data-name="England Hello Doctor" data-carton="11500" data-unit2="Box" data-box="">
+        <div class="pic"><span class="ph"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg> Image</span></div>
+        <div class="body">
+          <span class="tag">Hello Dr</span>
+          <div class="nm">England Hello Doctor</div>
+          <div class="unit-toggle" role="group" aria-label="Unit">
+            <button type="button" data-unit="carton" class="on">Carton</button>
+            <button type="button" data-unit="alt">Box</button>
+          </div>
+          <div class="price"></div>
+          <button class="btn btn-wa order" type="button">Order karein</button>
+        </div>
+      </article>
+
+      <!-- Tissue (Carton / Bundle) -->
+      <article class="prod" data-name="England Tissue 480pcs 3Ply" data-carton="13000" data-unit2="Bundle" data-box="">
+        <div class="pic"><span class="ph"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg> Image</span></div>
+        <div class="body">
+          <span class="tag">Tissues</span>
+          <div class="nm">England Tissue 480pcs 3Ply</div>
+          <div class="unit-toggle" role="group" aria-label="Unit">
+            <button type="button" data-unit="carton" class="on">Carton</button>
+            <button type="button" data-unit="alt">Bundle</button>
+          </div>
+          <div class="price"></div>
+          <button class="btn btn-wa order" type="button">Order karein</button>
+        </div>
+      </article>
+
+      <!-- Soap -->
+      <article class="prod" data-name="England Soap" data-carton="9600" data-unit2="Box" data-box="">
+        <div class="pic"><span class="ph"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg> Image</span></div>
+        <div class="body">
+          <span class="tag">Soap</span>
+          <div class="nm">England Soap</div>
+          <div class="unit-toggle" role="group" aria-label="Unit">
+            <button type="button" data-unit="carton" class="on">Carton</button>
+            <button type="button" data-unit="alt">Box</button>
+          </div>
+          <div class="price"></div>
+          <button class="btn btn-wa order" type="button">Order karein</button>
+        </div>
+      </article>
+    </div>
+    <div id="noResults">Koi product nahi mila — search saaf karein ya WhatsApp pe poochein.</div>
+  </div>
+</section>
+
+<!-- 6. CATEGORIES -->
+<section id="categories" style="background:var(--cream-soft)">
+  <div class="wrap">
+    <div class="sec-head fade">
+      <span class="eyebrow">Categories</span>
+      <h2>Har dukaan ka poora saaman</h2>
+      <div class="urdu">ہر دکان کا پورا سامان</div>
+    </div>
+    <div class="catgrid fade">
+      <a class="cat lift" data-name="Tissues" href="#shop"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 9h16v10H4z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/></svg></span><div class="nm">Tissues</div><div class="ur">ٹشو</div></a>
+      <a class="cat lift" data-name="Lotion" href="#shop"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 2h6v3H9z"/><path d="M7 8h10v13H7z"/></svg></span><div class="nm">Lotion</div><div class="ur">لوشن</div></a>
+      <a class="cat lift" data-name="Shampoo" href="#shop"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 8h8v13H8z"/><path d="M9 8V4h6v4"/></svg></span><div class="nm">Shampoo</div><div class="ur">شیمپو</div></a>
+      <a class="cat lift" data-name="Agarbati" href="#shop"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v18"/><path d="M12 3c2 2 2 4 0 6"/></svg></span><div class="nm">Agarbati</div><div class="ur">اگربتی</div></a>
+      <a class="cat lift" data-name="Hello Dr Brush" href="#shop"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m3 21 6-6"/><path d="M14 4h6v6"/><path d="M9 15 20 4"/></svg></span><div class="nm">Hello Dr (Brush)</div><div class="ur">برش</div></a>
+      <a class="cat lift" data-name="Soap" href="#shop"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="8" width="16" height="10" rx="3"/></svg></span><div class="nm">Soap</div><div class="ur">صابن</div></a>
+      <a class="cat lift" data-name="Ispaghol" href="#shop"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 7h14l-1 13H6z"/><path d="M9 7V4h6v3"/></svg></span><div class="nm">Ispaghol</div><div class="ur">اسپغول</div></a>
+      <a class="cat dark lift" href="#shop"><div class="big">30+</div><div class="nm">aur products dekhein</div><div class="ur" style="color:#c9b89f">سب کچھ دیکھیں</div></a>
+    </div>
+  </div>
+</section>
+
+<!-- 7. OFFERS -->
+<section id="offers">
+  <div class="wrap">
+    <div class="sec-head fade">
+      <span class="eyebrow">Offers</span>
+      <h2>Khaas offers, khaas dukaandaron ke liye</h2>
+      <div class="urdu">خاص آفرز، خاص دکانداروں کے لیے</div>
+    </div>
+    <div class="offergrid fade">
+      <article class="offer lift">
+        <div class="oh"><span class="k">Hair Remover</span><span class="free-badge">FREE</span></div>
+        <div class="ob">
+          <h3>Buy 5 Carton, get 1 Box FREE</h3>
+          <p>Hair Remover ke 5 carton par — 5G Razer ka 1 box bilkul muft.</p>
+          <span class="val"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg> 1 box 5G Razer — bilkul muft</span>
+          <a class="btn btn-wa wa-link" data-msg="Assalam o alaikum England! Mujhe yeh offer chahiye: Buy 5 Carton Hair Remover, get 1 Box 5G Razer FREE.">Yeh deal lein</a>
+        </div>
+      </article>
+      <article class="offer lift">
+        <div class="oh"><span class="k">Tissue 300pcs 2Ply</span><span class="free-badge">FREE</span></div>
+        <div class="ob">
+          <h3>Buy 3 Bundle, get 1 Bundle FREE</h3>
+          <p>Tissue 300pcs 2Ply ke 3 bundle par — 1 poora bundle muft.</p>
+          <span class="val"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg> 1 bundle Tissue — bilkul muft</span>
+          <a class="btn btn-wa wa-link" data-msg="Assalam o alaikum England! Mujhe yeh offer chahiye: Buy 3 Bundle Tissue 300pcs 2Ply, get 1 Bundle FREE.">Yeh deal lein</a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- 8. PROBLEM -> SOLUTION -->
+<section style="background:var(--cream-soft)">
+  <div class="wrap">
+    <div class="pas fade">
+      <div class="pcard prob">
+        <span class="k">Masla</span>
+        <h3>Mandi ke chakkar, galat rate, stock khatam</h3>
+        <p>Dukaan band karo, transport ka kharcha, ghanton ka waqt — aur phir bhi kabhi nakli maal, kabhi mehngaa rate, kabhi "stock khatam".</p>
+      </div>
+      <div class="pcard solve">
+        <span class="k">Iska hal</span>
+        <h3>England pe ek WhatsApp message</h3>
+        <p>Asli maal, fixed wholesale rate, agle din seedha aapki dukaan pe. Bas ek message — kaam khatam.</p>
+        <a class="btn btn-gold wa-link" data-msg="Assalam o alaikum England! Mujhe asli maal fixed rate pe chahiye, agle din delivery ke saath.">Abhi message bhejein</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9. WHY ENGLAND -->
+<section id="why">
+  <div class="wrap">
+    <div class="sec-head fade center">
+      <span class="eyebrow">Kyun England</span>
+      <h2>Dukaandaar ka sacha partner</h2>
+      <div class="urdu">دکاندار کا سچا پارٹنر</div>
+    </div>
+    <div class="why-stat fade">
+      <div class="pc">98.4%</div>
+      <div class="tx">orders agle din time pe delivered — kyunke aapki sale rukni nahi chahiye.</div>
+    </div>
+    <div class="whygrid fade">
+      <div class="why-c"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg></span><h4>Wholesale rate</h4><p>Seedha factory rate — margin 22% tak. Beech ka koi munafa nahi.</p></div>
+      <div class="why-c"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span><h4>Agle din delivery</h4><p>Aaj order, kal subah dukaan pe — dukaan band kiye baghair.</p></div>
+      <div class="why-c"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg></span><h4>Asli maal guarantee</h4><p>100% original England products — nakli maal ka risk khatam.</p></div>
+      <div class="why-c"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></span><h4>Apna sales rep</h4><p>Har city mein ek banda jo aapka order aur masla foran handle kare.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 10. HOW IT WORKS -->
+<section style="background:var(--cream-soft)">
+  <div class="wrap">
+    <div class="sec-head fade center">
+      <span class="eyebrow">Kaise kaam karta hai</span>
+      <h2>3 step mein order poora</h2>
+      <div class="urdu">آسان تین قدم</div>
+    </div>
+    <div class="how fade">
+      <div class="step"><div class="n">1</div><h4>Maal chuno / list bhejo</h4><div class="ur">سامان منتخب کریں</div><p>Catalog se add karein ya seedha WhatsApp pe apni list bhej dein — jaise aap likhte ho.</p></div>
+      <div class="step"><div class="n">2</div><h4>Order confirm</h4><div class="ur">آرڈر کنفرم</div><p>Rate aur total foran confirm — koi advance nahi, delivery pe payment.</p></div>
+      <div class="step"><div class="n">3</div><h4>Agle din dukaan pe</h4><div class="ur">اگلے دن ڈلیوری</div><p>Seedha aapki dukaan pe maal — shelf ready, sale ready.</p></div>
+    </div>
+    <div style="text-align:center"><span class="timetag fade"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Aaj order → kal subah · ~30 sec</span></div>
+  </div>
+</section>
+
+<!-- 11. CITIES -->
+<section id="cities">
+  <div class="wrap">
+    <div class="sec-head fade center">
+      <span class="eyebrow">Poore Pakistan mein delivery</span>
+      <h2>50+ cities across Pakistan</h2>
+      <div class="urdu">پورے پاکستان میں ڈلیوری</div>
+    </div>
+    <div class="chips fade">
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Karachi</span>
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Lahore</span>
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Islamabad</span>
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Rawalpindi</span>
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Faisalabad</span>
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Multan</span>
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Gujranwala</span>
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Kamoke</span>
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Hafizabad</span>
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Sialkot</span>
+      <span class="chip"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Peshawar</span>
+      <span class="chip more">+40 aur shehar</span>
+    </div>
+  </div>
+</section>
+
+<!-- 12. REVIEWS -->
+<section style="background:var(--cream-soft)">
+  <div class="wrap">
+    <div style="text-align:center">
+      <div class="rev-head fade">
+        <span class="stars">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg>
+        </span> 4.9 · 1,200+ raye
+      </div>
+    </div>
+    <div class="sec-head fade center" style="margin-bottom:18px">
+      <h2>Asli dukaandar, asli raye</h2>
+      <div class="urdu">گاہکوں کی اصل رائے</div>
+    </div>
+    <div class="revgrid fade">
+      <div class="rev">
+        <span class="stars">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg>
+        </span>
+        <q>Pehle mandi jaane mein aadha din lagta tha. Ab WhatsApp pe order karta hoon, subah maal dukaan pe. Rate bhi market se kam.</q>
+        <div class="who"><span class="av">I</span><div><div class="nm">Imran Qureshi <span class="verified"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg> Verified</span></div><div class="shop">Qureshi Kiryana · Karachi</div></div></div>
+      </div>
+      <div class="rev">
+        <span class="stars">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg>
+        </span>
+        <q>Asli maal milta hai, isliye customer wapas aata hai. Tissue aur soap ka margin sab se acha hai. 2 saal se inhi se le raha hoon.</q>
+        <div class="who"><span class="av">B</span><div><div class="nm">Bilal Ahmed <span class="verified"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg> Verified</span></div><div class="shop">Ahmed General Store · Lahore</div></div></div>
+      </div>
+      <div class="rev">
+        <span class="stars">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2l2.9 6.26 6.1.55-4.6 4.04 1.36 6.15L12 16.9 6.24 19.96 7.6 13.8 3 9.71l6.1-.55z"/></svg>
+        </span>
+        <q>Delivery hamesha time pe. Sales rep foran phone uthata hai, koi masla ho to turant hal. Bharosa ban gaya hai.</q>
+        <div class="who"><span class="av">N</span><div><div class="nm">Naseem Akhtar <span class="verified"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg> Verified</span></div><div class="shop">Naseem Mart · Faisalabad</div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 13. CLOSER -->
+<section class="closer">
+  <div class="wrap">
+    <div class="box fade">
+      <h2>Aapki dukaan ka agla order, sirf ek message door</h2>
+      <div class="urdu">آپ کی دکان کا اگلا آرڈر، صرف ایک میسج دور</div>
+      <div class="urg"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Aaj 4 baje tak order = kal subah delivery</div>
+      <p class="proofline">12,400+ dukaandaar England pe bharosa karte hain.</p>
+      <div class="acts">
+        <a class="btn btn-wa wa-link" data-msg="Assalam o alaikum England! Kal subah delivery ke liye abhi order karna hai.">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.157 5.335 5.494 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.535-.927zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413z"/></svg>
+          WhatsApp pe order
+        </a>
+        <a class="btn btn-outline" href="tel:+923124361300">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+          Call: +92 312 4361300
+        </a>
+      </div>
+      <div class="ticks">
+        <span class="tick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Asli maal guarantee</span>
+        <span class="tick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Free delivery 5,000+ pe</span>
+        <span class="tick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Agle din delivery</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 14. PARTNER -->
+<section id="partner">
+  <div class="wrap">
+    <div class="partner-card fade">
+      <button class="partner-toggle" id="partnerToggle" aria-expanded="false" aria-controls="partnerPanel">
+        <span>Partner banna chahte ho? <span style="color:var(--muted);font-weight:600;font-size:14px;display:block">22% tak margin · 24 ghante mein delivery</span></span>
+        <span class="chev"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
+      </button>
+      <div class="partner-panel" id="partnerPanel">
+        <div class="partner-inner">
+          <div class="partner-mini">
+            <div class="pmini"><div class="n">22%</div><div class="t">average margin dukaandaaron ke liye</div></div>
+            <div class="pmini"><div class="n">24h</div><div class="t">mein order aapki dukaan pe</div></div>
+          </div>
+          <form id="partnerForm">
+            <div class="field"><label for="pShop">Dukaan ka naam</label><input id="pShop" type="text" placeholder="Misaal: Bilal Kiryana Store" required /></div>
+            <div class="field"><label for="pPhone">WhatsApp number</label><input id="pPhone" type="tel" inputmode="tel" placeholder="03xx xxxxxxx" required /></div>
+            <div class="field"><label for="pCity">Sheher</label><input id="pCity" type="text" placeholder="Misaal: Faisalabad" required /></div>
+            <button class="btn btn-wa btn-block" type="submit">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.157 5.335 5.494 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.535-.927zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413z"/></svg>
+              Partner banein — WhatsApp pe bhejein
+            </button>
+          </form>
+          <div class="partner-ticks">
+            <span class="tick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Koi advance nahi</span>
+            <span class="tick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Min order kam</span>
+            <span class="tick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Kabhi band kar sakte ho</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 15. FOOTER -->
+<footer class="footer" id="raabta">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <span class="logo">England</span>
+        <p class="foot-blurb">Pakistan ka apna FMCG wholesale partner — asli maal, fixed rate, agle din delivery. England by MT Traders.
+          <span class="urdu">ہر دکان کا پورا سامان، ایک میسج پر</span>
+        </p>
+        <div class="foot-soc">
+          <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H8v-2.9h2.4V9.8c0-2.4 1.4-3.7 3.6-3.7 1 0 2.1.2 2.1.2v2.3h-1.2c-1.2 0-1.5.7-1.5 1.5v1.8h2.6l-.4 2.9h-2.2v7A10 10 0 0 0 22 12z"/></svg></a>
+          <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+          <a class="wa-link" data-msg="Assalam o alaikum England!" aria-label="WhatsApp"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.157 5.335 5.494 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.535-.927zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413z"/></svg></a>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h5>Company</h5>
+        <a href="#why">Kyun England</a>
+        <a href="#how">Kaise kaam karta hai</a>
+        <a href="#partner">Partner banein</a>
+        <a href="#cities">Delivery cities</a>
+      </div>
+      <div class="foot-col">
+        <h5>Categories</h5>
+        <a href="#shop">Tissues</a>
+        <a href="#shop">Soap &amp; Shampoo</a>
+        <a href="#shop">Ispaghol</a>
+        <a href="#categories">Saari categories</a>
+      </div>
+      <div class="foot-col">
+        <h5>Raabta</h5>
+        <p>order@englandmt.pk</p>
+        <p>+92 312 4361300</p>
+        <p>Shah Alam Market, Lahore</p>
+        <a class="btn btn-wa foot-wa wa-link" data-msg="Assalam o alaikum England! Mujhe maloomat chahiye.">WhatsApp pe baat karein</a>
+      </div>
+    </div>
+    <div class="foot-bottom">© <span id="yr"></span> England by MT Traders. Tamaam haqooq mehfooz.</div>
+  </div>
+</footer>
+
+<!-- 16. BOTTOM NAV + FAB -->
+<nav class="botnav" aria-label="Quick nav">
+  <a href="#home" class="on"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/></svg>Home</a>
+  <a href="#shop"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18l-1.5 12.5a2 2 0 0 1-2 1.5H6.5a2 2 0 0 1-2-1.5z"/><path d="M8 7a4 4 0 0 1 8 0"/></svg>Shop</a>
+  <a href="#offers"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12 12 20l-8-8V4h8z"/><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/></svg>Offers</a>
+  <a href="#categories"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Categories</a>
+  <a href="#partner"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/></svg>Account</a>
+</nav>
+
+<a class="fab wa-link" data-msg="Assalam o alaikum England! Main order karna chahta hoon." aria-label="WhatsApp pe order">
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.157 5.335 5.494 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.535-.927zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413z"/></svg>
+</a>
+
+<script>
+(function(){
+  "use strict";
+  var $=function(s,c){return (c||document).querySelector(s)};
+  var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s))};
+  var WA="923124361300";
+  function wa(t){return "https://wa.me/"+WA+"?text="+encodeURIComponent(t)}
+  function money(n){ n=Number(n); return n?("Rs."+n.toLocaleString("en-US")):"" }
+
+  // pre-fill all static wa.me links
+  $$(".wa-link").forEach(function(a){ a.href=wa(a.dataset.msg||""); a.target="_blank"; a.rel="noopener"; });
+
+  // year
+  var yr=$("#yr"); if(yr){ yr.textContent=String(new Date().getFullYear()); }
+
+  // drawer
+  var drawer=$("#drawer"), scrim=$("#scrim");
+  function open(){drawer.classList.add("open");scrim.classList.add("on");document.body.style.overflow="hidden"}
+  function close(){drawer.classList.remove("open");scrim.classList.remove("on");document.body.style.overflow=""}
+  $("#hamb").addEventListener("click",open);
+  $("#drawerClose").addEventListener("click",close);
+  scrim.addEventListener("click",close);
+  $$("#drawer a").forEach(function(a){a.addEventListener("click",close)});
+
+  // header search toggle + live filter
+  var sBtn=$("#searchBtn"), sBar=$("#searchBar"), sIn=$("#searchInput"), sForm=$("#searchForm"), noRes=$("#noResults");
+  sBtn.addEventListener("click",function(){
+    sBar.classList.toggle("open");
+    if(sBar.classList.contains("open")){ setTimeout(function(){sIn.focus()},80); }
+  });
+  function runFilter(){
+    var q=sIn.value.trim().toLowerCase(), any=false;
+    $$(".prod").forEach(function(p){
+      var hit=(p.dataset.name||"").toLowerCase().indexOf(q)>-1;
+      p.style.display=hit?"":"none"; if(hit)any=true;
+    });
+    if(noRes) noRes.style.display=(q&&!any)?"block":"none";
+  }
+  sIn.addEventListener("input",runFilter);
+  sForm.addEventListener("submit",function(e){ e.preventDefault(); document.getElementById("shop").scrollIntoView(); });
+
+  // products: unit toggle + price + order
+  $$(".prod").forEach(function(card){
+    var cartonP=card.dataset.carton, altLabel=card.dataset.unit2||"Box", altP=card.dataset.box||"";
+    var priceEl=$(".price",card), unit="Carton";
+    function render(){
+      if(unit==="Carton"){
+        priceEl.innerHTML=money(cartonP)+' <span class="u">/ Carton</span>';
+      } else {
+        priceEl.innerHTML = altP
+          ? money(altP)+' <span class="u">/ '+altLabel+'</span>'
+          : '<span class="confirm">Rate WhatsApp pe confirm</span> <span class="u">/ '+altLabel+'</span>';
+      }
+    }
+    $$(".unit-toggle button",card).forEach(function(b){
+      b.addEventListener("click",function(){
+        $$(".unit-toggle button",card).forEach(function(x){x.classList.remove("on")});
+        b.classList.add("on");
+        unit=(b.dataset.unit==="carton")?"Carton":altLabel;
+        render();
+      });
+    });
+    $(".order",card).addEventListener("click",function(){
+      var name=card.dataset.name, priceTxt;
+      if(unit==="Carton"){ priceTxt="("+money(cartonP)+")"; }
+      else { priceTxt= altP ? "("+money(altP)+")" : "(rate confirm karein)"; }
+      var msg="Assalam o alaikum England! Mujhe chahiye:\n"+name+" — 1 "+unit+" "+priceTxt+".\nBarae meharbani rate/stock confirm karke order final karein.";
+      window.open(wa(msg),"_blank","noopener");
+    });
+    render();
+  });
+
+  // partner toggle + form
+  var pT=$("#partnerToggle"), pP=$("#partnerPanel");
+  pT.addEventListener("click",function(){
+    var on=pP.classList.toggle("open");
+    pT.setAttribute("aria-expanded", on?"true":"false");
+  });
+  $("#partnerForm").addEventListener("submit",function(e){
+    e.preventDefault();
+    var shop=$("#pShop").value.trim()||"-", ph=$("#pPhone").value.trim()||"-", city=$("#pCity").value.trim()||"-";
+    var msg="Assalam o alaikum England! Main partner banna chahta hoon.\nDukaan: "+shop+"\nWhatsApp: "+ph+"\nSheher: "+city;
+    window.open(wa(msg),"_blank","noopener");
+  });
+
+  // scroll fade-up
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add("in"); io.unobserve(en.target); } });
+    },{threshold:.12, rootMargin:"0px 0px -40px 0px"});
+    $$(".fade").forEach(function(el){ io.observe(el); });
+  } else {
+    $$(".fade").forEach(function(el){ el.classList.add("in"); });
+  }
+
+  // bottom-nav active state on scroll
+  var navLinks=$$(".botnav a"), ids=["home","shop","offers","categories","partner"];
+  window.addEventListener("scroll",function(){
+    var y=window.scrollY+120, cur="home";
+    ids.forEach(function(id){ var el=document.getElementById(id); if(el && el.offsetTop<=y) cur=id; });
+    navLinks.forEach(function(a){ a.classList.toggle("on", a.getAttribute("href")==="#"+cur); });
+  },{passive:true});
+})();
+</script>
+</body>
+</html>

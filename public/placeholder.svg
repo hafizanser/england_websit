@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="440" viewBox="0 0 440 440" role="img" aria-label="Image not available">
+  <rect width="440" height="440" fill="#f4f1ea"/>
+  <g fill="none" stroke="#c8bfa9" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="120" y="120" width="200" height="170" rx="16"/>
+    <circle cx="178" cy="178" r="20"/>
+    <path d="M132 268l52-50 38 34 46-44 50 46"/>
+  </g>
+  <text x="220" y="338" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="600" fill="#a99f86" text-anchor="middle">England</text>
+</svg>

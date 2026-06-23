@@ -1,0 +1,291 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-sand-50 text-brand-950 antialiased;
+    overflow-x: hidden;
+    line-height: 1.55;
+    /* Native-app feel on touch devices: no grey tap flash, no overscroll glow */
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Kill the 300ms tap delay + grey flash on every interactive control so taps
+     feel instant, like a native app. */
+  a,
+  button,
+  [role='button'],
+  input,
+  select,
+  textarea,
+  label {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Momentum scrolling for horizontal rails / drawers on iOS */
+  .no-scrollbar,
+  .overflow-y-auto,
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Headings use the expressive display grotesque, tightly tracked */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: 'Bricolage Grotesque', 'Plus Jakarta Sans', system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  /* Urdu text uses Nastaliq and renders right-to-left */
+  .urdu {
+    font-family: 'Noto Nastaliq Urdu', serif;
+    direction: rtl;
+    line-height: 2.4;
+  }
+
+  ::selection {
+    @apply bg-saffron-300 text-brand-950;
+  }
+}
+
+@layer utilities {
+  .container-page {
+    @apply mx-auto w-full max-w-[1320px] px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Subtle grain layer — applied only to fixed, non-scrolling pseudo elements */
+  .grain::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* hide scrollbar on horizontal scroll rails */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* =========================================================================
+     Ultra-premium admin surfaces — glassmorphism, mesh backdrops, sheen.
+     Scoped via explicit class names; safe to use anywhere in the admin suite.
+     ========================================================================= */
+
+  /* Frosted glass panel — translucent, blurred, hairline highlight ring. */
+  .glass-panel {
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.82), rgba(251, 245, 233, 0.62));
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+  }
+
+  /* Dark frosted glass — for the hero header band over the mesh. */
+  .glass-dark {
+    background: linear-gradient(150deg, rgba(36, 25, 16, 0.92), rgba(58, 42, 28, 0.86));
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(199, 160, 91, 0.22);
+  }
+
+  /* Animated warm mesh — multi-radial gradient that slowly drifts. */
+  .mesh-warm {
+    background-color: #1a1209;
+    background-image:
+      radial-gradient(46% 60% at 12% 18%, rgba(199, 160, 91, 0.42), transparent 62%),
+      radial-gradient(42% 56% at 88% 14%, rgba(190, 146, 72, 0.34), transparent 60%),
+      radial-gradient(60% 80% at 70% 96%, rgba(58, 42, 28, 0.9), transparent 70%),
+      radial-gradient(50% 60% at 30% 88%, rgba(168, 130, 61, 0.2), transparent 64%);
+    background-size: 180% 180%;
+  }
+
+  /* Soft cream mesh for the page background — barely-there depth. */
+  .mesh-cream {
+    background-color: #f6eed9;
+    background-image:
+      radial-gradient(40% 50% at 0% 0%, rgba(199, 160, 91, 0.12), transparent 60%),
+      radial-gradient(38% 46% at 100% 6%, rgba(199, 160, 91, 0.1), transparent 58%),
+      radial-gradient(50% 60% at 92% 100%, rgba(231, 212, 172, 0.28), transparent 64%);
+  }
+
+  /* Diagonal light sheen overlay — pair with .animate-sheen on a child. */
+  .sheen-mask {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+  }
+  .sheen-mask::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 38%;
+    background: linear-gradient(
+      100deg,
+      transparent,
+      rgba(255, 255, 255, 0.55),
+      transparent
+    );
+    transform: translateX(-160%) skewX(-12deg);
+  }
+  .group:hover .sheen-mask::after {
+    animation: sheen 0.9s ease-out;
+  }
+
+  /* Hairline gradient border via mask — luxe 1px frame. */
+  .ring-luxe {
+    position: relative;
+  }
+  .ring-luxe::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(160deg, rgba(199, 160, 91, 0.7), rgba(255, 255, 255, 0.15) 40%, rgba(199, 160, 91, 0.45));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(100deg, #f9e9cc, #c7a05b 55%, #e0c07e);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Premium minimal scrollbar for the dark luxury sidebar — thin, gold,
+     fades in on hover, with smooth momentum + edge fades handled by the rail. */
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(199, 160, 91, 0.28) transparent;
+    scroll-behavior: smooth;
+  }
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 8px 0;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(199, 160, 91, 0.45), rgba(199, 160, 91, 0.18));
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    transition: background 0.25s ease;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(224, 192, 126, 0.85), rgba(199, 160, 91, 0.45));
+    background-clip: padding-box;
+  }
+  /* Idle: nearly invisible thumb; reveal on hover/scroll for a clean minimal feel. */
+  .sidebar-scroll:not(:hover)::-webkit-scrollbar-thumb {
+    background: rgba(199, 160, 91, 0.14);
+    background-clip: padding-box;
+  }
+}
+
+/* Print: show only the invoice, hide app chrome */
+@media print {
+  body {
+    background: #fff !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    margin: 14mm;
+  }
+}
+
+/* ===========================================================================
+   Mobile app-shell foundation. Everything here is additive and (where it
+   affects layout) gated to phones, so the desktop experience is untouched.
+   =========================================================================== */
+@layer utilities {
+  /* Safe-area helpers for notched devices */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+  /* App-like surfaces / touch targets — opt-in classes */
+  .app-card { @apply rounded-3xl border border-brand-100 bg-white shadow-soft; }
+  .tap-target { min-height: 44px; min-width: 44px; }
+  .press { @apply transition-transform active:scale-[0.97]; }
+}
+
+/* Subtle native-style page transition on route change — phones only. */
+@keyframes app-page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@media (max-width: 767px) {
+  .app-page {
+    animation: app-page-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-page { animation: none !important; }
+}
+
+/* Custom scrollbar for the page */
+::-webkit-scrollbar {
+  width: 11px;
+}
+::-webkit-scrollbar-track {
+  background: #f3e8d2;
+}
+::-webkit-scrollbar-thumb {
+  background: #e7d4ac;
+  border-radius: 999px;
+  border: 3px solid #f3e8d2;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c7a05b;
+}

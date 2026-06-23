@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 132" role="img" aria-label="England" fill="none">
+  <defs>
+    <linearGradient id="enBadge" x1="60" y1="14" x2="290" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ecd29a"/>
+      <stop offset="0.5" stop-color="#d6ad6a"/>
+      <stop offset="1" stop-color="#bf8f48"/>
+    </linearGradient>
+    <linearGradient id="enSheen" x1="170" y1="14" x2="170" y2="70" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="enShadow" x="-12%" y="-12%" width="124%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4.5" flood-color="#6b4d22" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+
+  <!-- Gold wavy badge -->
+  <g filter="url(#enShadow)">
+    <path d="M28 34 C70 16 150 14 196 16 C250 18 300 18 314 36 C326 52 322 74 312 90 C300 108 250 116 188 116 C120 116 60 116 36 102 C14 88 12 60 16 46 C19 38 22 37 28 34 Z"
+          fill="url(#enBadge)"/>
+    <!-- top sheen -->
+    <path d="M28 34 C70 16 150 14 196 16 C250 18 300 18 314 36 C326 52 322 74 312 90 C300 108 250 116 188 116 C120 116 60 116 36 102 C14 88 12 60 16 46 C19 38 22 37 28 34 Z"
+          fill="url(#enSheen)"/>
+    <!-- inner outline -->
+    <g transform="translate(170 66) scale(0.93) translate(-170 -66)">
+      <path d="M28 34 C70 16 150 14 196 16 C250 18 300 18 314 36 C326 52 322 74 312 90 C300 108 250 116 188 116 C120 116 60 116 36 102 C14 88 12 60 16 46 C19 38 22 37 28 34 Z"
+            fill="none" stroke="#fffaf0" stroke-opacity="0.55" stroke-width="2"/>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="168" y="68" text-anchor="middle" dominant-baseline="central"
+        font-family="Georgia, 'Times New Roman', Times, serif"
+        font-size="60" font-weight="600" letter-spacing="-1"
+        fill="#fdf8ee" stroke="#5c4324" stroke-width="1.4" paint-order="stroke"
+        style="stroke-linejoin:round">England</text>
+
+  <!-- Registered mark -->
+  <text x="300" y="44" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', Times, serif"
+        font-size="13" fill="#fdf8ee" stroke="#5c4324" stroke-width="0.5" paint-order="stroke">&#174;</text>
+</svg>
