@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Mail\NewOrderNotification;
 use App\Models\ShopCustomer;
 use App\Repositories\ShopOrderItemRepo;
 use App\Repositories\ShopOrderRepo;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use InvalidArgumentException;
 
 /** Orchestrates checkout: customer account + authoritative pricing + persistence. Port of Services\OrderService. */
@@ -37,7 +40,7 @@ class OrderService
 
         // All-or-nothing: customer + order + items + history must commit together,
         // so a mid-way failure can never leave a half-written order.
-        return DB::transaction(function () use ($items, $totals, $code, $payload, $source) {
+        $order = DB::transaction(function () use ($items, $totals, $code, $payload, $source) {
             $customer = ShopCustomer::findOrCreate([
                 'name'    => trim((string) ($payload['name'] ?? '')),
                 'phone'   => trim((string) ($payload['phone'] ?? '')),
@@ -71,6 +74,36 @@ class OrderService
 
             return $this->orders->detail($orderId);
         });
+
+        // Notify the admin of the new order. Best-effort and AFTER commit, so a
+        // mail failure can never roll back or block a successfully placed order.
+        $this->notifyAdmin($order);
+
+        return $order;
+    }
+
+    /** Send the new-order notification email to the configured admin address. */
+    private function notifyAdmin(?array $order): void
+    {
+        if (!$order) {
+            return;
+        }
+
+        $to = config('mail.order_notify');
+        if (!$to) {
+            return;
+        }
+
+        // Send AFTER the HTTP response is flushed to the browser, so a slow or
+        // unreachable SMTP server can NEVER delay (or appear to fail) checkout.
+        // Best-effort: any error is logged, never thrown.
+        dispatch(function () use ($to, $order) {
+            try {
+                Mail::to($to)->send(new NewOrderNotification($order));
+            } catch (\Throwable $e) {
+                Log::error('New-order notification email failed: ' . $e->getMessage());
+            }
+        })->afterResponse();
     }
 
     public function quote(array $rows, ?string $code = null): array

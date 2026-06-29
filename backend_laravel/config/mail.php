@@ -45,7 +45,7 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            'timeout' => env('MAIL_TIMEOUT', 15),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
@@ -114,5 +114,17 @@ return [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | New-order notification recipient
+    |--------------------------------------------------------------------------
+    |
+    | Admin address that receives a notification email whenever an order is
+    | placed. Read via config() so it survives `php artisan config:cache`.
+    |
+    */
+
+    'order_notify' => env('ORDER_NOTIFY_EMAIL', 'itdhqjhelum@gmail.com'),
 
 ];

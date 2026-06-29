@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Repositories\WholesaleOrderRepo;
+use App\Repositories\ShopOrderRepo;
 use App\Services\OrderService;
 use App\Support\Api;
 use Illuminate\Http\Request;
@@ -13,10 +13,10 @@ use InvalidArgumentException;
 
 class OrderController extends Controller
 {
-    /** Orders come from the shared order_system DB (same source as Profit). */
+    /** Orders come from fmcg_orders (storefront + admin orders). */
     public function index(Request $request)
     {
-        $orders = (new WholesaleOrderRepo())->listAll([
+        $orders = (new ShopOrderRepo())->listAll([
             'status' => $request->query('status', 'all'),
             'q'      => $request->query('q', ''),
         ]);
@@ -55,7 +55,7 @@ class OrderController extends Controller
 
     public function show(Request $request, string $id)
     {
-        $order = (new WholesaleOrderRepo())->detail((int) $id);
+        $order = (new ShopOrderRepo())->detail((int) $id);
         if (!$order) {
             Api::halt('Order nahi mila', 404);
         }
@@ -69,7 +69,7 @@ class OrderController extends Controller
         if (!in_array($status, $allowed, true)) {
             Api::halt('Ghalat status', 422);
         }
-        $order = new WholesaleOrderRepo();
+        $order = new ShopOrderRepo();
         if (!$order->exists((int) $id)) {
             Api::halt('Order nahi mila', 404);
         }
@@ -84,7 +84,7 @@ class OrderController extends Controller
         $itemId = (int) $item;
         $amount = max(0, (int) $request->input('discount', 0));
 
-        $order = new WholesaleOrderRepo();
+        $order = new ShopOrderRepo();
         if (!$order->itemBelongsToOrder($itemId, $orderId)) {
             Api::halt('Item nahi mila', 404);
         }
