@@ -6,6 +6,7 @@ namespace App\Controllers\Admin;
 use App\Core\Controller;
 use App\Core\Response;
 use App\Core\Database;
+use App\Models\RefOrder;
 
 class ReportController extends Controller
 {
@@ -36,10 +37,10 @@ class ReportController extends Controller
 
         $lowStock = $db->query('SELECT id, name, stock FROM products WHERE active = 1 ORDER BY stock ASC LIMIT 5')->fetchAll();
 
-        $recentOrders = $db->query(
-            'SELECT o.code, o.total, o.status, o.placed_at, c.name customer_name
-             FROM orders o JOIN customers c ON c.id = o.customer_id ORDER BY o.id DESC LIMIT 6'
-        )->fetchAll();
+        // "Naye orders" panel — TODAY's orders only, read from the shared
+        // order_system DB (the same store the admin Orders list uses), so newly
+        // placed website/admin orders show up and old days are filtered out.
+        $recentOrders = (new RefOrder())->todays();
 
         Response::ok([
             'cards' => [

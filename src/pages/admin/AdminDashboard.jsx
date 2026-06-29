@@ -443,7 +443,7 @@ export default function AdminDashboard() {
             ))}
             {data.recentOrders.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-5 py-10 text-center text-sm text-brand-400">Abhi koi order nahi.</td>
+                <td colSpan={4} className="px-5 py-10 text-center text-sm text-brand-400">Aaj koi naya order nahi.</td>
               </tr>
             )}
           </tbody>

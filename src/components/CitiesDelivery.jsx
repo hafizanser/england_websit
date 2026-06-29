@@ -17,11 +17,11 @@ export const deliveryCities = [
 
 function CityChip({ name }) {
   return (
-    <div className="flex shrink-0 items-center gap-2.5 rounded-2xl border border-brand-100 bg-white px-5 py-3.5 shadow-soft">
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-700 text-saffron-300">
-        <MapPin size={16} weight="fill" />
+    <div className="group flex shrink-0 cursor-default items-center gap-3 rounded-[1.25rem] border border-brand-100 bg-white px-5 py-3.5 shadow-soft transition-all duration-300 ease-out will-change-transform hover:-translate-y-1.5 hover:scale-[1.05] hover:border-saffron-300 hover:bg-sand-50 hover:shadow-glow sm:gap-3.5 sm:px-7 sm:py-4">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-700 text-saffron-300 transition-colors duration-300 group-hover:bg-saffron-400 group-hover:text-brand-900 sm:h-10 sm:w-10">
+        <MapPin size={18} weight="fill" />
       </span>
-      <span className="whitespace-nowrap text-[15px] font-bold tracking-tight text-brand-900">{name}</span>
+      <span className="whitespace-nowrap text-[15px] font-bold tracking-tight text-brand-900 transition-colors duration-300 group-hover:text-brand-700 sm:text-base">{name}</span>
     </div>
   )
 }
@@ -60,7 +60,7 @@ export default function CitiesDelivery() {
       <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={viewportOnce} className="relative mt-10">
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-sand-100 to-transparent sm:w-28" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-sand-100 to-transparent sm:w-28" />
-        <div className="flex w-max animate-marquee gap-3 pl-3">
+        <div className="flex w-max animate-marquee gap-3.5 pl-3.5 hover:[animation-play-state:paused] sm:gap-4">
           {rowA.map((c, i) => (
             <CityChip key={`a-${c}-${i}`} name={c} />
           ))}
@@ -71,7 +71,7 @@ export default function CitiesDelivery() {
       <div className="relative mt-3">
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-sand-100 to-transparent sm:w-28" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-sand-100 to-transparent sm:w-28" />
-        <div className="flex w-max animate-marquee gap-3 pl-3" style={{ animationDirection: 'reverse', animationDuration: '34s' }}>
+        <div className="flex w-max animate-marquee gap-3.5 pl-3.5 hover:[animation-play-state:paused] sm:gap-4" style={{ animationDirection: 'reverse', animationDuration: '34s' }}>
           {rowB.map((c, i) => (
             <CityChip key={`b-${c}-${i}`} name={c} />
           ))}

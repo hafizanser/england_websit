@@ -1,22 +1,24 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router-dom'
 import {
   Eye,
   EyeSlash,
   TrendUp,
   Wallet,
   ChartBar,
+  ChartLineUp,
   Receipt,
   CalendarBlank,
   ArrowRight,
+  ArrowsClockwise,
+  Funnel,
+  Storefront,
   CircleNotch,
   Trophy,
   Coins,
 } from '@phosphor-icons/react'
-import { AdminTitle, Card } from '../../components/admin/ui'
-import ProfitPinGate from '../../components/admin/ProfitPinGate'
+import { Card, Loader } from '../../components/admin/ui'
 import { getProfitOrders } from '../../api/admin'
-import { getProfitPin, setProfitPin } from '../../lib/profitPin'
 import { money } from '../../lib/cartEngine'
 import { useNotify } from '../../context/NotifyContext'
 
@@ -46,10 +48,10 @@ function presetRange(key) {
 
 const PRESETS = [
   { key: 'today', label: 'Today' },
-  { key: '7d', label: 'Last 7 days' },
-  { key: '30d', label: 'Last 30 days' },
-  { key: 'month', label: 'This month' },
-  { key: 'all', label: 'All time' },
+  { key: '7d', label: 'Last 7 Days' },
+  { key: '30d', label: 'Last 30 Days' },
+  { key: 'month', label: 'This Month' },
+  { key: 'all', label: 'All Time' },
 ]
 
 const initials = (name = '') =>
@@ -90,13 +92,16 @@ const AVATARS = [
 ]
 const avatarCls = (id) => AVATARS[Math.abs(Number(id) || 0) % AVATARS.length]
 
+const SOURCE_META = {
+  website: { label: 'Website', cls: 'bg-blue-50 text-blue-700 ring-blue-200' },
+  admin: { label: 'Dashboard', cls: 'bg-sand-100 text-brand-600 ring-brand-200' },
+}
+
 export default function AdminProfitList() {
   const { error } = useNotify()
-
-  const [pin, setPin] = useState(getProfitPin())
-  const [unlocked, setUnlocked] = useState(false)
-  const [gateLoading, setGateLoading] = useState(false)
-  const [gateError, setGateError] = useState('')
+  // PIN verified by ProfitGuard (memory-only). The guard guarantees we only
+  // render once unlocked, so there is no local PIN screen here anymore.
+  const { profitPin, relock } = useOutletContext()
 
   const [preset, setPreset] = useState('all')
   const [from, setFrom] = useState('')
@@ -105,59 +110,18 @@ export default function AdminProfitList() {
   const [draftTo, setDraftTo] = useState('')
 
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [hideProfit, setHideProfit] = useState(true)
-
-  const fetchData = (p, f, t) => getProfitOrders({ pin: p, from: f, to: t })
-
-  // Try to auto-unlock with a PIN verified earlier this session.
-  useEffect(() => {
-    const stored = getProfitPin()
-    if (!stored) return
-    let alive = true
-    setGateLoading(true)
-    fetchData(stored, '', '')
-      .then((res) => {
-        if (!alive) return
-        setData(res)
-        setUnlocked(true)
-      })
-      .catch(() => alive && setProfitPin(''))
-      .finally(() => alive && setGateLoading(false))
-    return () => {
-      alive = false
-    }
-  }, [])
-
-  const unlock = async (e) => {
-    e?.preventDefault()
-    setGateError('')
-    setGateLoading(true)
-    try {
-      const res = await fetchData(pin, from, to)
-      setData(res)
-      setProfitPin(pin)
-      setUnlocked(true)
-    } catch (err) {
-      if (err.status === 401) setGateError('Ghalat PIN. Dobara koshish karein.')
-      else error(err.message || 'Load nahi hua')
-    } finally {
-      setGateLoading(false)
-    }
-  }
 
   const applyFilter = async (f, t) => {
     setLoading(true)
     try {
-      const res = await fetchData(pin, f, t)
+      const res = await getProfitOrders({ pin: profitPin, from: f, to: t })
       setData(res)
     } catch (err) {
-      if (err.status === 401) {
-        setUnlocked(false)
-        setProfitPin('')
-      } else {
-        error(err.message || 'Load nahi hua')
-      }
+      // A rejected PIN re-locks the whole section (handled by ProfitGuard).
+      if (err.status === 401) relock()
+      else error(err.message || 'Load nahi hua')
     } finally {
       setLoading(false)
     }
@@ -181,108 +145,115 @@ export default function AdminProfitList() {
     applyFilter(draftFrom, draftTo)
   }
 
-  if (!unlocked) {
-    return (
-      <ProfitPinGate
-        pin={pin}
-        setPin={setPin}
-        onSubmit={unlock}
-        error={gateError}
-        loading={gateLoading}
-        title="Profit Analytics"
-      />
-    )
-  }
+  // Initial all-time load once the PIN is verified.
+  useEffect(() => {
+    applyFilter('', '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  if (loading && !data) return <Loader label="Profit analytics load ho raha hai..." />
 
   const orders = data?.orders || []
   const s = data?.summary || {}
-  const rangeLabel = from && to ? `${from} → ${to}` : from ? `From ${from}` : to ? `Until ${to}` : 'All time'
+  const rangeLabel = from && to ? `${from} → ${to}` : from ? `From ${from}` : to ? `Until ${to}` : 'All Time'
 
   return (
     <>
-      <AdminTitle title="Profit Analytics" subtitle="Detailed breakdown of earnings and performance">
-        {loading && <CircleNotch size={18} className="animate-spin text-brand-400" />}
-      </AdminTitle>
+      {/* ============================== HEADER ============================== */}
+      <div className="mb-6 flex animate-fade-up flex-col gap-4 sm:mb-7 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex items-start gap-3.5">
+          <span className="relative mt-0.5 grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[1.1rem] bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 text-saffron-300 shadow-soft ring-1 ring-white/10">
+            <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_70%_at_30%_20%,rgba(199,160,91,0.4),transparent_70%)]" />
+            <ChartLineUp size={22} weight="fill" className="relative" />
+          </span>
+          <div>
+            <p className="mb-1.5 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-saffron-600">
+              <span className="h-1 w-1 rounded-full bg-saffron-500" /> Finance
+            </p>
+            <h1 className="font-display text-[1.75rem] font-extrabold leading-none tracking-tight text-brand-950 sm:text-[2.1rem]">
+              Profit Analytics
+            </h1>
+            <p className="mt-2 text-sm text-brand-500">Detailed breakdown of earnings and performance</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {loading && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-sand-100 px-3 py-1.5 text-xs font-semibold text-brand-500">
+              <CircleNotch size={14} className="animate-spin" /> Updating…
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setHideProfit((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white px-3.5 py-2 text-xs font-bold text-brand-600 transition-all hover:border-brand-300 hover:bg-sand-50 active:scale-95"
+          >
+            {hideProfit ? <Eye size={14} weight="bold" /> : <EyeSlash size={14} weight="bold" />}
+            {hideProfit ? 'Show profit' : 'Hide profit'}
+          </button>
+        </div>
+      </div>
 
-      {/* Summary cards */}
-      <div className="mb-5 grid gap-3 sm:gap-4 lg:grid-cols-3">
+      {/* ============================== KPI GRID ============================== */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Accumulated profit (hero, dark) */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-900 to-brand-800 p-6 text-white shadow-soft">
-          <div className="flex items-center justify-between">
+        <div
+          className="group relative animate-fade-up overflow-hidden rounded-3xl bg-gradient-to-br from-brand-900 via-brand-800 to-brand-900 p-6 text-white shadow-kpi ring-1 ring-white/10 transition-all duration-300 hover:-translate-y-1 hover:shadow-kpihover"
+          style={{ animationDelay: '0ms' }}
+        >
+          <span className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-saffron-400/20 blur-3xl transition-opacity duration-500 group-hover:opacity-150" />
+          <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-saffron-300/50 to-transparent" />
+          <div className="relative flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-white/55">Accumulated Profit</p>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/10 text-saffron-300">
-              <Coins size={18} weight="fill" />
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-saffron-300 ring-1 ring-white/10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+              <Coins size={19} weight="fill" />
             </span>
           </div>
-          <div className="mt-3 flex items-center gap-3">
-            <p className="font-display text-3xl font-extrabold tracking-tight">
-              {hideProfit ? <span className="tracking-[0.15em] text-saffron-300">Rs ••••••</span> : money(s.grand_profit || 0)}
+          <div className="relative mt-3 flex items-end gap-2.5">
+            <p className="font-display text-[2rem] font-extrabold leading-none tracking-tight tabular-nums">
+              {hideProfit ? <span className="tracking-[0.12em] text-saffron-300/90">Rs ••••••</span> : money(s.grand_profit || 0)}
             </p>
             <button
               type="button"
               onClick={() => setHideProfit((v) => !v)}
               aria-label={hideProfit ? 'Show profit' : 'Hide profit'}
-              className="grid h-7 w-7 place-items-center rounded-lg bg-white/10 text-white/70 transition-colors hover:bg-white/20 hover:text-white"
+              className="mb-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/10 text-white/70 transition-colors hover:bg-white/20 hover:text-white"
             >
               {hideProfit ? <EyeSlash size={15} weight="bold" /> : <Eye size={15} weight="bold" />}
             </button>
           </div>
-          <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold text-saffron-200">
-            <TrendUp size={13} weight="bold" /> {s.profit_margin ?? 0}% margin
-          </span>
-          <p className="mt-3 text-[11px] text-white/45">Net earnings · Retail − Production cost</p>
+          <div className="relative mt-3.5 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-saffron-400/15 px-2.5 py-1 text-xs font-bold text-saffron-200 ring-1 ring-saffron-300/20">
+              <TrendUp size={13} weight="bold" /> {s.profit_margin ?? 0}% margin
+            </span>
+            <span className="text-[11px] text-white/45">Retail − production cost</span>
+          </div>
         </div>
 
-        {/* Lifetime revenue */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand-400">Lifetime Revenue</p>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-700">
-              <Wallet size={18} weight="fill" />
-            </span>
-          </div>
-          <p className="mt-2 font-display text-4xl font-extrabold tracking-tight text-brand-900 sm:text-5xl">
-            {money(s.total_revenue || 0)}
-          </p>
-          <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-sand-100 px-2.5 py-1 text-xs font-bold text-brand-600">
-            <Receipt size={13} weight="fill" /> {s.orders_count ?? 0} orders
-          </span>
-          <p className="mt-3 text-[11px] text-brand-400">Gross sales for current selection</p>
-        </Card>
-
-        {/* Performance snapshot */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand-400">Performance Snapshot</p>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-saffron-100 text-saffron-700">
-              <ChartBar size={18} weight="fill" />
-            </span>
-          </div>
-          <div className="mt-3 space-y-2.5">
-            <SnapRow icon={Coins} label="Avg. Order Value" value={money(s.avg_order_value || 0)} />
-            <SnapRow icon={Trophy} label="Highest Order" value={money(s.highest_order || 0)} />
-            <SnapRow icon={CalendarBlank} label="Date Range" value={rangeLabel} />
-          </div>
-        </Card>
+        <StatTile index={1} icon={Wallet} tint="bg-brand-50 text-brand-700" label="Lifetime Revenue" value={money(s.total_revenue || 0)} hint={`${s.orders_count ?? 0} orders in selection`} />
+        <StatTile index={2} icon={ChartBar} tint="bg-saffron-100 text-saffron-700" label="Avg. Order Value" value={money(s.avg_order_value || 0)} hint="Mean revenue per order" />
+        <StatTile index={3} icon={Trophy} tint="bg-wa-50 text-wa-600" label="Highest Order" value={money(s.highest_order || 0)} hint="Largest single order" />
       </div>
 
-      {/* Date range filter */}
-      <Card className="mb-5 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
-              <CalendarBlank size={18} weight="fill" />
+      {/* ============================ FILTER TOOLBAR ============================ */}
+      {/* One aligned row on desktop (xl); cleanly stacked on tablet/mobile. The
+          actions group is nowrap on desktop so Reset never drops to its own line. */}
+      <Card className="mb-6">
+        <div className="flex flex-col gap-3 p-3 sm:p-4 xl:flex-row xl:items-center xl:justify-between xl:gap-4">
+          {/* presets — segmented control */}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="hidden h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 sm:grid">
+              <Funnel size={17} weight="fill" />
             </span>
-            <div className="no-scrollbar flex gap-2 overflow-x-auto">
+            <div className="no-scrollbar flex items-center gap-1 overflow-x-auto rounded-2xl bg-sand-100 p-1 ring-1 ring-brand-100/70">
               {PRESETS.map((p) => (
                 <button
                   key={p.key}
                   type="button"
                   onClick={() => selectPreset(p.key)}
-                  className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-bold transition-all ${
+                  className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition-all duration-200 active:scale-95 ${
                     preset === p.key
-                      ? 'bg-brand-700 text-white shadow-soft'
-                      : 'border border-brand-200 bg-white text-brand-600 hover:border-brand-300'
+                      ? 'bg-white text-brand-900 shadow-soft ring-1 ring-brand-100'
+                      : 'text-brand-500 hover:text-brand-800'
                   }`}
                 >
                   {p.label}
@@ -291,38 +262,52 @@ export default function AdminProfitList() {
             </div>
           </div>
 
-          <form onSubmit={applyCustom} className="flex flex-wrap items-center gap-2">
-            <input
-              type="date"
-              value={draftFrom}
-              onChange={(e) => setDraftFrom(e.target.value)}
-              className="rounded-xl border border-brand-200 bg-sand-50 px-3 py-2 text-sm text-brand-800 outline-none focus:border-brand-500 focus:bg-white"
-            />
-            <input
-              type="date"
-              value={draftTo}
-              onChange={(e) => setDraftTo(e.target.value)}
-              className="rounded-xl border border-brand-200 bg-sand-50 px-3 py-2 text-sm text-brand-800 outline-none focus:border-brand-500 focus:bg-white"
-            />
-            <button
-              type="submit"
-              className="inline-flex items-center gap-1.5 rounded-full bg-saffron-400 px-4 py-2 text-sm font-bold text-brand-950 shadow-soft transition-colors hover:bg-saffron-500"
-            >
-              Apply <ArrowRight size={15} weight="bold" />
-            </button>
+          {/* date range picker + actions */}
+          <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:shrink-0">
+            <form onSubmit={applyCustom} className="flex flex-wrap items-center gap-2 xl:flex-nowrap">
+              <div className="flex items-center gap-1.5 rounded-2xl border border-brand-200 bg-sand-50 px-3 py-1.5 transition-colors focus-within:border-saffron-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-saffron-100/60">
+                <CalendarBlank size={15} weight="fill" className="shrink-0 text-brand-400" />
+                <input
+                  type="date"
+                  value={draftFrom}
+                  onChange={(e) => setDraftFrom(e.target.value)}
+                  aria-label="From date"
+                  className="w-[7.25rem] bg-transparent text-sm text-brand-800 outline-none [color-scheme:light]"
+                />
+                <span className="text-brand-300">–</span>
+                <input
+                  type="date"
+                  value={draftTo}
+                  min={draftFrom || undefined}
+                  onChange={(e) => setDraftTo(e.target.value)}
+                  aria-label="To date"
+                  className="w-[7.25rem] bg-transparent text-sm text-brand-800 outline-none [color-scheme:light]"
+                />
+              </div>
+              <button
+                type="submit"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl bg-gradient-to-br from-saffron-400 to-saffron-500 px-4 py-2.5 text-sm font-bold text-brand-950 shadow-soft ring-1 ring-saffron-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-glow active:translate-y-0"
+              >
+                Apply <ArrowRight size={15} weight="bold" />
+              </button>
+            </form>
             <button
               type="button"
               onClick={() => selectPreset('all')}
-              className="rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-bold text-brand-600 hover:bg-sand-50"
+              title="Reset to All Time"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-brand-200 bg-white px-4 py-2.5 text-sm font-bold text-brand-600 transition-all duration-200 hover:border-saffron-300 hover:text-saffron-700 active:scale-95"
             >
-              Reset
+              <ArrowsClockwise size={15} weight="bold" /> Reset
             </button>
-          </form>
+          </div>
         </div>
       </Card>
 
-      {/* Order breakdown */}
-      <Card className="overflow-hidden">
+      {/* ============================ REVENUE CHART ============================ */}
+      <RevenueChart orders={orders} rangeLabel={rangeLabel} highest={s.highest_order || 0} />
+
+      {/* ============================ ORDER BREAKDOWN ============================ */}
+      <Card className="mt-6 overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-brand-100 px-5 py-4">
           <div className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-700">
@@ -333,29 +318,34 @@ export default function AdminProfitList() {
               <p className="text-xs text-brand-400">Per-order earnings, ranked by most recent</p>
             </div>
           </div>
-          <span className="shrink-0 rounded-full bg-sand-100 px-3 py-1 text-xs font-bold text-brand-600">
-            {orders.length} records
+          <span className="shrink-0 rounded-full bg-sand-100 px-3 py-1 text-xs font-bold text-brand-600 ring-1 ring-brand-100">
+            {orders.length} record{orders.length === 1 ? '' : 's'}
           </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-brand-100 text-left text-xs uppercase tracking-wider text-brand-400">
-                <th className="px-5 py-3">Order</th>
-                <th className="px-5 py-3">Customer</th>
-                <th className="px-5 py-3">Shop / Branch</th>
-                <th className="px-5 py-3 text-right">Total Amount</th>
-                <th className="px-5 py-3">Order Date</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+              <tr className="border-b border-brand-100 bg-sand-50/40 text-left text-xs font-semibold uppercase tracking-wider text-brand-400">
+                <th className="px-5 py-3.5">Order</th>
+                <th className="px-5 py-3.5">Customer</th>
+                <th className="px-5 py-3.5">Shop / Branch</th>
+                <th className="px-5 py-3.5 text-right">Total Amount</th>
+                <th className="px-5 py-3.5">Order Date</th>
+                <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => {
+              {orders.map((o, i) => {
                 const dt = fmtDate(o.order_date)
+                const src = SOURCE_META[String(o.order_source || '').toLowerCase()]
                 return (
-                  <tr key={o.order_id} className="border-b border-brand-50 hover:bg-sand-50">
-                    <td className="px-5 py-3.5 font-bold text-brand-900">ENG-{1000 + Number(o.order_id)}</td>
+                  <tr
+                    key={o.order_id}
+                    className="animate-fade-up border-b border-brand-50 transition-colors hover:bg-sand-50/70"
+                    style={{ animationDelay: `${Math.min(i, 12) * 35}ms` }}
+                  >
+                    <td className="px-5 py-3.5 font-bold tabular-nums text-brand-900">ENG-{1000 + Number(o.order_id)}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <span
@@ -367,11 +357,19 @@ export default function AdminProfitList() {
                         </span>
                         <div className="min-w-0">
                           <p className="truncate font-bold text-brand-900">{o.customer_name || '—'}</p>
-                          <p className="text-xs text-brand-400">ENG-{1000 + Number(o.order_id)}</p>
+                          {src && (
+                            <span className={`mt-0.5 inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[10px] font-bold ring-1 ${src.cls}`}>
+                              {src.label}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-brand-600">{o.shop_name || '—'}</td>
+                    <td className="px-5 py-3.5 text-brand-600">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Storefront size={14} weight="fill" className="text-brand-300" /> {o.shop_name || '—'}
+                      </span>
+                    </td>
                     <td className="px-5 py-3.5 text-right font-bold tabular-nums text-brand-800">
                       {money(o.total_amount)}
                     </td>
@@ -382,9 +380,9 @@ export default function AdminProfitList() {
                     <td className="px-5 py-3.5 text-right">
                       <Link
                         to={`/admin/profits/${o.order_id}`}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-saffron-400 px-3.5 py-1.5 text-xs font-bold text-brand-950 shadow-soft transition-colors hover:bg-saffron-500"
+                        className="group/btn inline-flex items-center gap-1.5 rounded-full bg-saffron-400 px-3.5 py-1.5 text-xs font-bold text-brand-950 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:bg-saffron-500 active:translate-y-0"
                       >
-                        Breakdown <ArrowRight size={13} weight="bold" />
+                        Breakdown <ArrowRight size={13} weight="bold" className="transition-transform duration-200 group-hover/btn:translate-x-0.5" />
                       </Link>
                     </td>
                   </tr>
@@ -393,8 +391,11 @@ export default function AdminProfitList() {
               {orders.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-5 py-16 text-center text-brand-400">
-                    <Receipt size={30} className="mx-auto" />
-                    <p className="mt-2">Is range mein koi order nahi.</p>
+                    <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-sand-50 text-brand-300 ring-1 ring-brand-100">
+                      <Receipt size={26} weight="duotone" />
+                    </span>
+                    <p className="mt-3 font-semibold text-brand-600">Is range mein koi order nahi.</p>
+                    <p className="mt-1 text-xs text-brand-400">Dusra date range chunein ya filter reset karein.</p>
                   </td>
                 </tr>
               )}
@@ -406,13 +407,99 @@ export default function AdminProfitList() {
   )
 }
 
-function SnapRow({ icon: Icon, label, value }) {
+// ---------------------------------------------------------------------------
+// KPI tile — light surface, gradient icon, big display number, hover lift.
+// ---------------------------------------------------------------------------
+function StatTile({ icon: Icon, label, value, tint, hint, index = 0 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-brand-500">
-        <Icon size={15} weight="fill" className="text-brand-400" /> {label}
-      </span>
-      <span className="text-sm font-extrabold tabular-nums text-brand-900">{value}</span>
+    <div
+      style={{ animationDelay: `${index * 70}ms` }}
+      className="group relative animate-fade-up overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-b from-white via-white to-sand-50/70 p-6 shadow-kpi ring-1 ring-brand-100/40 transition-all duration-300 hover:-translate-y-1 hover:border-saffron-200 hover:shadow-kpihover"
+    >
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+      <span className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(199,160,91,0.14),transparent_70%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+      <div className="relative flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand-400">{label}</p>
+        <span className={`grid h-10 w-10 place-items-center rounded-xl ${tint} shadow-ring ring-1 ring-white/40 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`}>
+          <Icon size={19} weight="fill" />
+        </span>
+      </div>
+      <p className="relative mt-3 font-display text-[1.7rem] font-extrabold leading-none tracking-tight text-brand-950 tabular-nums">{value}</p>
+      {hint && <p className="relative mt-2 text-[11px] text-brand-400">{hint}</p>}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Revenue chart — animated bars of revenue across the most recent orders in the
+// current selection. Pure presentation over existing data (no profit exposed,
+// so it stays visible regardless of the hide-profit toggle).
+// ---------------------------------------------------------------------------
+function RevenueChart({ orders, rangeLabel, highest }) {
+  const pts = [...orders].slice(0, 16).reverse() // oldest → newest of the most recent 16
+  const max = Math.max(1, ...pts.map((o) => Number(o.total_amount) || 0))
+  return (
+    <Card className="p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600">
+            <ChartLineUp size={18} weight="fill" />
+          </span>
+          <div>
+            <h2 className="text-base font-extrabold tracking-tight text-brand-900">Revenue Overview</h2>
+            <p className="text-xs text-brand-400">Revenue across recent orders</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-sand-100 px-3 py-1 text-[11px] font-bold text-brand-600 ring-1 ring-brand-100">
+            <CalendarBlank size={12} weight="fill" /> {rangeLabel}
+          </span>
+          <span className="hidden items-center gap-1.5 rounded-full bg-wa-50 px-3 py-1 text-[11px] font-bold text-wa-700 ring-1 ring-wa-500/20 sm:inline-flex">
+            <Trophy size={12} weight="fill" /> Peak {money(highest)}
+          </span>
+        </div>
+      </div>
+
+      {pts.length === 0 ? (
+        <div className="mt-6 grid place-items-center rounded-2xl border border-dashed border-brand-200 bg-sand-50/60 py-12 text-center">
+          <ChartBar size={26} weight="duotone" className="text-brand-300" />
+          <p className="mt-2 text-sm text-brand-400">Is range mein dikhane ke liye data nahi.</p>
+        </div>
+      ) : (
+        <div className="relative mt-7">
+          {/* baseline gridlines */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex h-40 flex-col justify-between">
+            {[0, 1, 2, 3].map((g) => (
+              <div key={g} className="border-t border-dashed border-brand-100" />
+            ))}
+          </div>
+          <div className="relative flex h-40 items-end gap-1.5 sm:gap-2">
+            {pts.map((o, i) => {
+              const v = Number(o.total_amount) || 0
+              const h = Math.max(3, (v / max) * 100)
+              const isPeak = v === max
+              return (
+                <div key={o.order_id} className="group/bar flex flex-1 flex-col items-center">
+                  <div className="relative flex w-full flex-1 items-end">
+                    <div
+                      className={`w-full origin-bottom rounded-t-md shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-all duration-300 ${
+                        isPeak
+                          ? 'bg-gradient-to-t from-saffron-600 to-saffron-300'
+                          : 'bg-gradient-to-t from-brand-700 to-brand-400 group-hover/bar:from-saffron-500 group-hover/bar:to-saffron-300'
+                      }`}
+                      style={{ height: `${h}%`, animation: `grow-y 0.7s cubic-bezier(0.16,1,0.3,1) ${i * 45}ms both` }}
+                    />
+                    <span className="pointer-events-none absolute -top-10 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-lg bg-brand-950 px-2.5 py-1.5 text-[10px] font-bold text-white opacity-0 shadow-lift ring-1 ring-white/10 transition-opacity duration-200 group-hover/bar:opacity-100">
+                      ENG-{1000 + Number(o.order_id)} · {money(v)}
+                      <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-brand-950" />
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </Card>
   )
 }

@@ -1,16 +1,28 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { WarningCircle, SignIn, CircleNotch, ShieldCheck } from '@phosphor-icons/react'
+import { useEffect, useState } from 'react'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { WarningCircle, SignIn, CircleNotch } from '@phosphor-icons/react'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import BrandLogo from '../../components/BrandLogo'
 import { inputCls } from '../../components/admin/ui'
 
 export default function AdminLogin() {
-  const { login } = useAdminAuth()
+  const { user, loading: authLoading, login } = useAdminAuth()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ username: 'admin', password: '' })
+  const location = useLocation()
+  const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // After login, return to the page the user originally tried to open (preserved
+  // by RequireAdmin), else the dashboard.
+  const from = location.state?.from?.pathname
+    ? `${location.state.from.pathname}${location.state.from.search || ''}`
+    : '/admin'
+
+  // Already signed in (valid session restored on refresh) → skip the form.
+  useEffect(() => {
+    if (!authLoading && user) navigate(from, { replace: true })
+  }, [authLoading, user, from, navigate])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -18,7 +30,7 @@ export default function AdminLogin() {
     setLoading(true)
     try {
       await login(form.username.trim(), form.password)
-      navigate('/admin', { replace: true })
+      navigate(from, { replace: true })
     } catch (err) {
       setError(
         err.code === 'NETWORK'
@@ -86,11 +98,6 @@ export default function AdminLogin() {
             {loading ? <CircleNotch size={18} className="animate-spin" /> : <SignIn size={18} weight="bold" />}
             Login
           </button>
-
-          <p className="flex items-center justify-center gap-2 rounded-2xl bg-brand-50 px-3 py-2.5 text-center text-xs text-brand-500">
-            <ShieldCheck size={14} weight="fill" className="text-brand-400" />
-            Default: <span className="font-bold text-brand-700">admin</span> / <span className="font-bold text-brand-700">admin123</span>
-          </p>
         </form>
 
         <div className="mt-5 text-center">

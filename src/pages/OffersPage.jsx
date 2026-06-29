@@ -473,15 +473,15 @@ const steps = [
 
 export default function OffersPage() {
   const reduce = useReducedMotion()
-  // SINGLE data source (Fix D). Featured = highlighted subset; Active = the rest —
-  // never the same deal twice.
+  // Single data source, single main section (no featured/active split). Every offer
+  // is shown once; featured deals are floated to the front and keep their original
+  // gold-accented card styling via the `featured` prop.
   const { data, loading, error, reload } = useAsync(() => getOffers(), [])
 
-  const { featured, active } = useMemo(() => {
+  const offersList = useMemo(() => {
     const list = Array.isArray(data) ? data : []
-    const feat = list.filter((o) => o.featured).slice(0, 2)
-    const ids = new Set(feat.map((o) => o.id))
-    return { featured: feat, active: list.filter((o) => !ids.has(o.id)) }
+    const rank = (o) => (o.featured === 'lg' ? 0 : o.featured ? 1 : 2)
+    return [...list].sort((a, b) => rank(a) - rank(b))
   }, [data])
 
   const containerMotion = reduce
@@ -508,57 +508,8 @@ export default function OffersPage() {
         <HeroActions reduce={reduce} />
       </PageBanner>
 
-      {/* Featured deals */}
-      <section id="deals" className="container-page scroll-mt-24 py-12 sm:py-16">
-        <SectionHeading
-          eyebrow="Featured Deals"
-          tone="saffron"
-          title="Is hafte ki"
-          accent="behtareen deals"
-          urdu="اس ہفتے کی نمایاں آفرز"
-        />
-
-        {loading && (
-          <div className="mt-8 grid gap-5 sm:grid-cols-2">
-            <DealCardSkeleton />
-            <DealCardSkeleton />
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="mt-8">
-            <ErrorState message="Offers load nahi huye — dobara try karein." onRetry={reload} />
-          </div>
-        )}
-
-        {!loading && !error && featured.length > 0 && (
-          <motion.div {...containerMotion} className="mt-8 grid gap-5 sm:grid-cols-2">
-            {featured.map((offer) => (
-              <DealCard key={offer.id} offer={offer} featured motionSafe={!reduce} />
-            ))}
-          </motion.div>
-        )}
-
-        {/* how it works */}
-        <div className="mt-10 grid gap-3 rounded-4xl border border-brand-100 bg-white p-5 shadow-soft sm:grid-cols-3 sm:gap-6 sm:p-7">
-          {steps.map((s, i) => (
-            <div key={s.title} className="flex items-start gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-700">
-                <s.icon size={22} weight="fill" />
-              </span>
-              <div>
-                <p className="flex items-center gap-2 text-sm font-bold text-brand-900">
-                  <span className="text-saffron-500">0{i + 1}</span> {s.title}
-                </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-brand-500">{s.text}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* All active offers */}
-      <section className="bg-white py-12 sm:py-16">
+      {/* All offers — one main section, exactly 2 cards per row on desktop */}
+      <section id="deals" className="scroll-mt-24 bg-white py-12 sm:py-16">
         <div className="container-page">
           <SectionHeading
             eyebrow="Saari Offers"
@@ -568,14 +519,32 @@ export default function OffersPage() {
             desc="Har deal ke sath uski shartein aur code — seedha cart mein lagayein."
           />
 
-          <motion.div {...containerMotion} className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {/* how it works */}
+          <div className="mt-8 grid gap-3 rounded-4xl border border-brand-100 bg-white p-5 shadow-soft sm:grid-cols-3 sm:gap-6 sm:p-7">
+            {steps.map((s, i) => (
+              <div key={s.title} className="flex items-start gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-700">
+                  <s.icon size={22} weight="fill" />
+                </span>
+                <div>
+                  <p className="flex items-center gap-2 text-sm font-bold text-brand-900">
+                    <span className="text-saffron-500">0{i + 1}</span> {s.title}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-brand-500">{s.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* single offers grid — exactly 2 per row on desktop & tablet, 1 on mobile */}
+          <motion.div {...containerMotion} className="mt-8 grid gap-5 sm:grid-cols-2">
             {loading && Array.from({ length: 6 }).map((_, i) => <DealCardSkeleton key={i} />)}
 
             {!loading && error && (
               <ErrorState message="Offers load nahi huye — dobara try karein." onRetry={reload} />
             )}
 
-            {!loading && !error && active.length === 0 && (
+            {!loading && !error && offersList.length === 0 && (
               <EmptyState
                 icon={Tag}
                 title="Abhi koi active offer nahi"
@@ -603,7 +572,9 @@ export default function OffersPage() {
 
             {!loading &&
               !error &&
-              active.map((offer) => <DealCard key={offer.id} offer={offer} motionSafe={!reduce} />)}
+              offersList.map((offer) => (
+                <DealCard key={offer.id} offer={offer} featured={Boolean(offer.featured)} motionSafe={!reduce} />
+              ))}
           </motion.div>
 
           {/* Cart ready band (kept) */}

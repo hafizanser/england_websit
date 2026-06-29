@@ -35,6 +35,47 @@ class RefCustomer extends MysqlModel
         return $row ? $this->shape($row) : null;
     }
 
+    /**
+     * Find a customer by phone (matched on the last 10 significant digits so
+     * 11-digit 03xxxxxxxxx and 10-digit 3xxxxxxxxx both resolve), or null.
+     */
+    public function findByPhone(string $phone): ?array
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+        $tail = strlen($digits) > 10 ? substr($digits, -10) : $digits;
+        if ($tail === '') {
+            return null;
+        }
+        $row = $this->run(
+            "SELECT * FROM {$this->table}
+             WHERE REPLACE(REPLACE(REPLACE(customer_phone_number, ' ', ''), '+', ''), '-', '') LIKE ?
+             ORDER BY id ASC LIMIT 1",
+            ['%' . $tail]
+        )->fetch();
+        return $row ? $this->shape($row) : null;
+    }
+
+    /**
+     * Find an order_system customer by phone or create one from checkout data,
+     * backfilling only blank fields on an existing record (never overwriting).
+     * Used by checkout so every order can FK to a real tbl_customer row.
+     */
+    public function findOrCreateByCheckout(array $data): array
+    {
+        $existing = $this->findByPhone((string)($data['customer_phone_number'] ?? ''));
+        if ($existing) {
+            $patch = [];
+            foreach (['customer_name', 'customer_address', 'email', 'shop_name'] as $col) {
+                $val = trim((string)($data[$col] ?? ''));
+                if ($val !== '' && empty($existing[$col])) {
+                    $patch[$col] = $val;
+                }
+            }
+            return $patch ? $this->update((int)$existing['id'], $patch) : $existing;
+        }
+        return $this->insert($data);
+    }
+
     public function insert(array $data): array
     {
         $row = $this->prepareRow($data);

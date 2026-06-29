@@ -20,6 +20,7 @@ const waHref = (t) =>
 const Wa = (p) => (<svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.59 5.391l-.999 3.648 3.909-1.026z" /></svg>)
 const Pin = (p) => (<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z" /><circle cx="12" cy="10" r="2.4" /></svg>)
 const Arrow = (p) => (<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="m9 18 6-6-6-6" /></svg>)
+const Chat = (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>)
 
 const heroStats = [
   { n: '12,400', s: '+', l: 'Active dukaandaar', ur: 'دکاندار' },
@@ -180,32 +181,22 @@ export default function Home() {
       {/* ===== HERO ===== */}
       <section className="hero">
         <div className="wrap hero-grid">
-          <Reveal>
+          <Reveal className="hero-copy">
             <span className="eyebrow">Pakistan ka apna FMCG partner</span>
-            <h1>Aaj order, <span className="g">kal subah maal</span> — dukaan band kiye baghair.</h1>
-            <div className="h1-ur ur">آج آرڈر، کل صبح مال</div>
+            <h1>Aaj order, kal subah maal dukaan band kiye baghair.</h1>
             <p className="sub">Asli England maal, fixed wholesale rate. Ek WhatsApp message pe <b>50+ cities mein agle din delivery</b> — 30+ products ek hi jagah.</p>
 
             <div className="proof-strip">
               <span className="proof-item"><span className="stars">★★★★★</span><b>4.9</b></span>
               <span className="dot" />
-              <span className="proof-pm">
-                <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m3 17 6-6 4 4 8-8" /><path d="M17 7h4v4" /></svg>
-                <b>70%</b><span className="sm">Profit Margin</span>
-              </span>
-              <span className="dot" />
               <span className="proof-item">12,400+ <span className="pm">dukaandaar</span></span>
-              <span className="proof-hero">
-                <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /><path d="M3 21v-5h5" /></svg>
-                <b>96.7%</b><span className="sm">dobara order</span>
-              </span>
               <span className="dot" />
               <span className="proof-item">98.4% <span className="pm">on-time</span></span>
             </div>
 
             <div className="hero-cta">
-              <a className="btn btn-wa" href={waHref('Assalam-o-alaikum, mujhe order karna hai')} target="_blank" rel="noopener noreferrer"><Wa className="ico" /> WhatsApp pe order — 30 sec</a>
-              <Link className="btn btn-outline" to="/products"><svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h12" /></svg> Catalog kholo &amp; order</Link>
+              <a className="btn btn-primary-dark" href={waHref('Assalam-o-alaikum, mujhe order karna hai')} target="_blank" rel="noopener noreferrer"><Chat className="ico" /> Order on WhatsApp</a>
+              <Link className="btn btn-light" to="/products">Products Dekhein</Link>
             </div>
 
             <div className="trust-row">
@@ -216,11 +207,7 @@ export default function Home() {
           </Reveal>
 
           <Reveal className="hero-visual">
-            <img src="/banner.jpg" alt="England product range" loading="eager" />
-            <div className="hero-badge">
-              <span className="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h16" /></svg></span>
-              <span><span className="mini">Ek hi jagah</span>30+ Products</span>
-            </div>
+            <img src="/hero-products.jpg" alt="England product range" loading="eager" width="1040" height="707" />
           </Reveal>
         </div>
       </section>

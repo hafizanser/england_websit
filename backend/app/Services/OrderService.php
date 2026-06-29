@@ -4,23 +4,23 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Customer;
-use App\Models\Order;
-use App\Models\OrderItem;
+use App\Models\RefCustomer;
+use App\Models\RefOrder;
 
 /** Orchestrates checkout: customer account + authoritative pricing + persistence. */
 class OrderService
 {
     private PricingService $pricing;
-    private Order $orders;
-    private OrderItem $items;
-    private Customer $customers;
+    private Customer $customers;       // SQLite storefront account (auth / session / saved cart)
+    private RefCustomer $refCustomers; // order_system customer the order FKs to (MySQL)
+    private RefOrder $refOrders;       // shared order_system orders the admin reads (MySQL)
 
     public function __construct()
     {
         $this->pricing = new PricingService();
-        $this->orders = new Order();
-        $this->items = new OrderItem();
         $this->customers = new Customer();
+        $this->refCustomers = new RefCustomer();
+        $this->refOrders = new RefOrder();
     }
 
     /**
@@ -38,39 +38,49 @@ class OrderService
         $code = $payload['code'] ?? null;
         $totals = $this->pricing->totals($items, $code);
 
-        // auto-create / link the customer account
-        $customer = $this->customers->findOrCreate([
-            'name'    => trim((string)($payload['name'] ?? '')),
-            'phone'   => trim((string)($payload['phone'] ?? '')),
-            'email'   => trim((string)($payload['email'] ?? '')),
-            'address' => trim((string)($payload['address'] ?? '')),
-            'city'    => trim((string)($payload['city'] ?? '')),
+        $name    = trim((string)($payload['name'] ?? ''));
+        $phone   = trim((string)($payload['phone'] ?? ''));
+        $email   = trim((string)($payload['email'] ?? ''));
+        $address = trim((string)($payload['address'] ?? ''));
+        $city    = trim((string)($payload['city'] ?? ''));
+
+        // 1) Storefront account (SQLite) — powers customer auth / session / saved
+        //    cart, so guest checkout still auto-logs the shopper in afterwards.
+        $this->customers->findOrCreate([
+            'name'    => $name,
+            'phone'   => $phone,
+            'email'   => $email,
+            'address' => $address,
+            'city'    => $city,
         ]);
 
-        $orderId = $this->orders->create([
-            'customer_id'    => (int)$customer['id'],
-            'status'         => 'pending',
-            'subtotal'       => $totals['subtotal'],
-            'promo_discount' => $totals['discount'],
-            'item_discount'  => 0,
-            'total'          => $totals['total'],
-            'promo_code'     => $totals['codeStatus']['ok'] ?? false ? $code : null,
-            'discount_lines' => $totals['lines'],
-            'source'         => $source,
-            'note'           => trim((string)($payload['note'] ?? '')),
+        // 2) order_system customer (MySQL tbl_customer) — the order FKs to this.
+        $refCustomer = $this->refCustomers->findOrCreateByCheckout([
+            'customer_name'         => $name,
+            'customer_phone_number' => $phone,
+            'customer_address'      => $address,
+            'email'                 => $email,
+            'shop_name'             => trim((string)($payload['shop_name'] ?? '')),
+        ]);
+
+        // 3) Persist the order into the shared order_system DB — the SAME store the
+        //    admin orders list / detail / profit / customers / notifications read.
+        //    Website => 'website', admin dashboard => 'dashboard' (RefOrder maps
+        //    these back to the website/admin buckets the admin source filter uses).
+        $orderId = $this->refOrders->create([
+            'order_source' => $source === 'admin' ? 'dashboard' : 'website',
+            'customer_id'  => (int)$refCustomer['id'],
+            'city'         => $city,
+            'status'       => 'In Progress',
+            'total_amount' => $totals['total'],
+            'order_notes'  => trim((string)($payload['note'] ?? '')),
         ]);
 
         foreach ($items as $it) {
-            $this->items->add($orderId, $it);
+            $this->refOrders->addItem($orderId, $it);
         }
 
-        $this->orders->addHistory(
-            $orderId,
-            'pending',
-            $source === 'admin' ? 'Order admin dashboard se banaya gaya' : 'Order place hua website se',
-        );
-
-        return $this->orders->detail($orderId);
+        return $this->refOrders->detail($orderId);
     }
 
     /** Quote totals without persisting (used by the cart/checkout preview). */

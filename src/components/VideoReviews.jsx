@@ -14,8 +14,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * reel pinned by the brief, then 2 from Folder A, 2 from Folder B, repeating.
  *
  * Behaviour:
- *   - the row auto-scrolls smoothly right→left in a slow, seamless premium loop
- *     (JS scroll on a doubled list, so it wraps with no visible seam)
+ *   - the row auto-scrolls smoothly right→left in a slow premium loop (JS scroll
+ *     on a single de-duplicated list, wrapping back to the start at the end)
  *   - working  <  /  >  buttons nudge the carousel (auto-scroll pauses briefly)
  *   - reels autoplay MUTED; only ONE reel plays at a time (desktop AND mobile)
  *   - idle: the first visible (left-most) reel autoplays; desktop hover plays the
@@ -31,16 +31,30 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * muted autoplay is allowed.
  */
 
-// 16 curated reels, already ordered (pinned first, then 2×A / 2×B repeating) and
+// Curated reels, already ordered (pinned first, then 2×A / 2×B repeating) and
 // transcoded to /public/videos/dvreel-NN.mp4 (+ .jpg poster). See transcode notes
 // above — the Drive→H.264 conversion is a one-off; this list is just the result.
-const REEL_NUMS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-const REELS = REEL_NUMS.map((i) => {
+// dvreel-04 is omitted: it's the same footage as dvreel-03 (the Drive clip),
+// so the 4th card now shows the next unique reel (dvreel-05).
+const REEL_NUMS = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+const RAW_REELS = REEL_NUMS.map((i) => {
   const n = String(i).padStart(2, '0')
   return { id: `dvreel-${n}`, src: `/videos/dvreel-${n}.mp4`, poster: `/videos/dvreel-${n}.jpg` }
 })
-// Doubled list: [...A, ...A] so the scroll loop wraps with no visible seam.
-const CARDS = [...REELS, ...REELS]
+// De-duplicate by unique video URL (falling back to id) so the same clip can
+// never appear twice. Keeps the FIRST occurrence, leaving the order untouched.
+const REELS = (() => {
+  const seenKeys = new Set()
+  return RAW_REELS.filter((r) => {
+    const key = r.src || r.id
+    if (seenKeys.has(key)) return false
+    seenKeys.add(key)
+    return true
+  })
+})()
+// Render each unique reel exactly ONCE (no doubling) — a video never repeats in
+// the carousel. The auto-scroll loops by wrapping back to the start at the end.
+const CARDS = REELS
 const SPEED = 26 // px / second — slow, premium glide (lower = slower)
 
 export default function VideoReviews() {
@@ -69,10 +83,41 @@ export default function VideoReviews() {
       return next
     })
   }, [])
+
+  // Reel started rendering frames → hide its poster cover (no more black flash).
+  const markReady = useCallback((i) => {
+    setReady((prev) => {
+      if (prev.has(i)) return prev
+      const next = new Set(prev)
+      next.add(i)
+      return next
+    })
+  }, [])
+
+  // Reveal the focus-view controls and arm the ~1.5s auto-hide. Re-armed on every
+  // interaction so the overlay never vanishes mid-tap.
+  const revealControls = useCallback(() => {
+    clearTimeout(ctrlTimerRef.current)
+    setControlsOn(true)
+    ctrlTimerRef.current = window.setTimeout(() => setControlsOn(false), 1500)
+  }, [])
   const [hover, setHover] = useState(null) // hovered card index (desktop), or null
   const [activeIndex, setActiveIndex] = useState(0) // for the gold "is-active" ring
   const [unmuted, setUnmuted] = useState(-1) // mirror of unmutedRef for the sound icon
   const [paused, setPaused] = useState(false) // mirror of userPausedRef for the play icon
+  const [canHover, setCanHover] = useState(false) // mirror of canHoverRef for render-time icon logic
+  // Mobile focus / expand view: the index of the reel lifted into the larger
+  // centered view (-1 = none). Only ONE reel can be expanded at a time.
+  const [expanded, setExpanded] = useState(-1)
+  const [closing, setClosing] = useState(false) // focus view is playing its close animation
+  const expandedRef = useRef(-1) // mirror of `expanded` for rAF loops / imperative handlers
+  const closeTimerRef = useRef(0) // pending close-animation finaliser
+  // Poster cover stays until a reel's <video> actually starts rendering frames,
+  // so a card never flashes black/empty while the clip buffers.
+  const [ready, setReady] = useState(() => new Set()) // card indices whose video has begun playing
+  // Focus-view controls auto-hide ~1.5s after they're revealed (mobile reels feel).
+  const [controlsOn, setControlsOn] = useState(false)
+  const ctrlTimerRef = useRef(0)
 
   // Is card i currently within the visible strip viewport?
   const isVisible = useCallback((i) => {
@@ -116,10 +161,48 @@ export default function VideoReviews() {
     setActiveIndex(target)
   }, [])
 
+  // ---- Mobile focus / expand view -----------------------------------------
+  // Lift a reel into the larger centered view and keep it playing. The <video>
+  // node stays mounted exactly where it is (only CSS changes), so playback never
+  // resets. Auto-scroll + the idle loop stand down while a reel is focused.
+  const openExpand = useCallback((i) => {
+    clearTimeout(closeTimerRef.current)
+    setClosing(false)
+    expandedRef.current = i
+    setExpanded(i)
+    userPausedRef.current = false
+    setPaused(false)
+    manualRef.current = i
+    playOnly(i)
+    revealControls() // controls show on open, then auto-hide
+  }, [playOnly, revealControls])
+
+  // Close the focus view: play the shrink-back animation, then drop it from the
+  // DOM once the animation has finished (kept in sync with the CSS duration).
+  const closeExpand = useCallback(() => {
+    if (expandedRef.current === -1) return
+    clearTimeout(ctrlTimerRef.current)
+    setControlsOn(false)
+    setClosing(true)
+    clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = window.setTimeout(() => {
+      expandedRef.current = -1
+      setExpanded(-1)
+      setClosing(false)
+    }, 280)
+  }, [])
+
   // Play / Pause button. On the playing reel → pause everything (idle autoplay
   // stands down until the user plays again). On any other reel → play it now.
+  // On mobile, the FIRST tap opens the focused view instead.
   const togglePlay = useCallback((e, i) => {
     e.stopPropagation()
+    // Mobile: tapping Play on a not-yet-focused reel expands it into the focus view.
+    if (!canHoverRef.current && expandedRef.current !== i) {
+      openExpand(i)
+      return
+    }
+    if (!canHoverRef.current) revealControls() // keep the focus controls alive while tapping
     if (i === playingRef.current && !userPausedRef.current) {
       userPausedRef.current = true
       setPaused(true)
@@ -130,12 +213,13 @@ export default function VideoReviews() {
     setPaused(false)
     if (!canHoverRef.current) manualRef.current = i // mobile: keep it playing while visible
     playOnly(i)
-  }, [playOnly])
+  }, [playOnly, openExpand, revealControls])
 
   // Sound icon: toggle audio for this reel only. Turning sound on makes this reel
   // the playing one (stopping/muting whatever was playing); turning it off mutes.
   const toggleSound = useCallback((e, i) => {
     e.stopPropagation() // don't let the card's tap-to-play also fire
+    if (!canHoverRef.current) revealControls() // keep the focus controls alive while tapping
     const v = videoRefs.current[i]
     if (!v) return
     if (unmutedRef.current === i) {
@@ -150,12 +234,12 @@ export default function VideoReviews() {
     setPaused(false)
     if (!canHoverRef.current) manualRef.current = i // mobile: keep it playing while visible
     playOnly(i) // promotes this reel to the active one and unmutes it
-  }, [playOnly])
+  }, [playOnly, revealControls])
 
   // Detect hover capability once (kept current if the device/profile changes).
   useEffect(() => {
     const mq = window.matchMedia('(hover: hover) and (pointer: fine)')
-    const apply = () => { canHoverRef.current = mq.matches }
+    const apply = () => { canHoverRef.current = mq.matches; setCanHover(mq.matches) }
     apply()
     mq.addEventListener?.('change', apply)
     return () => mq.removeEventListener?.('change', apply)
@@ -173,9 +257,9 @@ export default function VideoReviews() {
     return () => io.disconnect()
   }, [])
 
-  // Auto-scroll the strip right→left in a seamless loop. The list is doubled, so
-  // once we pass the half-way point we subtract one half-width and the wrap is
-  // invisible. Pauses while hovering a card, or briefly after a nav / manual swipe.
+  // Auto-scroll the strip right→left in a slow loop. Each clip is rendered once
+  // (de-duplicated), so at the end we wrap back to the start. Pauses while
+  // hovering a card, or briefly after a nav / manual swipe.
   useEffect(() => {
     if (!seen) return undefined
     const strip = stripRef.current
@@ -187,12 +271,14 @@ export default function VideoReviews() {
       if (last == null) last = t
       const dt = Math.min((t - last) / 1000, 0.05) // clamp after tab-switch stalls
       last = t
-      const half = strip.scrollWidth / 2
-      if (half > 0) {
-        const blocked = hoverPauseRef.current || t < resumeAtRef.current
+      // Single (de-duplicated) set: loop by wrapping at the true scroll extent so
+      // no clip is repeated. scrollWidth - clientWidth is the max scrollLeft.
+      const max = strip.scrollWidth - strip.clientWidth
+      if (max > 0) {
+        const blocked = hoverPauseRef.current || expandedRef.current !== -1 || t < resumeAtRef.current
         if (!blocked) strip.scrollLeft += SPEED * dt
-        if (strip.scrollLeft >= half) strip.scrollLeft -= half
-        else if (strip.scrollLeft < 0) strip.scrollLeft += half
+        if (strip.scrollLeft >= max) strip.scrollLeft = 0
+        else if (strip.scrollLeft < 0) strip.scrollLeft = max
       }
       raf = requestAnimationFrame(step)
     }
@@ -227,6 +313,7 @@ export default function VideoReviews() {
   useEffect(() => {
     if (!seen || hover !== null) return undefined
     const tick = () => {
+      if (expandedRef.current !== -1) return // focus view owns playback while open
       if (userPausedRef.current) return
       let target
       if (manualRef.current >= 0 && isVisible(manualRef.current)) {
@@ -254,15 +341,41 @@ export default function VideoReviews() {
     playOnly(hover)
   }, [hover, playOnly])
 
-  // Tap (mobile / click): play that reel now, stop the previous one. Marked as a
-  // manual pick so the idle loop keeps it playing until it scrolls off-screen.
+  // Tap (mobile): tapping a reel opens it in the focused view. Tapping the
+  // already-focused reel just re-reveals the auto-hiding controls (playback
+  // continues — pause/mute live on the revealed controls).
   const handleTap = (i) => {
     if (canHoverRef.current) return // desktop uses hover, not tap
-    userPausedRef.current = false
-    setPaused(false)
-    manualRef.current = i
-    playOnly(i)
+    if (expandedRef.current === i) {
+      revealControls()
+      return
+    }
+    if (expandedRef.current !== -1) return // another reel is focused (this card is behind the backdrop)
+    openExpand(i)
   }
+
+  // While a reel is focused: lock background scroll and let Escape close it.
+  useEffect(() => {
+    if (expanded === -1) return undefined
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    // Neutralise the page-transition transform so the focused reel's fixed
+    // positioning is viewport-relative (see body.vs-focus rule in index.css).
+    document.body.classList.add('vs-focus')
+    const onKey = (e) => { if (e.key === 'Escape') closeExpand() }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      document.body.classList.remove('vs-focus')
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [expanded, closeExpand])
+
+  // Clean up any pending timers on unmount.
+  useEffect(() => () => {
+    clearTimeout(closeTimerRef.current)
+    clearTimeout(ctrlTimerRef.current)
+  }, [])
 
   // < / > navigation — nudge the strip by ~two cards and hold auto-scroll briefly.
   const nudge = (dir) => {
@@ -280,7 +393,7 @@ export default function VideoReviews() {
   }
 
   return (
-    <section ref={sectionRef} className={`video-section reveal${seen ? ' in' : ''}`}>
+    <section ref={sectionRef} className={`video-section reveal${seen ? ' in' : ''}${expanded !== -1 ? ' is-focusing' : ''}`}>
       <div className="section-inner">
         <div className="section-header">
           <div className="section-header-left">
@@ -314,11 +427,16 @@ export default function VideoReviews() {
                 const reelIdx = i % REELS.length
                 if (dead.has(reelIdx)) return null // file failed → drop this card (no gap)
                 const isPlaying = i === activeIndex && !paused
+                const isExpandedCard = i === expanded
+                // Collapsed reels on mobile use the Play button purely to OPEN the
+                // focus view (always show ▶). Desktop, and the focused reel, show a
+                // real play/pause icon.
+                const showPause = isPlaying && (canHover || isExpandedCard)
                 return (
                   <div
                     key={`${r.id}-${i}`}
                     ref={(el) => { cardRefs.current[i] = el }}
-                    className={`video-card${i === activeIndex ? ' is-active' : ''}${isPlaying ? ' is-playing' : ''}`}
+                    className={`video-card${i === activeIndex ? ' is-active' : ''}${isPlaying ? ' is-playing' : ''}${isExpandedCard ? ' is-expanded' : ''}${isExpandedCard && closing ? ' is-closing' : ''}${isExpandedCard && controlsOn ? ' is-controls' : ''}`}
                     onMouseEnter={() => { if (canHoverRef.current) setHover(i) }}
                     onClick={() => handleTap(i)}
                     aria-label={`Customer reel ${(i % REELS.length) + 1}`}
@@ -333,22 +451,34 @@ export default function VideoReviews() {
                       }}
                       className="video-el"
                       src={r.src}
-                      poster={r.poster}
                       muted
                       loop
                       playsInline
                       preload="none"
+                      onPlaying={() => markReady(i)}
                       onError={() => markDead(reelIdx)}
+                    />
+
+                    {/* Poster cover — a real <img> (lazy-loaded to save bandwidth) that
+                        sits over the video until it starts playing, so the card shows the
+                        thumbnail instead of a black/empty frame while the clip buffers. */}
+                    <img
+                      className={`video-poster${ready.has(i) ? ' is-hidden' : ''}`}
+                      src={r.poster}
+                      alt=""
+                      aria-hidden="true"
+                      draggable="false"
+                      loading="lazy"
                     />
 
                     <button
                       type="button"
                       className="video-play-btn"
                       onClick={(e) => togglePlay(e, i)}
-                      aria-label={isPlaying ? 'Pause reel' : 'Play reel'}
-                      title={isPlaying ? 'Pause' : 'Play'}
+                      aria-label={showPause ? 'Pause reel' : 'Play reel'}
+                      title={showPause ? 'Pause' : 'Play'}
                     >
-                      {isPlaying ? (
+                      {showPause ? (
                         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
                           <rect x="6" y="5" width="4" height="14" rx="1.2" fill="currentColor" />
                           <rect x="14" y="5" width="4" height="14" rx="1.2" fill="currentColor" />
@@ -402,6 +532,31 @@ export default function VideoReviews() {
               <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
+
+          {/* Mobile focus view — a dark backdrop behind the lifted reel. Tapping the
+              backdrop (or the × / Escape) closes the focus view. The focused reel
+              itself is the same <video> card, just lifted via CSS, so it keeps
+              playing. */}
+          {expanded !== -1 && (
+            <>
+              <div
+                className={`video-focus-backdrop${closing ? ' is-closing' : ''}`}
+                onClick={closeExpand}
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                className={`video-focus-close${closing ? ' is-closing' : ''}`}
+                onClick={closeExpand}
+                aria-label="Close focused video"
+                title="Close"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </section>

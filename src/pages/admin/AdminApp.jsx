@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AdminAuthProvider, useAdminAuth } from '../../context/AdminAuthContext'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { Loader } from '../../components/admin/ui'
@@ -15,10 +15,15 @@ import AdminOffers from './AdminOffers'
 import AdminBlogs from './AdminBlogs'
 import AdminProfitList from './AdminProfitList'
 import AdminProfitDetails from './AdminProfitDetails'
+import ProfitGuard from './ProfitGuard'
 import AdminReviews from './AdminReviews'
 
 function RequireAdmin({ children }) {
   const { user, loading } = useAdminAuth()
+  const location = useLocation()
+  // While the stored session token is being validated against the server
+  // (on first load / refresh), render nothing but a loader — never the page —
+  // so protected content can't flash before auth resolves.
   if (loading) {
     return (
       <div className="grid min-h-[100dvh] place-items-center bg-sand-100">
@@ -26,7 +31,8 @@ function RequireAdmin({ children }) {
       </div>
     )
   }
-  if (!user) return <Navigate to="/admin/login" replace />
+  // Not authenticated → bounce to login, remembering where they were headed.
+  if (!user) return <Navigate to="/admin/login" replace state={{ from: location }} />
   return children
 }
 
@@ -55,8 +61,12 @@ export default function AdminApp() {
           <Route path="offers" element={<AdminOffers />} />
           <Route path="blogs" element={<AdminBlogs />} />
           <Route path="reviews" element={<AdminReviews />} />
-          <Route path="profits" element={<AdminProfitList />} />
-          <Route path="profits/:id" element={<AdminProfitDetails />} />
+          {/* PIN-gated section — ProfitGuard requires the PIN on every entry and
+              clears it on leave (memory-only, mounted while under /admin/profits). */}
+          <Route path="profits" element={<ProfitGuard />}>
+            <Route index element={<AdminProfitList />} />
+            <Route path=":id" element={<AdminProfitDetails />} />
+          </Route>
           <Route path="profit" element={<Navigate to="/admin/profits" replace />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>

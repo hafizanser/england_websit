@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useOutletContext } from 'react-router-dom'
 import {
   ArrowLeft,
   WarningCircle,
@@ -13,9 +13,7 @@ import {
   TrendUp,
 } from '@phosphor-icons/react'
 import { AdminTitle, Card, Loader, StatusBadge } from '../../components/admin/ui'
-import ProfitPinGate from '../../components/admin/ProfitPinGate'
 import { getProfitOrderDetail } from '../../api/admin'
-import { getProfitPin, setProfitPin } from '../../lib/profitPin'
 import { money } from '../../lib/cartEngine'
 import { useNotify } from '../../context/NotifyContext'
 
@@ -31,84 +29,34 @@ const UNIT_LABEL = {
 export default function AdminProfitDetails() {
   const { id } = useParams()
   const { error } = useNotify()
-
-  const [pin, setPin] = useState(getProfitPin())
-  const [unlocked, setUnlocked] = useState(Boolean(getProfitPin()))
-  const [gateLoading, setGateLoading] = useState(false)
-  const [gateError, setGateError] = useState('')
+  // PIN verified by ProfitGuard (memory-only) — provided via outlet context.
+  const { profitPin, relock } = useOutletContext()
 
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
-  const load = async (p) => {
+  const load = async () => {
     setLoading(true)
     setNotFound(false)
     try {
-      const res = await getProfitOrderDetail(id, p)
+      const res = await getProfitOrderDetail(id, profitPin)
       setData(res)
-      return true
     } catch (err) {
-      if (err.status === 401) {
-        setUnlocked(false)
-        setProfitPin('')
-        return false
-      }
-      if (err.status === 404) {
-        setNotFound(true)
-        return true
-      }
-      error(err.message || 'Load nahi hua')
-      return true
+      // A rejected PIN re-locks the whole section (handled by ProfitGuard).
+      if (err.status === 401) relock()
+      else if (err.status === 404) setNotFound(true)
+      else error(err.message || 'Load nahi hua')
     } finally {
       setLoading(false)
     }
   }
 
-  // Load when unlocked (with a stored PIN) or when the order id changes.
+  // (Re)load whenever the order id changes — the guard guarantees a valid PIN.
   useEffect(() => {
-    if (unlocked && pin) load(pin)
+    load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
-
-  useEffect(() => {
-    if (unlocked && pin && !data) load(pin)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const unlock = async (e) => {
-    e?.preventDefault()
-    setGateError('')
-    setGateLoading(true)
-    try {
-      const res = await getProfitOrderDetail(id, pin)
-      setData(res)
-      setProfitPin(pin)
-      setUnlocked(true)
-    } catch (err) {
-      if (err.status === 401) setGateError('Ghalat PIN. Dobara koshish karein.')
-      else if (err.status === 404) {
-        setProfitPin(pin)
-        setUnlocked(true)
-        setNotFound(true)
-      } else error(err.message || 'Load nahi hua')
-    } finally {
-      setGateLoading(false)
-    }
-  }
-
-  if (!unlocked) {
-    return (
-      <ProfitPinGate
-        pin={pin}
-        setPin={setPin}
-        onSubmit={unlock}
-        error={gateError}
-        loading={gateLoading}
-        title="Profit Details"
-      />
-    )
-  }
 
   const backLink = (
     <Link

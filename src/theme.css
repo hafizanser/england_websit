@@ -398,7 +398,7 @@
 .eng .video-carousel{ position:relative; margin-top:8px; }
 /* infinite filmstrip — JS auto-scrolls right→left, one reel plays at a time.
    It's a real scroll container (overflow-x), so the nav buttons + touch swipe
-   can drive it; the doubled card list makes the wrap seamless. */
+   can drive it; the list wraps back to the start at the end. */
 .eng .video-strip{
   padding:12px 2px;
   overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
@@ -406,7 +406,7 @@
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);
   mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent); }
 .eng .video-strip::-webkit-scrollbar{ display:none; }
-/* the track holds two copies of the reel list so the scroll loop is seamless */
+/* the track holds each unique reel exactly once (no duplicates) */
 .eng .video-track{
   display:flex; gap:18px; width:max-content; }
 .eng .video-strip .video-card{ flex:0 0 200px; width:200px; cursor:pointer; }
@@ -452,8 +452,9 @@
 .eng .video-card .video-loop{ width:100%; height:100%; border:0; display:block; }
 .eng .video-card .video-loop{ position:absolute; inset:0; object-fit:cover; z-index:0; }
 .eng .video-poster{
-  position:absolute; inset:0; cursor:pointer; background-size:cover; background-position:center;
-  transition:opacity .4s ease; z-index:2; overflow:hidden; }
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;
+  cursor:pointer; background-size:cover; background-position:center;
+  transition:opacity .45s ease; z-index:2; overflow:hidden; }
 .eng .video-card.is-feature .video-poster::after{
   content:''; position:absolute; inset:0;
   background:linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.55) 60%, rgba(5,6,8,.94) 100%);
@@ -511,6 +512,16 @@
   box-shadow:0 8px 20px -8px rgba(212,169,58,.7); }
 .eng .video-sound-btn.is-on:hover{ background:var(--gold); border-color:var(--gold); }
 
+/* Desktop (real hover): the play + sound controls show ONLY while the cursor is
+   over the card, and hide the instant it leaves. Touch devices are unaffected
+   (their controls live in the focus view, which auto-hides them). */
+@media (hover:hover) and (pointer:fine){
+  .eng .video-card .video-play-btn,
+  .eng .video-card .video-sound-btn{ opacity:0; pointer-events:none; }
+  .eng .video-card:hover .video-play-btn,
+  .eng .video-card:hover .video-sound-btn{ opacity:1; pointer-events:auto; }
+}
+
 @media (max-width:1100px){
   .eng .video-strip .video-card{ flex:0 0 188px; width:188px; }
 }
@@ -547,4 +558,80 @@
 }
 @media (prefers-reduced-motion: reduce){
   .eng .video-track{ animation:none; }
+}
+
+/* ============================================================================
+   MOBILE FOCUS / EXPAND VIEW — tap a reel's Play button to lift it into a large
+   centered view (the same <video> node, just CSS, so it keeps playing). Tapping
+   the backdrop / × / Escape returns it to its card. Transform+opacity only →
+   GPU-friendly and smooth on phones.
+   ============================================================================ */
+/* Raise the whole section's stacking context above the bottom nav while focused. */
+.eng .video-section.is-focusing{ z-index:9999; }
+/* The strip's edge-fade mask creates a stacking context that would otherwise trap
+   the focused reel's z-index BELOW the backdrop. Drop the mask while focusing —
+   the strip is hidden behind the backdrop anyway — so the reel sits on top. */
+body.vs-focus .video-strip{ -webkit-mask-image:none; mask-image:none; }
+
+/* dark, blurred backdrop — the "outside the video" area; tap to close */
+.eng .video-focus-backdrop{
+  position:fixed; inset:0; z-index:998; border:0; margin:0; padding:0; width:100%;
+  background:rgba(4,5,7,.94); cursor:pointer;
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  animation:vsBackdropIn .3s ease both; }
+.eng .video-focus-backdrop.is-closing{ animation:vsBackdropOut .26s ease both; }
+
+/* close (×) button — also part of the "outside the video" area */
+.eng .video-focus-close{
+  position:fixed; top:calc(14px + env(safe-area-inset-top)); right:14px; z-index:1001;
+  width:42px; height:42px; border-radius:50%; padding:0; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; color:#fff;
+  background:rgba(20,22,28,.6); border:1px solid rgba(255,255,255,.2);
+  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+  -webkit-tap-highlight-color:transparent;
+  animation:vsBackdropIn .3s ease both; }
+.eng .video-focus-close.is-closing{ animation:vsBackdropOut .26s ease both; }
+.eng .video-focus-close:active{ transform:scale(.92); }
+
+/* the focused reel — fixed + centered, fills most of the viewport (9:16). The
+   extra-specific selector beats the in-strip card width rules. */
+.eng .video-strip .video-card.is-expanded{
+  position:fixed; top:50%; left:50%; z-index:1000;
+  width:min(calc(100vw - 28px), calc(86vh * 9 / 16));
+  width:min(calc(100vw - 28px), calc(86dvh * 9 / 16));
+  height:auto; aspect-ratio:9 / 16; border-radius:20px;
+  box-shadow:0 40px 90px -28px rgba(0,0,0,.92), 0 0 0 1px rgba(212,169,58,.22);
+  animation:vsExpandIn .36s cubic-bezier(.22,1,.36,1) both;
+  will-change:transform, opacity; }
+.eng .video-strip .video-card.is-expanded.is-closing{
+  animation:vsExpandOut .26s cubic-bezier(.4,0,.6,1) both; }
+
+/* Focus view: larger touch targets, and the controls AUTO-HIDE. They are only
+   visible while `is-controls` is on (revealed on open + on tap, then fades after
+   ~1.5s). The higher specificity beats the .is-playing/.is-expanded hide rules. */
+.eng .video-card.is-expanded .video-play-btn{
+  width:66px; height:66px; opacity:0; pointer-events:none; transition:opacity .3s ease; }
+.eng .video-card.is-expanded .video-play-btn::before{ animation:none; }
+.eng .video-card.is-expanded .video-sound-btn{
+  width:42px; height:42px; top:14px; right:14px; opacity:0; pointer-events:none; transition:opacity .3s ease; }
+.eng .video-card.is-expanded.is-controls .video-play-btn,
+.eng .video-card.is-expanded.is-controls .video-sound-btn{ opacity:1; pointer-events:auto; }
+
+@keyframes vsExpandIn{
+  from{ transform:translate(-50%,-50%) scale(.86); opacity:0; }
+  to{ transform:translate(-50%,-50%) scale(1); opacity:1; } }
+@keyframes vsExpandOut{
+  from{ transform:translate(-50%,-50%) scale(1); opacity:1; }
+  to{ transform:translate(-50%,-50%) scale(.9); opacity:0; } }
+@keyframes vsBackdropIn{ from{opacity:0} to{opacity:1} }
+@keyframes vsBackdropOut{ from{opacity:1} to{opacity:0} }
+
+@media (prefers-reduced-motion: reduce){
+  .eng .video-strip .video-card.is-expanded,
+  .eng .video-strip .video-card.is-expanded.is-closing,
+  .eng .video-focus-backdrop, .eng .video-focus-backdrop.is-closing,
+  .eng .video-focus-close, .eng .video-focus-close.is-closing{
+    animation-duration:.01ms !important; }
+  /* still need the centered transform without the keyframes doing it */
+  .eng .video-strip .video-card.is-expanded{ transform:translate(-50%,-50%); }
 }

@@ -27,6 +27,59 @@ class RefOrder extends MysqlModel
         return 'ENG-' . (1000 + $id);
     }
 
+    /**
+     * Persist a new order into the shared order_system DB and return its id.
+     * This is the SAME store the admin orders list / detail / profit / customers
+     * and notification feed all read from, so every order placed here is visible
+     * to the dashboard immediately.
+     *
+     * Convention (matches the existing order_system rows): total_amount holds the
+     * NET total (after any auto/promo discount); line items are stored at their
+     * full per-unit price — discounts are reflected in the total, not itemised.
+     */
+    public function create(array $d): int
+    {
+        $source = in_array($d['order_source'] ?? 'website', ['website', 'dashboard'], true)
+            ? $d['order_source']
+            : 'website';
+        $this->run(
+            "INSERT INTO orders
+                (order_source, customer_id, city, status, payment_method, shipping_cost,
+                 total_amount, order_notes, order_date, created_at, updated_at)
+             VALUES (?, ?, ?, ?, 'cod', 0, ?, ?, NOW(), NOW(), NOW())",
+            [
+                $source,
+                (int)$d['customer_id'],
+                trim((string)($d['city'] ?? '')) !== '' ? trim((string)$d['city']) : null,
+                (string)($d['status'] ?? 'In Progress'),
+                (float)($d['total_amount'] ?? 0),
+                trim((string)($d['order_notes'] ?? '')) !== '' ? trim((string)$d['order_notes']) : null,
+            ]
+        );
+        return (int)$this->lastInsertId();
+    }
+
+    /** Add one priced line item (shaped by PricingService) to a MySQL order. */
+    public function addItem(int $orderId, array $item): void
+    {
+        $price = (float)($item['wholesale'] ?? 0);
+        $unit  = (string)($item['unitKey'] ?? ($item['unit'] ?? ''));
+        $this->run(
+            "INSERT INTO order_items
+                (order_id, product_id, quantity, product_price, unit_type,
+                 original_unit_price, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
+            [
+                $orderId,
+                (int)($item['id'] ?? 0),
+                max(1, (int)($item['qty'] ?? 1)),
+                $price,
+                $unit !== '' ? $unit : null,
+                $price,
+            ]
+        );
+    }
+
     /** List orders for the admin table, newest first, with optional filters. */
     public function listAll(array $filters = []): array
     {
@@ -64,6 +117,35 @@ class RefOrder extends MysqlModel
                 'total'          => (float)$r['total_amount'],
             ];
         }, $this->run($sql, $params)->fetchAll());
+    }
+
+    /**
+     * Today's orders only (by order creation date), newest first — powers the
+     * admin dashboard "Naye orders" panel. DATE(order_date) = CURDATE() keeps it
+     * pinned to the current day automatically, in the DB's timezone.
+     */
+    public function todays(int $limit = 10): array
+    {
+        $sql = "SELECT o.id, o.order_source, o.status, o.total_amount, o.order_date,
+                       c.customer_name, c.customer_phone_number
+                FROM orders o
+                JOIN tbl_customer c ON o.customer_id = c.id
+                WHERE DATE(o.order_date) = CURDATE()
+                ORDER BY o.id DESC
+                LIMIT " . max(1, $limit);
+
+        return array_map(static function ($r) {
+            return [
+                'id'             => (int)$r['id'],
+                'code'           => self::code((int)$r['id']),
+                'customer_name'  => (string)($r['customer_name'] ?? ''),
+                'customer_phone' => (string)($r['customer_phone_number'] ?? ''),
+                'placed_at'      => $r['order_date'],
+                'source'         => self::source($r['order_source']),
+                'status'         => (string)($r['status'] ?? ''),
+                'total'          => (float)$r['total_amount'],
+            ];
+        }, $this->run($sql)->fetchAll());
     }
 
     /**

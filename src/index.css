@@ -274,6 +274,16 @@
   .app-page { animation: none !important; }
 }
 
+/* While a homepage reel is expanded into the mobile focus view, neutralise the
+   page-transition transform on .app-page. Its `animation-fill-mode: both` leaves
+   an identity matrix() (not the keyword `none`) after the route transition, which
+   would otherwise make the focused reel's position:fixed resolve against .app-page
+   instead of the viewport. Identity matrix → no visual change when removed. */
+body.vs-focus .app-page {
+  animation: none !important;
+  transform: none !important;
+}
+
 /* Custom scrollbar for the page */
 ::-webkit-scrollbar {
   width: 11px;
