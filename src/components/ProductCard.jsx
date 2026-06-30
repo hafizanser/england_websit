@@ -128,7 +128,7 @@ const CardCartControls = memo(function CardCartControls({ p, options, selected, 
             aria-label="Quantity"
             className="h-9 w-8 bg-transparent text-center text-sm font-extrabold tabular-nums text-brand-900 outline-none disabled:text-brand-300"
           />
-          <button type="button" onClick={inc} disabled={outOfStock} aria-label="Quantity barhayein" className={stepBtn}>
+          <button type="button" onClick={inc} disabled={outOfStock || (stock > 0 && num >= stock)} aria-label="Quantity barhayein" className={stepBtn}>
             <Plus size={15} weight="bold" />
           </button>
         </div>

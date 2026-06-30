@@ -73,6 +73,17 @@ class OrderController extends Controller
         if (!$order->exists((int) $id)) {
             Api::halt('Order nahi mila', 404);
         }
+
+        // Keep stock in sync with the status change: cancelling RESTORES the
+        // ordered units; un-cancelling an order RE-RESERVES them. (Other status
+        // moves between active states don't touch stock.)
+        $current = (string) ($order->getById((int) $id)['status'] ?? '');
+        if ($status === 'cancelled' && $current !== 'cancelled') {
+            $order->restoreStockForOrder((int) $id);
+        } elseif ($current === 'cancelled' && $status !== 'cancelled') {
+            $order->reserveStockForOrder((int) $id);
+        }
+
         $order->updateStatus((int) $id, $status);
         return Api::ok(['order' => $order->detail((int) $id)]);
     }

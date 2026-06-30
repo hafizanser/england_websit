@@ -112,6 +112,7 @@ const CartGroup = memo(function CartGroup({ group, onRemove, reduce }) {
                     value={u.qty}
                     onChange={(q) => setQty(u.key, q)}
                     min={0}
+                    max={u.stock == null ? 999 : Math.max(0, u.stock)}
                     size="sm"
                     unitLabel={label}
                   />

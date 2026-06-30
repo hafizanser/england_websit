@@ -6,6 +6,8 @@ import {
   WhatsappLogo,
   FacebookLogo,
   InstagramLogo,
+  TiktokLogo,
+  YoutubeLogo,
   CaretRight,
 } from '@phosphor-icons/react'
 import { brand, categories, navLinks } from '../data/site'
@@ -29,17 +31,21 @@ export default function Footer() {
             </p>
             <p className="urdu mt-3 text-base text-[#a8967e]" dir="rtl">{brand.trustUrdu}</p>
 
-            <div className="mt-6 flex items-center gap-2.5">
+            <div className="mt-6 flex flex-wrap items-center gap-2.5">
               {[
                 { icon: WhatsappLogo, href: waHref, label: 'WhatsApp' },
-                { icon: FacebookLogo, href: '#', label: 'Facebook' },
-                { icon: InstagramLogo, href: '#', label: 'Instagram' },
+                { icon: FacebookLogo, href: 'https://www.facebook.com/share/1HM1wq5ry3/?mibextid=wwXIfr', label: 'Facebook' },
+                { icon: InstagramLogo, href: 'https://www.instagram.com/englandwaly/', label: 'Instagram' },
+                { icon: TiktokLogo, href: 'https://www.tiktok.com/@englandofficial0?_r=1&_t=ZS-97TitChU7f8', label: 'TikTok' },
+                { icon: YoutubeLogo, href: 'https://youtube.com/@englandofficial-t4o?si=VOa0AqTJiZuDCTNX', label: 'YouTube' },
               ].map(({ icon: Icon, href, label }) => (
                 <a
                   key={label}
                   href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={label}
-                  className="grid h-10 w-10 place-items-center rounded-xl bg-white/8 text-white/80 ring-1 ring-white/10 transition-all hover:bg-saffron-400 hover:text-brand-950"
+                  className="grid h-10 w-10 place-items-center rounded-xl bg-white/8 text-white/80 ring-1 ring-white/10 transition-all duration-300 hover:-translate-y-0.5 hover:bg-saffron-400 hover:text-brand-950 hover:ring-saffron-300/50 hover:shadow-[0_10px_22px_-10px_rgba(245,176,65,0.8)] active:translate-y-0"
                 >
                   <Icon size={18} weight="fill" />
                 </a>

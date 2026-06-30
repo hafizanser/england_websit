@@ -40,7 +40,16 @@ export default function BottomNav({ onCartOpen }) {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-brand-100 bg-sand-50/95 backdrop-blur-lg md:hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{
+        // Robust safe-area padding (consistent on notched + non-notched devices).
+        paddingBottom: 'max(env(safe-area-inset-bottom), 0px)',
+        // Pin to its own compositor layer so the fixed + backdrop-blur bar never
+        // re-rasterises with the page on scroll — kills the shimmer/jitter/shake
+        // on Android & iOS while keeping it perfectly fixed to the bottom.
+        transform: 'translateZ(0)',
+        WebkitBackfaceVisibility: 'hidden',
+        backfaceVisibility: 'hidden',
+      }}
     >
       <div className="mx-auto flex max-w-md items-stretch px-2">
         {items.slice(0, 2).map((it) => (

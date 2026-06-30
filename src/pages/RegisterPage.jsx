@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { UserPlus, WarningCircle, ArrowRight, Phone, ShieldCheck } from '@phosphor-icons/react'
 import PageHeader from '../components/PageHeader'
 import BrandLogo from '../components/BrandLogo'
 import { useCustomerAuth } from '../context/CustomerAuthContext'
 import { useNotify } from '../context/NotifyContext'
+import { scrollBelowHeader } from '../lib/scroll'
 
 const inputCls =
   'rounded-2xl border border-brand-200 bg-sand-50 px-4 py-3.5 text-base text-brand-900 outline-none transition-all placeholder:text-brand-300 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-100'
@@ -28,6 +29,13 @@ export default function RegisterPage() {
   const [serverError, setServerError] = useState('')
   const [busy, setBusy] = useState(false)
   const refs = { name: useRef(null), phone: useRef(null) }
+  const formCardRef = useRef(null)
+
+  // On arrival (e.g. via the "naya account" link on the Login page), bring the
+  // register form fully into view below the sticky header — no manual scrolling.
+  useEffect(() => {
+    scrollBelowHeader(formCardRef.current)
+  }, [])
 
   const update = (k) => (e) => {
     setForm((f) => ({ ...f, [k]: e.target.value }))
@@ -69,7 +77,7 @@ export default function RegisterPage() {
     <>
       <PageHeader eyebrow="Account" title="Register" urdu="نیا اکاؤنٹ بنائیں" crumb="Register" />
       <section className="container-page py-12 sm:py-16">
-        <div className="mx-auto max-w-lg rounded-4xl border border-brand-100 bg-white p-6 shadow-soft sm:p-8">
+        <div ref={formCardRef} className="mx-auto max-w-lg rounded-4xl border border-brand-100 bg-white p-6 shadow-soft sm:p-8">
           <div className="mb-6 flex flex-col items-center gap-3 border-b border-brand-100 pb-6 text-center">
             <BrandLogo tone="dark" className="h-11" />
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-400">Naya Dukaandar Account</p>

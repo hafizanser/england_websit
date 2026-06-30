@@ -32,6 +32,10 @@ export function hydrate(rows) {
     .map((r) => {
       const p = byId.get(r.id)
       const unitKey = r.unitKey ?? r.unit ?? p?.unit ?? 'pc'
+      // Known stock → a number; unknown (older rows / live-only products not in the
+      // bundled catalogue) → null, meaning "no client-side cap" (the backend is the
+      // final authority). This prevents falsely blocking pre-existing carts.
+      const rawStock = r.stock ?? p?.stock
       const merged = {
         id: r.id,
         key: r.key ?? rowKey(r.id, unitKey),
@@ -46,6 +50,9 @@ export function hydrate(rows) {
         retail: Number(r.retail ?? p?.retail ?? 0),
         wholesale: Number(r.wholesale ?? p?.wholesale ?? 0),
         conv: r.conv ?? p?.conversions ?? null,
+        // Available stock (admin = single source of truth), snapshotted at add-time
+        // so the cart/checkout can validate against it. null = unknown (no cap).
+        stock: rawStock == null ? null : Number(rawStock),
         qty: r.qty,
       }
       merged.lineTotal = merged.wholesale * merged.qty
@@ -76,6 +83,7 @@ export function toRow(product, qty = 1, unitOption = null) {
     retail,
     wholesale,
     conv: product.conversions ?? null,
+    stock: product.stock == null ? null : Number(product.stock),
     qty,
   }
 }
@@ -127,7 +135,7 @@ export function groupByProduct(items) {
   const map = new Map()
   for (const it of items) {
     if (!map.has(it.id)) {
-      map.set(it.id, { id: it.id, name: it.name, sub: it.sub, image: it.image, seed: it.seed, units: [], total: 0, qty: 0 })
+      map.set(it.id, { id: it.id, name: it.name, sub: it.sub, image: it.image, seed: it.seed, stock: it.stock, units: [], total: 0, qty: 0 })
     }
     const g = map.get(it.id)
     g.units.push(it)

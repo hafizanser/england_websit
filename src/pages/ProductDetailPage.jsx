@@ -135,7 +135,7 @@ function DetailSkeleton() {
 export default function ProductDetailPage() {
   const { id } = useParams()
   const ctx = useOutletContext() || {}
-  const { add, qtyOf, setQty: setCartQty } = useCart()
+  const { add, qtyOf, setQty: setCartQty, toast } = useCart()
   const { data: p, loading, error, reload } = useAsync(() => getProductById(id), [id])
   const { data: offers } = useAsync(() => getOffers(), [])
 
@@ -166,6 +166,11 @@ export default function ProductDetailPage() {
   const selected = options.find((o) => o.unit === selUnit) || options[0] || null
   const lineKey = p && selected ? rowKey(p.id, selected.unit) : ''
   const inCart = p && selected ? qtyOf(p.id, selected.unit) : 0
+  // Admin stock = single source of truth. Cap the add quantity and block adding
+  // beyond what's available (counting what's already in the cart).
+  const stock = Number(p?.stock) || 0
+  const outOfStock = !!p && stock <= 0
+  const maxQty = stock > 0 ? stock : 999
   const shortBullets = p ? unitBullets(p.sub) : []
   const detailBullets = p ? toBullets(p.description) : []
 
@@ -189,6 +194,11 @@ export default function ProductDetailPage() {
 
   const addToCart = () => {
     if (!selected) return
+    if (outOfStock) { toast('Out of Stock', 'warning'); return }
+    if (stock > 0 && inCart + qty > stock) {
+      toast(`Only ${stock} items are available in stock.`, 'warning')
+      return
+    }
     add(p, qty, selected)
     if (ctx.openCart) ctx.openCart()
   }
@@ -338,7 +348,7 @@ export default function ProductDetailPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <span className="text-xs font-bold uppercase tracking-wide text-brand-400">Tadaad</span>
-                      <QuantityStepper value={qty} onChange={(q) => setQty(Math.max(1, q))} min={1} />
+                      <QuantityStepper value={qty} onChange={(q) => setQty(Math.max(1, q))} min={1} max={maxQty} />
                     </div>
                     <div className="text-right">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-400">Total</p>
@@ -349,9 +359,12 @@ export default function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={addToCart}
-                    className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-700 px-6 py-3.5 text-sm font-bold text-white shadow-soft transition-all hover:bg-brand-800 active:scale-[0.98]"
+                    disabled={outOfStock}
+                    className={`mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold text-white shadow-soft transition-all active:scale-[0.98] ${
+                      outOfStock ? 'cursor-not-allowed bg-brand-300' : 'bg-brand-700 hover:bg-brand-800'
+                    }`}
                   >
-                    <Plus size={18} weight="bold" /> Cart mein daalein
+                    {outOfStock ? 'Out of Stock' : <><Plus size={18} weight="bold" /> Cart mein daalein</>}
                   </button>
                 </div>
 
@@ -360,7 +373,7 @@ export default function ProductDetailPage() {
                     <span className="flex items-center gap-2 text-sm font-semibold text-brand-700">
                       <Check size={15} weight="bold" className="text-brand-600" /> {inCart} {selected?.label} cart mein
                     </span>
-                    <QuantityStepper value={inCart} onChange={(q) => setCartQty(lineKey, q)} size="sm" />
+                    <QuantityStepper value={inCart} onChange={(q) => setCartQty(lineKey, q)} size="sm" max={maxQty} />
                   </div>
                 )}
 
@@ -476,9 +489,12 @@ export default function ProductDetailPage() {
                 <button
                   type="button"
                   onClick={addToCart}
-                  className="inline-flex min-h-[48px] shrink-0 items-center gap-2 rounded-xl bg-brand-700 px-5 text-sm font-bold text-white shadow-soft transition-transform active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
+                  disabled={outOfStock}
+                  className={`inline-flex min-h-[48px] shrink-0 items-center gap-2 rounded-xl px-5 text-sm font-bold text-white shadow-soft transition-transform active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500 ${
+                    outOfStock ? 'cursor-not-allowed bg-brand-300' : 'bg-brand-700'
+                  }`}
                 >
-                  <Plus size={18} weight="bold" /> Cart mein daalein
+                  {outOfStock ? 'Out of Stock' : <><Plus size={18} weight="bold" /> Cart mein daalein</>}
                 </button>
               </div>
             </div>

@@ -31,6 +31,26 @@ class ProductRepo extends BaseRepo
 
     private const JSON_COLS = ['unit_types', 'multiple_images'];
 
+    /**
+     * Adjust a product's available stock (total_stock_cotton = single source of
+     * truth). Negative delta RESERVES units (order placed); positive delta
+     * RESTORES them (order cancelled). Clamped at 0 so stock can never go
+     * negative. Best-effort: an unknown/legacy product id just updates 0 rows.
+     */
+    public function adjustStock(string $productId, int $delta): void
+    {
+        if ($productId === '' || $delta === 0) {
+            return;
+        }
+        $this->exec(
+            'UPDATE ' . $this->table . '
+                SET total_stock_cotton = GREATEST(0, COALESCE(total_stock_cotton, 0) + ?),
+                    updated_at = NOW()
+              WHERE id = ?',
+            [$delta, $productId]
+        );
+    }
+
     public function all(): array
     {
         $sql = "SELECT p.*, c.name AS category_name

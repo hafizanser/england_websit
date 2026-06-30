@@ -14,13 +14,17 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * reel pinned by the brief, then 2 from Folder A, 2 from Folder B, repeating.
  *
  * Behaviour:
- *   - the row auto-scrolls smoothly right→left in a slow premium loop (JS scroll
- *     on a single de-duplicated list, wrapping back to the start at the end)
- *   - working  <  /  >  buttons nudge the carousel (auto-scroll pauses briefly)
- *   - reels autoplay MUTED; only ONE reel plays at a time (desktop AND mobile)
+ *   - reels sit in a single-row horizontal carousel; the < / > arrows are the ONLY
+ *     way it moves (smooth scrollBy by ~two cards) — there is NO auto-scroll
+ *   - reels autoplay MUTED; only ONE reel plays at a time (desktop AND mobile) —
+ *     when another reel starts, the previous one is paused
  *   - idle: the first visible (left-most) reel autoplays; desktop hover plays the
- *     hovered reel; mobile tap plays the tapped reel
- *   - every card has a Play/Pause button and a Mute/Un-mute button
+ *     hovered reel
+ *   - clicking a card's Play button (desktop AND mobile) lifts that reel into the
+ *     enlarged full-view player, where it keeps playing
+ *   - in full view the Play overlay is hidden; only the Sound (Mute/Un-mute)
+ *     button shows at the top. Clicking / tapping OUTSIDE the video (the backdrop)
+ *     — or Escape — closes the view and returns the reel to its original card
  *   - turning sound on for a reel mutes whatever was unmuted before — only one
  *     reel can have audio at any moment
  *   - preload="none" + play-on-demand keeps it light; only played clips fetch
@@ -34,9 +38,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 // Curated reels, already ordered (pinned first, then 2×A / 2×B repeating) and
 // transcoded to /public/videos/dvreel-NN.mp4 (+ .jpg poster). See transcode notes
 // above — the Drive→H.264 conversion is a one-off; this list is just the result.
-// dvreel-04 is omitted: it's the same footage as dvreel-03 (the Drive clip),
-// so the 4th card now shows the next unique reel (dvreel-05).
-const REEL_NUMS = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+// dvreel-04 is omitted: it's the same footage as dvreel-03 (the Drive clip).
+// dvreel-05 (the 4th rendered card) is also removed per request; the remaining
+// reels keep their order and there is no empty card (the array maps 1:1).
+const REEL_NUMS = [1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 const RAW_REELS = REEL_NUMS.map((i) => {
   const n = String(i).padStart(2, '0')
   return { id: `dvreel-${n}`, src: `/videos/dvreel-${n}.mp4`, poster: `/videos/dvreel-${n}.jpg` }
@@ -53,9 +58,8 @@ const REELS = (() => {
   })
 })()
 // Render each unique reel exactly ONCE (no doubling) — a video never repeats in
-// the carousel. The auto-scroll loops by wrapping back to the start at the end.
+// the carousel. The < / > arrows scroll the single row; there is no auto-scroll.
 const CARDS = REELS
-const SPEED = 26 // px / second — slow, premium glide (lower = slower)
 
 export default function VideoReviews() {
   const sectionRef = useRef(null)
@@ -68,8 +72,6 @@ export default function VideoReviews() {
   const canHoverRef = useRef(false) // device actually supports hovering
   const unmutedRef = useRef(-1) // the single reel the user un-muted, -1 when all muted
   const userPausedRef = useRef(false) // user hit Pause — idle autoplay stands down
-  const hoverPauseRef = useRef(false) // auto-scroll paused while hovering a card
-  const resumeAtRef = useRef(0) // ms timestamp until which auto-scroll stays paused
 
   const [dead, setDead] = useState(() => new Set()) // reel indices whose file failed to load
   const [seen, setSeen] = useState(false)
@@ -105,7 +107,6 @@ export default function VideoReviews() {
   const [activeIndex, setActiveIndex] = useState(0) // for the gold "is-active" ring
   const [unmuted, setUnmuted] = useState(-1) // mirror of unmutedRef for the sound icon
   const [paused, setPaused] = useState(false) // mirror of userPausedRef for the play icon
-  const [canHover, setCanHover] = useState(false) // mirror of canHoverRef for render-time icon logic
   // Mobile focus / expand view: the index of the reel lifted into the larger
   // centered view (-1 = none). Only ONE reel can be expanded at a time.
   const [expanded, setExpanded] = useState(-1)
@@ -119,7 +120,8 @@ export default function VideoReviews() {
   const [controlsOn, setControlsOn] = useState(false)
   const ctrlTimerRef = useRef(0)
 
-  // Is card i currently within the visible strip viewport?
+  // Is card i currently within the visible strip viewport? (horizontal carousel →
+  // off-strip cards are clipped by overflow, so only the horizontal span matters)
   const isVisible = useCallback((i) => {
     const strip = stripRef.current
     const card = cardRefs.current[i]
@@ -192,28 +194,13 @@ export default function VideoReviews() {
     }, 280)
   }, [])
 
-  // Play / Pause button. On the playing reel → pause everything (idle autoplay
-  // stands down until the user plays again). On any other reel → play it now.
-  // On mobile, the FIRST tap opens the focused view instead.
+  // Play button. On BOTH desktop and mobile, clicking Play lifts that reel into
+  // the same enlarged full-view player (where it keeps playing). The full view's
+  // only control is the Sound button; closing it returns the reel to its card.
   const togglePlay = useCallback((e, i) => {
     e.stopPropagation()
-    // Mobile: tapping Play on a not-yet-focused reel expands it into the focus view.
-    if (!canHoverRef.current && expandedRef.current !== i) {
-      openExpand(i)
-      return
-    }
-    if (!canHoverRef.current) revealControls() // keep the focus controls alive while tapping
-    if (i === playingRef.current && !userPausedRef.current) {
-      userPausedRef.current = true
-      setPaused(true)
-      videoRefs.current.forEach((v) => { if (v && !v.paused) v.pause() })
-      return
-    }
-    userPausedRef.current = false
-    setPaused(false)
-    if (!canHoverRef.current) manualRef.current = i // mobile: keep it playing while visible
-    playOnly(i)
-  }, [playOnly, openExpand, revealControls])
+    openExpand(i)
+  }, [openExpand])
 
   // Sound icon: toggle audio for this reel only. Turning sound on makes this reel
   // the playing one (stopping/muting whatever was playing); turning it off mutes.
@@ -239,7 +226,7 @@ export default function VideoReviews() {
   // Detect hover capability once (kept current if the device/profile changes).
   useEffect(() => {
     const mq = window.matchMedia('(hover: hover) and (pointer: fine)')
-    const apply = () => { canHoverRef.current = mq.matches; setCanHover(mq.matches) }
+    const apply = () => { canHoverRef.current = mq.matches }
     apply()
     mq.addEventListener?.('change', apply)
     return () => mq.removeEventListener?.('change', apply)
@@ -256,38 +243,6 @@ export default function VideoReviews() {
     io.observe(el)
     return () => io.disconnect()
   }, [])
-
-  // Auto-scroll the strip right→left in a slow loop. Each clip is rendered once
-  // (de-duplicated), so at the end we wrap back to the start. Pauses while
-  // hovering a card, or briefly after a nav / manual swipe.
-  useEffect(() => {
-    if (!seen) return undefined
-    const strip = stripRef.current
-    if (!strip) return undefined
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
-    let raf = 0
-    let last = null
-    const step = (t) => {
-      if (last == null) last = t
-      const dt = Math.min((t - last) / 1000, 0.05) // clamp after tab-switch stalls
-      last = t
-      // Single (de-duplicated) set: loop by wrapping at the true scroll extent so
-      // no clip is repeated. scrollWidth - clientWidth is the max scrollLeft.
-      const max = strip.scrollWidth - strip.clientWidth
-      if (max > 0) {
-        const blocked = hoverPauseRef.current || expandedRef.current !== -1 || t < resumeAtRef.current
-        if (!blocked) strip.scrollLeft += SPEED * dt
-        if (strip.scrollLeft >= max) strip.scrollLeft = 0
-        else if (strip.scrollLeft < 0) strip.scrollLeft = max
-      }
-      raf = requestAnimationFrame(step)
-    }
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [seen])
-
-  // Keep auto-scroll paused while a card is hovered (desktop).
-  useEffect(() => { hoverPauseRef.current = hover !== null }, [hover])
 
   // Find the left-most visible card (the "first visible" reel) for idle autoplay.
   const pickLead = useCallback(() => {
@@ -377,19 +332,14 @@ export default function VideoReviews() {
     clearTimeout(ctrlTimerRef.current)
   }, [])
 
-  // < / > navigation — nudge the strip by ~two cards and hold auto-scroll briefly.
+  // < / > navigation — the ONLY way the carousel moves (no auto-scroll). Smoothly
+  // scrolls the strip by ~two cards in the chosen direction.
   const nudge = (dir) => {
     const strip = stripRef.current
     if (!strip) return
-    resumeAtRef.current = (typeof performance !== 'undefined' ? performance.now() : 0) + 1100
     const card = cardRefs.current.find(Boolean)
-    const cardW = (card?.offsetWidth || 200) + 18 // card + track gap
+    const cardW = (card?.offsetWidth || 200) + 18 // card width + track gap
     strip.scrollBy({ left: dir * cardW * 2, behavior: 'smooth' })
-  }
-
-  // Pause auto-scroll briefly when the user swipes / wheels the strip themselves.
-  const holdScroll = () => {
-    resumeAtRef.current = (typeof performance !== 'undefined' ? performance.now() : 0) + 1600
   }
 
   return (
@@ -419,8 +369,6 @@ export default function VideoReviews() {
             className="video-strip"
             ref={stripRef}
             onMouseLeave={() => setHover(null)}
-            onPointerDown={holdScroll}
-            onWheel={holdScroll}
           >
             <div className="video-track" ref={trackRef} aria-hidden={!seen}>
               {CARDS.map((r, i) => {
@@ -428,10 +376,6 @@ export default function VideoReviews() {
                 if (dead.has(reelIdx)) return null // file failed → drop this card (no gap)
                 const isPlaying = i === activeIndex && !paused
                 const isExpandedCard = i === expanded
-                // Collapsed reels on mobile use the Play button purely to OPEN the
-                // focus view (always show ▶). Desktop, and the focused reel, show a
-                // real play/pause icon.
-                const showPause = isPlaying && (canHover || isExpandedCard)
                 return (
                   <div
                     key={`${r.id}-${i}`}
@@ -475,19 +419,12 @@ export default function VideoReviews() {
                       type="button"
                       className="video-play-btn"
                       onClick={(e) => togglePlay(e, i)}
-                      aria-label={showPause ? 'Pause reel' : 'Play reel'}
-                      title={showPause ? 'Pause' : 'Play'}
+                      aria-label="Play reel"
+                      title="Play"
                     >
-                      {showPause ? (
-                        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-                          <rect x="6" y="5" width="4" height="14" rx="1.2" fill="currentColor" />
-                          <rect x="14" y="5" width="4" height="14" rx="1.2" fill="currentColor" />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-                          <path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" />
-                        </svg>
-                      )}
+                      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                        <path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" />
+                      </svg>
                     </button>
 
                     <button
@@ -533,29 +470,16 @@ export default function VideoReviews() {
             </svg>
           </button>
 
-          {/* Mobile focus view — a dark backdrop behind the lifted reel. Tapping the
-              backdrop (or the × / Escape) closes the focus view. The focused reel
-              itself is the same <video> card, just lifted via CSS, so it keeps
-              playing. */}
+          {/* Full-view player — a dark backdrop behind the lifted reel. Clicking /
+              tapping the backdrop (the area OUTSIDE the video), or pressing Escape,
+              closes the view and returns the reel to its card. The focused reel is
+              the same <video> node, just lifted via CSS, so it keeps playing. */}
           {expanded !== -1 && (
-            <>
-              <div
-                className={`video-focus-backdrop${closing ? ' is-closing' : ''}`}
-                onClick={closeExpand}
-                aria-hidden="true"
-              />
-              <button
-                type="button"
-                className={`video-focus-close${closing ? ' is-closing' : ''}`}
-                onClick={closeExpand}
-                aria-label="Close focused video"
-                title="Close"
-              >
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </button>
-            </>
+            <div
+              className={`video-focus-backdrop${closing ? ' is-closing' : ''}`}
+              onClick={closeExpand}
+              aria-hidden="true"
+            />
           )}
         </div>
       </div>

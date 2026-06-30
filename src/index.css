@@ -10,6 +10,12 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    /* Clip stray horizontal overflow at the viewport so no phantom horizontal
+       scrollbar appears on mobile. `body { overflow-x: hidden }` can't catch this
+       because position:fixed bars (the bottom nav / sticky cart bar) escape the
+       body's clipping. `clip` (not `hidden`) clips WITHOUT creating a scroll
+       container, so the sticky navbar and normal page scrolling are unaffected. */
+    overflow-x: clip;
   }
 
   body {
@@ -267,7 +273,14 @@
 }
 @media (max-width: 767px) {
   .app-page {
-    animation: app-page-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+    /* `backwards` (NOT `both`): apply the start frame before the run to avoid a
+       flash, but DO NOT keep a forwards transform after it ends. A lingering
+       identity-matrix transform turns .app-page into a containing block for
+       position:fixed descendants, which makes in-page bottom bars (cart/checkout
+       sticky bars) resolve against the scrolling content instead of the viewport
+       — i.e. they shift/jump while scrolling. Reverting to no transform at rest
+       keeps those bars rock-solid fixed. */
+    animation: app-page-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) backwards;
   }
 }
 @media (prefers-reduced-motion: reduce) {

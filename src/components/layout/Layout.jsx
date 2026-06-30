@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Navbar from '../Navbar'
 import Footer from '../Footer'
@@ -6,10 +5,11 @@ import FloatingWhatsApp from '../FloatingWhatsApp'
 import CartDrawer from '../cart/CartDrawer'
 import BottomNav from './BottomNav'
 import ScrollToTop from './ScrollToTop'
+import { useCart } from '../../context/CartContext'
 
 export default function Layout() {
-  const [cartOpen, setCartOpen] = useState(false)
-  const openCart = () => setCartOpen(true)
+  // Drawer visibility lives in CartContext so adding from any page auto-opens it.
+  const { cartOpen, openCart, closeCart } = useCart()
   const { pathname } = useLocation()
 
   return (
@@ -25,7 +25,7 @@ export default function Layout() {
       </main>
       <Footer />
       <FloatingWhatsApp />
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <CartDrawer open={cartOpen} onClose={closeCart} />
       <BottomNav onCartOpen={openCart} />
     </div>
   )

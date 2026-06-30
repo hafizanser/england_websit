@@ -195,6 +195,16 @@ export default function CheckoutPage() {
   const productCount = useMemo(() => groupByProduct(items).length, [items])
   const liveWaHref = useMemo(() => waLink(buildOrderMsg(items, totals, form, code)), [items, totals, form, code])
 
+  // Stock guard — admin stock is the single source of truth. Any line that is out
+  // of stock or exceeds available stock blocks checkout (the backend re-validates).
+  // Only enforce when stock is a KNOWN number (null = unknown → backend decides),
+  // so pre-existing carts / live-only products are never falsely blocked.
+  const stockIssues = useMemo(
+    () => items.filter((i) => typeof i.stock === 'number' && (i.stock <= 0 || i.qty > i.stock)),
+    [items],
+  )
+  const hasStockIssue = stockIssues.length > 0
+
   const focusFirstError = (e) => {
     const first = ['name', 'phone', 'city', 'address'].find((k) => e[k])
     const el = first && fieldRefs[first]?.current
@@ -220,6 +230,10 @@ export default function CheckoutPage() {
     e.preventDefault()
     if (submitting) return // double-submit guard
     setServerError('')
+    if (hasStockIssue) {
+      setServerError('Kuch items stock se zyada hain — cart update karein.')
+      return
+    }
     if (!validate()) return
     setSubmitting(true)
     try {
@@ -464,6 +478,24 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {hasStockIssue && (
+              <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                <p className="flex items-center gap-2 font-bold">
+                  <WarningCircle size={18} weight="fill" /> Stock update ho gaya — order se pehle theek karein:
+                </p>
+                <ul className="mt-2 space-y-1 pl-7 text-[13px] font-medium">
+                  {stockIssues.map((i) => (
+                    <li key={i.key} className="list-disc">
+                      {i.name} — {Number(i.stock) <= 0 ? 'Out of Stock' : `Only ${Number(i.stock)} items available`}
+                    </li>
+                  ))}
+                </ul>
+                <Link to="/cart" className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-bold text-red-700 underline underline-offset-2">
+                  Cart theek karein →
+                </Link>
+              </div>
+            )}
+
             {serverError && (
               <p role="alert" className="flex items-center gap-2 rounded-2xl bg-saffron-50 px-4 py-3 text-sm font-medium text-saffron-800">
                 <WarningCircle size={18} weight="fill" /> {serverError}
@@ -485,9 +517,9 @@ export default function CheckoutPage() {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || hasStockIssue}
                 aria-busy={submitting}
-                className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-brand-700 px-6 py-4 text-base font-bold text-white shadow-soft transition-all hover:bg-brand-800 active:translate-y-px disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
+                className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-brand-700 px-6 py-4 text-base font-bold text-white shadow-soft transition-all hover:bg-brand-800 active:translate-y-px disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
               >
                 {submitting ? (
                   <>
@@ -529,9 +561,9 @@ export default function CheckoutPage() {
             <div className="flex items-stretch gap-2">
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || hasStockIssue}
                 aria-busy={submitting}
-                className="inline-flex min-h-[48px] flex-[2] items-center justify-center gap-1.5 rounded-2xl bg-brand-700 px-4 text-sm font-bold text-white shadow-soft transition-colors hover:bg-brand-800 active:translate-y-px disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
+                className="inline-flex min-h-[48px] flex-[2] items-center justify-center gap-1.5 rounded-2xl bg-brand-700 px-4 text-sm font-bold text-white shadow-soft transition-colors hover:bg-brand-800 active:translate-y-px disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
               >
                 {submitting ? 'Place ho raha hai...' : <>Order confirm karein <ArrowRight size={16} weight="bold" /></>}
               </button>

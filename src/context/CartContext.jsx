@@ -106,6 +106,13 @@ export function CartProvider({ children }) {
   const syncedIdRef = useRef(null)
   const saveTimer = useRef(null)
 
+  // Cart side-drawer visibility. Centralized here so adding a product from ANY
+  // page can auto-open the same slider. Setting true while already open is a
+  // no-op in React (same value → no re-render), so an open cart is never reset.
+  const [cartOpen, setCartOpen] = useState(false)
+  const openCart = useCallback(() => setCartOpen(true), [])
+  const closeCart = useCallback(() => setCartOpen(false), [])
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
@@ -179,6 +186,7 @@ export function CartProvider({ children }) {
     const row = toRow(product, qty, opt)
     const prev = state.rows.find((r) => r.key === row.key)?.qty || 0
     dispatch({ type: 'ADD', row, qty })
+    setCartOpen(true)
     const label = opt?.label || unitLabelFor(product.unit)
     const plural = (n) => (n === 1 ? label : `${label}s`)
     if (prev > 0 && qty === prev) {
@@ -204,6 +212,7 @@ export function CartProvider({ children }) {
 
   const addMany = useCallback((products, label) => {
     products.forEach((p) => dispatch({ type: 'ADD', row: toRow(p, 1, (p.unitOptions && p.unitOptions[0]) || null), qty: 1 }))
+    setCartOpen(true)
     toast(label || `${products.length} items cart mein shamil`)
   }, [toast])
 
@@ -253,6 +262,9 @@ export function CartProvider({ children }) {
       totals,
       count,
       units,
+      cartOpen,
+      openCart,
+      closeCart,
       add,
       decrement,
       addMany,
@@ -265,7 +277,7 @@ export function CartProvider({ children }) {
       qtyOf,
       toast,
     }),
-    [items, freeItems, offers, state.rows, state.code, totals, count, units, add, decrement, addMany, setQty, remove, restore, clear, applyCode, removeCode, qtyOf, toast],
+    [items, freeItems, offers, state.rows, state.code, totals, count, units, cartOpen, openCart, closeCart, add, decrement, addMany, setQty, remove, restore, clear, applyCode, removeCode, qtyOf, toast],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

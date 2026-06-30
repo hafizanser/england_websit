@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Mail\NewOrderNotification;
 use App\Models\ShopCustomer;
+use App\Repositories\ProductRepo;
 use App\Repositories\ShopOrderItemRepo;
 use App\Repositories\ShopOrderRepo;
 use Illuminate\Support\Facades\DB;
@@ -19,12 +20,14 @@ class OrderService
     private PricingService $pricing;
     private ShopOrderRepo $orders;
     private ShopOrderItemRepo $items;
+    private ProductRepo $products;
 
     public function __construct()
     {
         $this->pricing = new PricingService();
         $this->orders = new ShopOrderRepo();
         $this->items = new ShopOrderItemRepo();
+        $this->products = new ProductRepo();
     }
 
     public function checkout(array $payload, string $source = 'website'): array
@@ -64,6 +67,14 @@ class OrderService
 
             foreach ($items as $it) {
                 $this->items->add($orderId, $it);
+                // Reduce available stock for the ordered units (single source of
+                // truth). Inside the same transaction, so stock + order commit
+                // together or not at all.
+                $pid = (string) ($it['id'] ?? '');
+                $qty = (int) ($it['qty'] ?? 0);
+                if ($pid !== '' && $qty > 0) {
+                    $this->products->adjustStock($pid, -$qty);
+                }
             }
 
             $this->orders->addHistory(

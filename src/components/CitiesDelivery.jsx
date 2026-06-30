@@ -3,7 +3,7 @@ import { MapPin, Truck } from '@phosphor-icons/react'
 import { SectionHeading } from './ui'
 import { fadeUp, viewportOnce } from '../lib/motion'
 
-// 50+ delivery cities across Pakistan — drives the marquee.
+// 110+ delivery cities across Pakistan — drives the marquee.
 export const deliveryCities = [
   'Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Multan', 'Gujranwala',
   'Peshawar', 'Quetta', 'Sialkot', 'Hyderabad', 'Bahawalpur', 'Sargodha', 'Sukkur',
@@ -39,15 +39,15 @@ export default function CitiesDelivery() {
           eyebrow="Poore Pakistan mein delivery"
           tone="saffron"
           title="We deliver in"
-          accent="50+ cities across Pakistan"
+          accent="110+ cities across Pakistan"
           urdu="پورے پاکستان میں ڈلیوری"
-          desc="Karachi se Khyber tak — 50+ shehron mein agle din delivery. Aapki dukaan jahan bhi ho, England ka maal wahan pohanchta hai."
+          desc="Karachi se Khyber tak — 110+ shehron mein agle din delivery. Aapki dukaan jahan bhi ho, England ka maal wahan pohanchta hai."
         />
 
         <div className="mt-7 flex flex-wrap gap-2.5">
           {[
             { icon: Truck, label: 'Agle din delivery' },
-            { icon: MapPin, label: '50+ cities' },
+            { icon: MapPin, label: '110+ cities' },
           ].map(({ icon: Icon, label }) => (
             <span key={label} className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-bold text-brand-800 shadow-soft ring-1 ring-brand-100">
               <Icon size={15} weight="fill" className="text-saffron-600" /> {label}

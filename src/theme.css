@@ -46,6 +46,17 @@
 .eng .btn-wa:hover{background:var(--wa-dark)}
 .eng .btn-outline{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
 .eng .btn-outline:hover{background:var(--cream-soft);border-color:var(--gold)}
+/* premium dashed "Saara catalog" CTA — scoped to the Products section header so
+   other outline buttons are untouched. Rounded corners, roomy spacing, soft lift
+   + gold glow on hover. */
+.eng #products .sec-head .right .btn-outline{
+  border:2px dashed var(--gold-soft); border-radius:16px;
+  padding:14px 28px; background:var(--cream-soft); color:var(--ink);
+  transition:transform .28s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease, border-color .25s ease, background .25s ease;}
+.eng #products .sec-head .right .btn-outline:hover{
+  transform:translateY(-2px); border-color:var(--gold); background:#fff;
+  box-shadow:0 16px 30px -16px rgba(185,143,67,.5), 0 0 0 1px rgba(185,143,67,.14);}
+.eng #products .sec-head .right .btn-outline:active{ transform:translateY(0) scale(.985); }
 .eng .btn-dark{background:var(--brown);color:var(--cream)}
 .eng .btn-dark:hover{background:var(--brown-2)}
 .eng .btn-block{width:100%}
@@ -80,27 +91,64 @@
 .eng .hero-cta .btn{position:relative;overflow:hidden;padding:13px 22px;font-size:15.5px;border-radius:15px;letter-spacing:.005em;isolation:isolate}
 .eng .hero-cta .btn .ico{transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 .eng .hero-cta .btn:hover .ico{transform:scale(1.08)}
-/* primary — WhatsApp, with a glossy sheen sweep on hover */
-.eng .hero-cta .btn-wa{
-  background:linear-gradient(135deg,#2bdd6e 0%,#1EBE5A 58%,#15a34a 100%);
-  box-shadow:0 14px 30px -12px rgba(37,211,102,.55), inset 0 1px 0 rgba(255,255,255,.28);}
-.eng .hero-cta .btn-wa::after{
-  content:"";position:absolute;inset:0;z-index:-1;
-  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.38) 50%,transparent 70%);
+.eng .hero-cta .btn-primary-dark,
+.eng .hero-cta .btn-light{
+  transition:transform .28s cubic-bezier(.34,1.56,.64,1),box-shadow .32s ease,background .25s ease,border-color .25s ease;}
+/* primary — premium black "Order on WhatsApp" (matches reference) */
+.eng .hero-cta .btn-primary-dark{
+  background:linear-gradient(168deg,#2c2218 0%,#1a130b 55%,#0c0805 100%);
+  color:#fff;border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 16px 32px -14px rgba(18,12,5,.7), inset 0 1px 0 rgba(255,255,255,.14);}
+.eng .hero-cta .btn-primary-dark .ico{color:#fff}
+.eng .hero-cta .btn-primary-dark:hover{
+  transform:translateY(-3px);
+  box-shadow:0 26px 48px -16px rgba(18,12,5,.78), 0 0 22px -4px rgba(203,164,92,.45), inset 0 1px 0 rgba(255,255,255,.2);}
+/* secondary — premium light "Products Dekhein" */
+.eng .hero-cta .btn-light{
+  background:linear-gradient(180deg,#fff,#f6efe2);
+  color:var(--ink);border:1.5px solid var(--gold-soft);
+  box-shadow:0 10px 24px -16px rgba(60,42,18,.55), inset 0 1px 0 rgba(255,255,255,.85);}
+.eng .hero-cta .btn-light:hover{
+  transform:translateY(-3px);background:#fff;border-color:var(--gold);
+  box-shadow:0 20px 36px -16px rgba(185,143,67,.5), 0 0 20px -6px rgba(185,143,67,.4), inset 0 1px 0 rgba(255,255,255,.95);}
+/* glossy sheen sweep on hover (both buttons) */
+.eng .hero-cta .btn-primary-dark::after,
+.eng .hero-cta .btn-light::after{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.28) 50%,transparent 68%);
   transform:translateX(-130%);transition:transform .9s cubic-bezier(.23,1,.32,1);}
-.eng .hero-cta .btn-wa:hover{transform:translateY(-2px);box-shadow:0 20px 40px -12px rgba(37,211,102,.6), inset 0 1px 0 rgba(255,255,255,.32)}
-.eng .hero-cta .btn-wa:hover::after{transform:translateX(130%)}
-/* secondary — refined gold-tinted glass outline */
-.eng .hero-cta .btn-outline{
-  background:linear-gradient(180deg,rgba(255,255,255,.72),var(--cream-soft));
-  border:1.5px solid var(--gold-soft);color:var(--ink);
-  box-shadow:0 8px 20px -14px rgba(60,42,18,.5), inset 0 1px 0 rgba(255,255,255,.7);}
-.eng .hero-cta .btn-outline:hover{background:#fff;border-color:var(--gold);transform:translateY(-2px);box-shadow:0 14px 26px -16px rgba(185,143,67,.55), inset 0 1px 0 rgba(255,255,255,.8)}
+.eng .hero-cta .btn-light::after{background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.6) 50%,transparent 68%);}
+.eng .hero-cta .btn-primary-dark:hover::after,
+.eng .hero-cta .btn-light:hover::after{transform:translateX(130%)}
+/* ripple / click pulse — CSS-only, expands from centre on press */
+.eng .hero-cta .btn-primary-dark::before,
+.eng .hero-cta .btn-light::before{
+  content:"";position:absolute;left:50%;top:50%;width:14px;height:14px;border-radius:50%;
+  transform:translate(-50%,-50%) scale(0);opacity:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,255,255,.55),rgba(255,255,255,0) 70%);}
+.eng .hero-cta .btn-light::before{background:radial-gradient(circle,rgba(185,143,67,.5),rgba(185,143,67,0) 70%);}
+.eng .hero-cta .btn-primary-dark:active::before,
+.eng .hero-cta .btn-light:active::before{animation:ctaRipple .55s ease-out}
+@keyframes ctaRipple{0%{transform:translate(-50%,-50%) scale(0);opacity:.7}100%{transform:translate(-50%,-50%) scale(26);opacity:0}}
+/* keep a subtle press even while the hover-lift is active */
+.eng .hero-cta .btn-primary-dark:active,
+.eng .hero-cta .btn-light:active{transform:translateY(-1px) scale(.985)}
 .eng .trust-row{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:20px}
 .eng .trust-row .t{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink)}
 .eng .check{width:18px;height:18px;color:var(--wa-dark);flex:0 0 auto}
-.eng .hero-visual{position:relative;border-radius:var(--radius-lg);overflow:hidden;aspect-ratio:4/3.1;background:radial-gradient(120% 90% at 20% 0%,#fff7e8,transparent),linear-gradient(160deg,#efe2c5,#e7d6b2);border:1px solid var(--line);box-shadow:var(--shadow);display:grid;place-items:center}
-.eng .hero-visual>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* Hero image — NO card/border/frame/shadow/background/container. It sits flat in
+   the hero, blends with clean edges, and scales responsively at its own natural
+   aspect ratio (no crop), preserving image quality on desktop/tablet/mobile. */
+.eng .hero-visual{position:relative;background:none;border:0;border-radius:0;box-shadow:none;overflow:visible;display:block}
+/* No card/box — the products sit straight on the hero. A soft radial mask fades
+   the outer rim so the rectangular edge dissolves into the cream background (the
+   studio backdrop is already near-cream), giving a "transparent-PNG" merge with
+   clean soft edges. The product cluster (centre) stays fully sharp. */
+.eng .hero-visual>img{
+  position:static;display:block;width:100%;height:auto;max-width:100%;
+  -webkit-mask-image:radial-gradient(135% 125% at 52% 55%, #000 82%, transparent 100%);
+  mask-image:radial-gradient(135% 125% at 52% 55%, #000 82%, transparent 100%);
+}
 .eng .ph{display:grid;place-items:center;gap:10px;color:#a48a55;text-align:center;padding:20px}
 .eng .ph svg{width:64px;height:64px;opacity:.65}
 .eng .ph small{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.8}
@@ -163,6 +211,14 @@
 .eng .cat-card.more{background:var(--brown);color:var(--cream);display:grid;place-items:center;text-align:center;padding:24px}
 .eng .cat-card.more .n{font-size:30px;font-weight:800;color:var(--gold-2)}
 .eng .cat-card.more .ur{color:var(--gold-soft);font-size:18px;margin-top:6px}
+/* premium dashed border + soft hover (scale, shadow, smooth) — matches the
+   "Saara catalog" CTA so the two read as one design language. */
+.eng .cat-card.more{
+  border:2px dashed var(--gold-soft);
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .35s ease, border-color .3s ease;}
+.eng .cat-card.more:hover{
+  transform:translateY(-4px) scale(1.03); border-color:var(--gold);
+  box-shadow:0 26px 50px -22px rgba(0,0,0,.55), 0 0 0 1px rgba(185,143,67,.25), 0 0 32px -10px rgba(185,143,67,.4);}
 
 /* PAS */
 .eng .pas{background:var(--brown);color:var(--cream)}
@@ -253,6 +309,38 @@
 .eng .offer-cta:active{transform:translateY(0)}
 .eng .offer-cta .ico{width:15px;height:15px;flex:0 0 auto;transition:transform .2s ease}
 .eng .offer-cta:hover .ico{transform:translate(2px,-2px)}
+/* premium "View All Offers" — centered section CTA below the offer cards.
+   Reuses the hero CTA's glow / sheen-sweep / click-ripple language in gold. */
+.eng .offers-all{display:flex;justify-content:center;margin-top:30px}
+.eng .btn-offers-all{
+  position:relative;overflow:hidden;isolation:isolate;
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  max-width:100%;padding:15px 32px;border-radius:999px;
+  font-weight:800;font-size:15.5px;letter-spacing:.005em;text-align:center;
+  color:#fff;border:1px solid rgba(255,255,255,.16);cursor:pointer;
+  background:linear-gradient(168deg,#cba45c 0%,#b98f43 55%,#9c7733 100%);
+  box-shadow:0 16px 32px -14px rgba(120,95,55,.6), inset 0 1px 0 rgba(255,255,255,.28);
+  transition:transform .28s cubic-bezier(.34,1.56,.64,1),box-shadow .32s ease,background .25s ease;
+  will-change:transform;}
+.eng .btn-offers-all .ico{width:18px;height:18px;flex:0 0 auto;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.eng .btn-offers-all:hover{
+  transform:translateY(-3px);
+  background:linear-gradient(168deg,#d4ad63 0%,#c2974a 55%,#a87f37 100%);
+  box-shadow:0 26px 48px -16px rgba(120,95,55,.72), 0 0 26px -2px rgba(203,164,92,.6), inset 0 1px 0 rgba(255,255,255,.36);}
+.eng .btn-offers-all:hover .ico{transform:translateX(3px)}
+.eng .btn-offers-all:active{transform:translateY(-1px) scale(.985)}
+/* glossy sheen sweep on hover */
+.eng .btn-offers-all::after{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.4) 50%,transparent 68%);
+  transform:translateX(-130%);transition:transform .9s cubic-bezier(.23,1,.32,1);}
+.eng .btn-offers-all:hover::after{transform:translateX(130%)}
+/* click ripple — reuses the shared ctaRipple keyframes */
+.eng .btn-offers-all::before{
+  content:"";position:absolute;left:50%;top:50%;width:14px;height:14px;border-radius:50%;
+  transform:translate(-50%,-50%) scale(0);opacity:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,255,255,.6),rgba(255,255,255,0) 70%);}
+.eng .btn-offers-all:active::before{animation:ctaRipple .55s ease-out}
 
 /* reviews */
 .eng .rev-head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:18px}
@@ -263,6 +351,8 @@
 .eng .rev-grid{display:grid;gap:14px;margin-top:24px}
 .eng .review{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow-sm)}
 .eng .review .stars{color:var(--gold);letter-spacing:2px;font-size:15px}
+/* filled stars stay gold (inherited); empty stars render as faded "outline" */
+.eng .review .stars .off{color:rgba(110,97,76,.30)}
 .eng .review q{display:block;quotes:none;font-size:16px;line-height:1.55;margin:12px 0 16px;color:var(--ink)}
 .eng .review .who{display:flex;align-items:center;gap:12px}
 .eng .avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#fff;font-weight:800;display:grid;place-items:center;font-size:18px;flex:0 0 auto}
@@ -394,15 +484,16 @@
 .eng .video-section .section-sub{
   font-size:14px; color:rgba(255,255,255,.55); line-height:1.7; max-width:380px; text-align:right; margin:0; }
 
-/* carousel shell — holds the auto-scrolling strip plus the < / > nav buttons */
+/* carousel shell — holds the horizontal strip plus the < / > nav buttons */
 .eng .video-carousel{ position:relative; margin-top:8px; }
-/* infinite filmstrip — JS auto-scrolls right→left, one reel plays at a time.
-   It's a real scroll container (overflow-x), so the nav buttons + touch swipe
-   can drive it; the list wraps back to the start at the end. */
+/* single-row filmstrip — FIXED: no auto-scroll and no free user swipe/drag/wheel
+   scrolling (overflow:hidden). The row only moves when the < / > arrows drive it
+   programmatically (scrollBy still works on a hidden-overflow scroll container).
+   Reels are rendered once (no duplicates). */
 .eng .video-strip{
   padding:12px 2px;
-  overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
-  overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch;
+  overflow-x:hidden; overflow-y:hidden; scrollbar-width:none;
+  overscroll-behavior-x:contain;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);
   mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent); }
 .eng .video-strip::-webkit-scrollbar{ display:none; }
@@ -606,16 +697,12 @@ body.vs-focus .video-strip{ -webkit-mask-image:none; mask-image:none; }
 .eng .video-strip .video-card.is-expanded.is-closing{
   animation:vsExpandOut .26s cubic-bezier(.4,0,.6,1) both; }
 
-/* Focus view: larger touch targets, and the controls AUTO-HIDE. They are only
-   visible while `is-controls` is on (revealed on open + on tap, then fades after
-   ~1.5s). The higher specificity beats the .is-playing/.is-expanded hide rules. */
-.eng .video-card.is-expanded .video-play-btn{
-  width:66px; height:66px; opacity:0; pointer-events:none; transition:opacity .3s ease; }
-.eng .video-card.is-expanded .video-play-btn::before{ animation:none; }
+/* Full view: hide the Play overlay COMPLETELY; show ONLY the Sound (Mute/Unmute)
+   button, pinned at the top of the player and always visible. The high-specificity
+   selectors beat the .is-playing / @media(hover) hide rules above. */
+.eng .video-card.is-expanded .video-play-btn{ display:none; }
 .eng .video-card.is-expanded .video-sound-btn{
-  width:42px; height:42px; top:14px; right:14px; opacity:0; pointer-events:none; transition:opacity .3s ease; }
-.eng .video-card.is-expanded.is-controls .video-play-btn,
-.eng .video-card.is-expanded.is-controls .video-sound-btn{ opacity:1; pointer-events:auto; }
+  width:42px; height:42px; top:14px; right:14px; opacity:1; pointer-events:auto; }
 
 @keyframes vsExpandIn{
   from{ transform:translate(-50%,-50%) scale(.86); opacity:0; }

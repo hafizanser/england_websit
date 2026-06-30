@@ -106,6 +106,37 @@ class ShopOrderRepo extends BaseRepo
     }
 
     // -----------------------------------------------------------------------
+    // Stock reconciliation — an ACTIVE order holds (reserves) product stock; a
+    // CANCELLED order releases it. The controller calls these on the relevant
+    // status transition so stock stays in sync with the admin source of truth.
+    // -----------------------------------------------------------------------
+
+    /** Give the ordered units back to stock (order cancelled / deleted). */
+    public function restoreStockForOrder(int $orderId): void
+    {
+        $this->adjustOrderStock($orderId, +1);
+    }
+
+    /** Re-reserve the ordered units (order un-cancelled back to active). */
+    public function reserveStockForOrder(int $orderId): void
+    {
+        $this->adjustOrderStock($orderId, -1);
+    }
+
+    private function adjustOrderStock(int $orderId, int $sign): void
+    {
+        $items = (new ShopOrderItemRepo())->byOrder($orderId);
+        $products = new ProductRepo();
+        foreach ($items as $it) {
+            $pid = (string) ($it['product_id'] ?? '');
+            $qty = (int) ($it['qty'] ?? 0);
+            if ($pid !== '' && $qty > 0) {
+                $products->adjustStock($pid, $sign * $qty);
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Admin order management — storefront AND admin orders both live in
     // fmcg_orders, so the admin pages read from here. Shapes mirror what the
     // admin order list/detail expect.
