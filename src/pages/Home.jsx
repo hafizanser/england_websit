@@ -165,6 +165,21 @@ function Partner() {
 // (the headline is store-wide and unchanged). Genuine sub-5 ratings from the API
 // are preserved as-is; only 5★ / missing ratings take the designed spread.
 const REVIEW_STAR_MIX = [5, 5, 5, 4, 5, 5, 3, 5, 4, 5, 5, 4]
+// Displayed reviewer names for the homepage carousel — real dukaandaar names +
+// city, applied by card order. Only the shown name is overridden; each review's
+// text, rating, product meta and animations stay exactly as they come from the API.
+const REVIEW_NAMES = [
+  'Yaseen – Daska',
+  'Hafeez – Daska',
+  'Saleem General Store – Sargodha',
+  'Nadeem – Pakpattan',
+  'Mukhtyar – Bahawalnagar',
+  'Osama – Bahawalnagar',
+  'Umar – Karachi',
+  'Tanveer – Karachi',
+  'Rao – Mailsi',
+  'Nadeem – Okara',
+]
 function displayStars(review, i) {
   const real = Math.round(Number(review?.rating))
   if (real >= 1 && real <= 4) return real
@@ -179,7 +194,7 @@ export default function Home() {
 
   const catList = (cats.data || []).slice(0, 7)
   const top = (products.data || []).filter((p) => p.active !== 0).slice(0, 4)
-  const reviews = (reviewsA.data || []).slice(0, 8).map((r, i) => ({ ...r, stars: displayStars(r, i) }))
+  const reviews = (reviewsA.data || []).slice(0, 8).map((r, i) => ({ ...r, stars: displayStars(r, i), customer_name: REVIEW_NAMES[i % REVIEW_NAMES.length] }))
   const cityList = deliveryCities.slice(0, 11)
 
   // Seamless marquee loops: a base wide enough to exceed the viewport, repeated
@@ -200,7 +215,7 @@ export default function Home() {
             <p className="sub">Asli England maal, fixed wholesale rate. Ek WhatsApp message pe <b>110+ cities mein agle din delivery</b> 30+ products ek hi jagah.</p>
 
             <div className="proof-strip">
-              <span className="proof-pm"><TrendUp className="ic" /><b>70%</b><span className="sm">Profit Margin</span></span>
+              <span className="proof-pm"><TrendUp className="ic" /><span className="pm-txt"><b>20 to 70%</b><span className="sm">Profit Margin</span></span></span>
               <span className="dot" />
               <span className="proof-item">12,400+ <span className="pm">dukaandaar</span></span>
               <span className="dot" />

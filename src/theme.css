@@ -81,11 +81,14 @@
 .eng .proof-hero .ic{width:16px;height:16px;color:var(--wa-dark);flex:0 0 auto}
 .eng .proof-hero b{font-size:18px;font-weight:800;letter-spacing:-.01em;color:var(--green-deep)}
 .eng .proof-hero .sm{font-size:14px;font-weight:700;color:var(--green-deep);opacity:.82}
-/* 70% Profit Margin — emphasised green metric in the proof strip */
-.eng .proof-pm{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(180deg,#e9f8ef,#dff3e7);color:var(--green-deep);border:1px solid rgba(15,61,36,.24);border-radius:999px;padding:7px 16px;box-shadow:0 12px 24px -14px rgba(15,61,36,.6)}
+/* 20 to 70% Profit Margin — emphasised green metric in the proof strip.
+   Single-row pill: bold figure + a hairline divider + a refined label, so the
+   number reads as the anchor and "Profit Margin" as its supporting caption. */
+.eng .proof-pm{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(180deg,#eaf9f0,#dcf1e5);color:var(--green-deep);border:1px solid rgba(15,61,36,.22);border-radius:999px;padding:8px 17px;box-shadow:0 12px 24px -14px rgba(15,61,36,.6), inset 0 1px 0 rgba(255,255,255,.55)}
 .eng .proof-pm .ic{width:16px;height:16px;color:var(--wa-dark);flex:0 0 auto}
-.eng .proof-pm b{font-size:19px;font-weight:800;letter-spacing:-.01em;color:var(--green-deep)}
-.eng .proof-pm .sm{font-size:14px;font-weight:700;color:var(--green-deep);opacity:.88}
+.eng .proof-pm .pm-txt{display:inline-flex;align-items:center;gap:10px}
+.eng .proof-pm b{font-size:18px;font-weight:800;letter-spacing:-.015em;line-height:1;color:var(--green-deep);font-variant-numeric:tabular-nums}
+.eng .proof-pm .sm{font-size:11.5px;font-weight:700;line-height:1;letter-spacing:.055em;text-transform:uppercase;color:var(--green-deep);opacity:.72;padding-left:10px;border-left:1px solid rgba(15,61,36,.2);white-space:nowrap}
 /* hero CTA — premium, compact pair of actions */
 .eng .hero-cta{display:grid;gap:10px;margin-top:18px}
 .eng .hero-cta .btn{position:relative;overflow:hidden;padding:13px 22px;font-size:15.5px;border-radius:15px;letter-spacing:.005em;isolation:isolate}
@@ -317,14 +320,15 @@
   display:inline-flex;align-items:center;justify-content:center;gap:10px;
   max-width:100%;padding:15px 32px;border-radius:999px;
   font-weight:800;font-size:15.5px;letter-spacing:.005em;text-align:center;
-  color:#fff;border:1px solid rgba(255,255,255,.16);cursor:pointer;
+  color:#fff;border:2px dotted rgba(255,255,255,.55);cursor:pointer;
   background:linear-gradient(168deg,#cba45c 0%,#b98f43 55%,#9c7733 100%);
   box-shadow:0 16px 32px -14px rgba(120,95,55,.6), inset 0 1px 0 rgba(255,255,255,.28);
-  transition:transform .28s cubic-bezier(.34,1.56,.64,1),box-shadow .32s ease,background .25s ease;
+  transition:transform .28s cubic-bezier(.34,1.56,.64,1),box-shadow .32s ease,background .25s ease,border-color .3s ease,color .25s ease;
   will-change:transform;}
 .eng .btn-offers-all .ico{width:18px;height:18px;flex:0 0 auto;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 .eng .btn-offers-all:hover{
   transform:translateY(-3px);
+  color:#fffdf6;border-color:rgba(255,255,255,.92);
   background:linear-gradient(168deg,#d4ad63 0%,#c2974a 55%,#a87f37 100%);
   box-shadow:0 26px 48px -16px rgba(120,95,55,.72), 0 0 26px -2px rgba(203,164,92,.6), inset 0 1px 0 rgba(255,255,255,.36);}
 .eng .btn-offers-all:hover .ico{transform:translateX(3px)}

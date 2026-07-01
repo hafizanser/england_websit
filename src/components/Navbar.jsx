@@ -3,17 +3,29 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { List, X, WhatsappLogo, CaretRight, ShoppingBag, MagnifyingGlass, SignIn, UserPlus, User, SignOut } from '@phosphor-icons/react'
 import { brand, navLinks } from '../data/site'
-import BrandLogo from './BrandLogo'
 import { useCart } from '../context/CartContext'
 import { useCustomerAuth } from '../context/CustomerAuthContext'
 import { spring } from '../lib/motion'
+import { lockScroll } from '../lib/scroll'
 
 const waHref = `https://wa.me/${brand.whatsapp.replace(/[^0-9]/g, '')}`
 
 function Logo({ onClick }) {
+  // Navbar uses a tightly-trimmed copy of the wordmark. The shared /england-logo.png
+  // has large baked-in transparent padding (symmetric left/right, but far more at
+  // the bottom than the top) which pushed the badge visually high and inflated the
+  // gap to the nav links. The trimmed asset frames the badge edge-to-edge so flex
+  // `items-center` centres it truly and the gap-6 spacing reads evenly.
   return (
-    <Link to="/" onClick={onClick} aria-label={brand.full} className="flex items-center">
-      <BrandLogo tone="dark" className="h-9 sm:h-10" />
+    <Link to="/" onClick={onClick} aria-label={brand.full} className="flex shrink-0 items-center">
+      <img
+        src="/england-logo-nav.png"
+        alt={brand.full}
+        width="712"
+        height="351"
+        draggable="false"
+        className="block h-7 w-auto select-none sm:h-8"
+      />
     </Link>
   )
 }
@@ -96,11 +108,12 @@ export default function Navbar({ onCartOpen }) {
     setOpen(false)
   }
 
+  // Lock background scroll while the mobile menu is open; the counted lock
+  // guarantees scroll is restored no matter what else is locking (e.g. a video
+  // reel), and never leaves the page stuck after the menu closes.
   useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : ''
-    return () => {
-      document.body.style.overflow = ''
-    }
+    if (!open) return undefined
+    return lockScroll()
   }, [open])
 
   return (
@@ -124,10 +137,10 @@ export default function Navbar({ onCartOpen }) {
 
       {/* Main bar */}
       <div className="border-b border-brand-100 bg-sand-50/85 backdrop-blur-xl">
-        <nav className="container-page flex items-center gap-5 py-3.5">
+        <nav className="container-page flex items-center gap-6 py-3.5">
           <Logo />
 
-          <ul className="ml-2 hidden items-center gap-6 lg:flex">
+          <ul className="hidden items-center gap-6 lg:flex">
             {navLinks.map((link) => {
               const active = isNavActive(link.to)
               return (

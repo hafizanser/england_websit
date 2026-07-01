@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { lockScroll } from '../lib/scroll'
 
 /**
  * VIDEO REVIEW SECTION — "Experience Excellence / See the products in action".
@@ -175,6 +176,12 @@ export default function VideoReviews() {
     userPausedRef.current = false
     setPaused(false)
     manualRef.current = i
+    // Expanding into the full view auto-enables sound. The Play click is a user
+    // gesture, so calling play() unmuted synchronously here satisfies autoplay
+    // policies (desktop AND mobile). playOnly() reads unmutedRef to un-mute this
+    // reel, set volume=1 and play — mirror it into state for the sound icon.
+    unmutedRef.current = i
+    setUnmuted(i)
     playOnly(i)
     revealControls() // controls show on open, then auto-hide
   }, [playOnly, revealControls])
@@ -183,6 +190,14 @@ export default function VideoReviews() {
   // DOM once the animation has finished (kept in sync with the CSS duration).
   const closeExpand = useCallback(() => {
     if (expandedRef.current === -1) return
+    // Closing returns the reel to its muted preview behaviour: silence whatever
+    // was audible so the inline carousel is muted again.
+    const v = videoRefs.current[expandedRef.current]
+    if (v) v.muted = true
+    if (unmutedRef.current !== -1) {
+      unmutedRef.current = -1
+      setUnmuted(-1)
+    }
     clearTimeout(ctrlTimerRef.current)
     setControlsOn(false)
     setClosing(true)
@@ -312,15 +327,14 @@ export default function VideoReviews() {
   // While a reel is focused: lock background scroll and let Escape close it.
   useEffect(() => {
     if (expanded === -1) return undefined
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
     // Neutralise the page-transition transform so the focused reel's fixed
     // positioning is viewport-relative (see body.vs-focus rule in index.css).
     document.body.classList.add('vs-focus')
     const onKey = (e) => { if (e.key === 'Escape') closeExpand() }
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = prevOverflow
+      unlock()
       document.body.classList.remove('vs-focus')
       window.removeEventListener('keydown', onKey)
     }

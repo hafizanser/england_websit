@@ -20,7 +20,14 @@
 
   body {
     @apply bg-sand-50 text-brand-950 antialiased;
-    overflow-x: hidden;
+    /* NOTE: do NOT set overflow-x here. `overflow-x: hidden` on <body> computes
+       overflow-y to `auto`, which turns <body> into its own scroll container.
+       Since the body is exactly as tall as its content, it has nothing to scroll
+       internally AND it stops the mouse wheel / touchpad from chaining up to
+       scroll the viewport — so the page scrolls with the keyboard and scrollTo
+       but NOT with the wheel/trackpad. Horizontal overflow is already clipped by
+       `html { overflow-x: clip }` above, so this line is both redundant and
+       harmful. Keep it off. */
     line-height: 1.55;
     /* Native-app feel on touch devices: no grey tap flash, no overscroll glow */
     -webkit-tap-highlight-color: transparent;

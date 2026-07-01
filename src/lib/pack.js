@@ -32,6 +32,30 @@ export function piecesPerUnit(unitKey, conv = {}) {
   }
 }
 
+// Available quantity of a product expressed in a CHOSEN unit.
+//
+// Opening stock (`stock`, from the admin field total_stock_cotton) is measured in
+// CARTONS — the product's largest unit. Capping every unit at that raw number is
+// wrong: 20 cartons is also 480 boxes (24/carton) or 5,760 pieces. So we convert
+// the carton total into pieces, then divide by the pieces contained in one of the
+// chosen unit to get the true per-unit ceiling.
+//
+// `options` (optional — the full list of sellable units) lets callers that have it
+// anchor the stock's base to the product's largest unit even when that isn't a
+// carton. When the pack data can't support a conversion, we fall back to the raw
+// stock number so a product is never over-restricted.
+export function stockForUnit(stock, unitKey, conv = {}, options = []) {
+  const s = Number(stock) || 0
+  if (s <= 0) return 0
+  const perUnit = piecesPerUnit(unitKey, conv)
+  const perBase = (options || []).reduce(
+    (max, o) => Math.max(max, piecesPerUnit(o.unit, conv)),
+    piecesPerUnit('carton', conv),
+  )
+  if (!perUnit || !perBase) return s
+  return Math.floor((s * perBase) / perUnit)
+}
+
 // Per-piece price for a chosen unit option. Returns null when it can't be
 // derived (no pack data / zero price) so the card can hide the line gracefully.
 export function perPiecePrice(unitOption, conv = {}) {

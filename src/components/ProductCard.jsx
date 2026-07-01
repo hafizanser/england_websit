@@ -5,7 +5,7 @@ import { Plus, Minus, Check, CheckCircle, Package, ShoppingCartSimple } from '@p
 import { useCart } from '../context/CartContext'
 import { money, unitLabelFor } from '../lib/cartEngine'
 import { spring } from '../lib/motion'
-import { packSummary, perPiecePrice, perPcLabel } from '../lib/pack'
+import { packSummary, perPiecePrice, perPcLabel, stockForUnit } from '../lib/pack'
 import { PLACEHOLDER, onImgError } from '../lib/img'
 
 // Stock pill — AA-contrast, derived from total_stock_cotton (in cartons).
@@ -38,8 +38,11 @@ function StockBadge({ stock }) {
 // ~25 full card bodies.
 const CardCartControls = memo(function CardCartControls({ p, options, selected, onUnit }) {
   const { add, qtyOf, toast } = useCart()
-  const stock = Number(p.stock) || 0          // Opening Stock = max available
-  const outOfStock = stock <= 0
+  const rawStock = Number(p.stock) || 0       // Opening Stock — stored in cartons
+  const outOfStock = rawStock <= 0
+  // Cap for the SELECTED unit: cartons converted to this unit (e.g. 20 cartons =
+  // 480 boxes = 5,760 pieces), so every unit can be added up to its real stock.
+  const stock = stockForUnit(rawStock, selected.unit, p.conversions, options)
   const inCart = qtyOf(p.id, selected.unit)   // qty of this unit already in cart
 
   const [qty, setQty] = useState(1)
@@ -49,7 +52,7 @@ const CardCartControls = memo(function CardCartControls({ p, options, selected, 
 
   // Quantity to add — always at least 1 (the minimum order), capped only by stock.
   const num = Math.max(1, Number(qty) || 1)
-  const overStock = () => toast(`Only ${stock} units are available in stock.`, 'warning')
+  const overStock = () => toast(`Only ${stock} ${selected.label || 'units'} available in stock.`, 'warning')
 
   // Manual typing — digits only, min 1, capped at Opening Stock. Empty is allowed
   // while typing and snaps back to 1 on blur.

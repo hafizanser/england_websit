@@ -19,6 +19,7 @@ import { useCustomerAuth } from '../context/CustomerAuthContext'
 import { useNotify } from '../context/NotifyContext'
 import { placeOrder } from '../api/orders'
 import { money, unitLabelFor, groupByProduct } from '../lib/cartEngine'
+import { stockForUnit } from '../lib/pack'
 import { waLink } from '../lib/whatsapp'
 import { imgSrc, onImgError } from '../lib/img'
 
@@ -199,8 +200,10 @@ export default function CheckoutPage() {
   // of stock or exceeds available stock blocks checkout (the backend re-validates).
   // Only enforce when stock is a KNOWN number (null = unknown → backend decides),
   // so pre-existing carts / live-only products are never falsely blocked.
+  // Compare each line's qty against its stock IN THAT LINE'S UNIT. Stock is held
+  // in cartons, so 480 boxes (= 20 cartons) is valid and must not be flagged.
   const stockIssues = useMemo(
-    () => items.filter((i) => typeof i.stock === 'number' && (i.stock <= 0 || i.qty > i.stock)),
+    () => items.filter((i) => typeof i.stock === 'number' && (i.stock <= 0 || i.qty > stockForUnit(i.stock, i.unitKey, i.conv))),
     [items],
   )
   const hasStockIssue = stockIssues.length > 0
@@ -486,7 +489,7 @@ export default function CheckoutPage() {
                 <ul className="mt-2 space-y-1 pl-7 text-[13px] font-medium">
                   {stockIssues.map((i) => (
                     <li key={i.key} className="list-disc">
-                      {i.name} — {Number(i.stock) <= 0 ? 'Out of Stock' : `Only ${Number(i.stock)} items available`}
+                      {i.name} — {Number(i.stock) <= 0 ? 'Out of Stock' : `Only ${stockForUnit(i.stock, i.unitKey, i.conv)} ${unitLabelFor(i.unitKey)} available`}
                     </li>
                   ))}
                 </ul>

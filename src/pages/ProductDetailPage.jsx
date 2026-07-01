@@ -21,9 +21,11 @@ import { PLACEHOLDER, onImgError } from '../lib/img'
 import { useAsync } from '../hooks/useAsync'
 import { ErrorState } from '../components/ui'
 import ProductReviews from '../components/ProductReviews'
+import RelatedProducts from '../components/RelatedProducts'
 import QuantityStepper from '../components/QuantityStepper'
 import { useCart } from '../context/CartContext'
 import { money, rowKey, unitLabelFor } from '../lib/cartEngine'
+import { stockForUnit } from '../lib/pack'
 import { brand } from '../data/site'
 
 // Split admin text (newline / bullet separated) into clean bullet points.
@@ -170,7 +172,9 @@ export default function ProductDetailPage() {
   // beyond what's available (counting what's already in the cart).
   const stock = Number(p?.stock) || 0
   const outOfStock = !!p && stock <= 0
-  const maxQty = stock > 0 ? stock : 999
+  // Stock is stored in cartons; the ceiling for the SELECTED unit is that carton
+  // total converted into this unit (e.g. 20 cartons → 480 boxes → 5,760 pieces).
+  const maxQty = stock > 0 ? stockForUnit(stock, selected?.unit, p?.conversions, options) : 999
   const shortBullets = p ? unitBullets(p.sub) : []
   const detailBullets = p ? toBullets(p.description) : []
 
@@ -195,8 +199,8 @@ export default function ProductDetailPage() {
   const addToCart = () => {
     if (!selected) return
     if (outOfStock) { toast('Out of Stock', 'warning'); return }
-    if (stock > 0 && inCart + qty > stock) {
-      toast(`Only ${stock} items are available in stock.`, 'warning')
+    if (stock > 0 && inCart + qty > maxQty) {
+      toast(`Only ${maxQty} ${selected?.label || 'items'} available in stock.`, 'warning')
       return
     }
     add(p, qty, selected)
@@ -469,6 +473,10 @@ export default function ProductDetailPage() {
 
           {/* Reviews & ratings */}
           <ProductReviews productId={p.id} />
+
+          {/* Related products — same category first, topped up with random picks
+              from other categories. Reuses the Products-page card as-is. */}
+          <RelatedProducts product={p} />
 
           {/* Sticky mobile Add-to-Cart bar — native app pattern, always in reach.
               Sits above the bottom nav and respects the home-bar safe area. */}

@@ -29,7 +29,7 @@ import { useAsync } from '../hooks/useAsync'
 import { getTopSelling } from '../api/catalog'
 import { validatePromoCode } from '../api/offers'
 import { money, groupByProduct, unitLabelFor } from '../lib/cartEngine'
-import { packSummary } from '../lib/pack'
+import { packSummary, stockForUnit } from '../lib/pack'
 import { waLink } from '../lib/whatsapp'
 import { spring } from '../lib/motion'
 import { imgSrc, onImgError } from '../lib/img'
@@ -112,7 +112,9 @@ const CartGroup = memo(function CartGroup({ group, onRemove, reduce }) {
                     value={u.qty}
                     onChange={(q) => setQty(u.key, q)}
                     min={0}
-                    max={u.stock == null ? 999 : Math.max(0, u.stock)}
+                    // Stock is in cartons; cap this line at that total converted to
+                    // its own unit (e.g. 20 cartons → 480 boxes), not a flat 20.
+                    max={u.stock == null ? 999 : Math.max(0, stockForUnit(u.stock, u.unitKey, u.conv))}
                     size="sm"
                     unitLabel={label}
                   />
