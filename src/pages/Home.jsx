@@ -215,7 +215,7 @@ export default function Home() {
             <p className="sub">Asli England maal, fixed wholesale rate. Ek WhatsApp message pe <b>110+ cities mein agle din delivery</b> 30+ products ek hi jagah.</p>
 
             <div className="proof-strip">
-              <span className="proof-pm"><TrendUp className="ic" /><span className="pm-txt"><b>20 to 70%</b><span className="sm">Profit Margin</span></span></span>
+              <span className="proof-pm"><TrendUp className="ic" /><span className="pm-txt"><b>20–70%</b><span className="sm">Profit Margin</span></span></span>
               <span className="dot" />
               <span className="proof-item">12,400+ <span className="pm">dukaandaar</span></span>
               <span className="dot" />

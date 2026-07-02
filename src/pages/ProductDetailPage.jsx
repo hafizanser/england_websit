@@ -6,6 +6,7 @@ import {
   CaretLeft,
   CaretRight,
   Plus,
+  Minus,
   Check,
   Truck,
   ShieldCheck,
@@ -25,7 +26,8 @@ import RelatedProducts from '../components/RelatedProducts'
 import QuantityStepper from '../components/QuantityStepper'
 import { useCart } from '../context/CartContext'
 import { money, rowKey, unitLabelFor } from '../lib/cartEngine'
-import { stockForUnit } from '../lib/pack'
+import { unitStockCap } from '../lib/pack'
+import { unitCartActions, cartAlert } from '../lib/unitCart'
 import { brand } from '../data/site'
 
 // Split admin text (newline / bullet separated) into clean bullet points.
@@ -137,7 +139,7 @@ function DetailSkeleton() {
 export default function ProductDetailPage() {
   const { id } = useParams()
   const ctx = useOutletContext() || {}
-  const { add, qtyOf, setQty: setCartQty, toast } = useCart()
+  const { qtyOf, unitsOf, setQty: setCartQty, setUnitQty, toast } = useCart()
   const { data: p, loading, error, reload } = useAsync(() => getProductById(id), [id])
   const { data: offers } = useAsync(() => getOffers(), [])
 
@@ -172,9 +174,22 @@ export default function ProductDetailPage() {
   // beyond what's available (counting what's already in the cart).
   const stock = Number(p?.stock) || 0
   const outOfStock = !!p && stock <= 0
-  // Stock is stored in cartons; the ceiling for the SELECTED unit is that carton
-  // total converted into this unit (e.g. 20 cartons → 480 boxes → 5,760 pieces).
-  const maxQty = stock > 0 ? stockForUnit(stock, selected?.unit, p?.conversions, options) : 999
+  // Ceiling for the SELECTED unit, computed LIVE against the whole cart so Cartons
+  // and Boxes of this product share ONE pool (adding Cartons shrinks the Boxes
+  // still available, and vice-versa — see lib/pack → unitStockCap).
+  const maxQty = stock > 0 && selected ? unitStockCap(p, selected, unitsOf(p.id)) : 999
+  // Manual quantity for the Add button (never below 1) + the shared −/＋/Add
+  // actions & alerts used identically on every page (see lib/unitCart).
+  const num = Math.max(1, Number(qty) || 1)
+  const actions = selected ? unitCartActions({ qtyOf, setUnitQty, toast }, p, selected, outOfStock ? 0 : maxQty) : null
+  const onQtyInput = (e) => {
+    const digits = e.target.value.replace(/[^\d]/g, '').slice(0, 4)
+    if (digits === '') return setQty('')
+    let n = parseInt(digits, 10)
+    if (maxQty > 0 && n > maxQty) { n = maxQty; toast(cartAlert.overStock(maxQty, selected?.label), 'warning') }
+    setQty(Math.max(1, n))
+  }
+  const onQtyBlur = () => { if (qty === '' || Number(qty) < 1) setQty(1) }
   const shortBullets = p ? unitBullets(p.sub) : []
   const detailBullets = p ? toBullets(p.description) : []
 
@@ -197,14 +212,9 @@ export default function ProductDetailPage() {
   const toNext = oc && oc.buyQty > 0 ? (oc.buyQty - (paidMain % oc.buyQty)) % oc.buyQty : 0
 
   const addToCart = () => {
-    if (!selected) return
+    if (!selected || !actions) return
     if (outOfStock) { toast('Out of Stock', 'warning'); return }
-    if (stock > 0 && inCart + qty > maxQty) {
-      toast(`Only ${maxQty} ${selected?.label || 'items'} available in stock.`, 'warning')
-      return
-    }
-    add(p, qty, selected)
-    if (ctx.openCart) ctx.openCart()
+    if (actions.addManual(num)) ctx.openCart?.()
   }
 
   const waHref = p && selected
@@ -352,11 +362,21 @@ export default function ProductDetailPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <span className="text-xs font-bold uppercase tracking-wide text-brand-400">Tadaad</span>
-                      <QuantityStepper value={qty} onChange={(q) => setQty(Math.max(1, q))} min={1} max={maxQty} />
+                      {/* − removes one of this unit from the cart, + adds one; the
+                          center is the manual quantity used by the Add button. */}
+                      <div className="inline-flex items-center rounded-full border border-brand-200 bg-white p-1">
+                        <button type="button" onClick={() => actions?.minus()} disabled={outOfStock} aria-label="Cart se ek kam karein" className="grid h-10 w-10 place-items-center rounded-full text-brand-700 transition-all hover:bg-brand-50 active:scale-90 disabled:cursor-not-allowed disabled:opacity-30">
+                          <Minus size={16} weight="bold" />
+                        </button>
+                        <input type="text" inputMode="numeric" value={qty} onChange={onQtyInput} onBlur={onQtyBlur} disabled={outOfStock} aria-label="Tadaad" className="w-10 min-w-0 bg-transparent text-center text-base font-bold tabular-nums text-brand-900 outline-none disabled:text-brand-300" />
+                        <button type="button" onClick={() => actions?.plus()} disabled={outOfStock} aria-label="Cart mein ek add karein" className="grid h-10 w-10 place-items-center rounded-full text-brand-700 transition-all hover:bg-brand-50 active:scale-90 disabled:cursor-not-allowed disabled:opacity-30">
+                          <Plus size={16} weight="bold" />
+                        </button>
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-400">Total</p>
-                      <p className="font-display text-xl font-extrabold leading-none tracking-tight text-brand-900">{money((selected ? selected.price : 0) * qty)}</p>
+                      <p className="font-display text-xl font-extrabold leading-none tracking-tight text-brand-900">{money((selected ? selected.price : 0) * num)}</p>
                     </div>
                   </div>
 
@@ -488,10 +508,10 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-3 rounded-2xl bg-white p-2 pl-4 shadow-lift ring-1 ring-brand-100">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[11px] font-semibold text-brand-400">
-                    {qty} {selected.label}{qty > 1 ? 's' : ''}{inCart > 0 ? ` · ${inCart} cart mein` : ''}
+                    {num} {selected.label}{num > 1 ? 's' : ''}{inCart > 0 ? ` · ${inCart} cart mein` : ''}
                   </p>
                   <p className="font-display text-lg font-extrabold leading-none tracking-tight text-brand-900" aria-live="polite">
-                    {money(selected.price * qty)}
+                    {money(selected.price * num)}
                   </p>
                 </div>
                 <button

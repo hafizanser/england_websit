@@ -676,17 +676,33 @@ body.vs-focus .video-strip{ -webkit-mask-image:none; mask-image:none; }
   animation:vsBackdropIn .3s ease both; }
 .eng .video-focus-backdrop.is-closing{ animation:vsBackdropOut .26s ease both; }
 
-/* close (×) button — also part of the "outside the video" area */
+/* close (×) button — top-LEFT corner of the video, well clear of the Sound icon
+   which stays top-right. Comfortable ~20px corner padding. Circular dark-glass
+   button, absolutely positioned so it rides with the reel on resize; a high z-index
+   keeps it above the video. Fades + scales in on open (backwards fill so the base
+   transform is restored afterwards and the hover transition can take over). */
 .eng .video-focus-close{
-  position:fixed; top:calc(14px + env(safe-area-inset-top)); right:14px; z-index:1001;
+  position:absolute; top:20px; left:20px; z-index:7;
   width:42px; height:42px; border-radius:50%; padding:0; cursor:pointer;
   display:flex; align-items:center; justify-content:center; color:#fff;
-  background:rgba(20,22,28,.6); border:1px solid rgba(255,255,255,.2);
-  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+  background:rgba(20,22,28,.55); border:1px solid rgba(255,255,255,.2);
+  box-shadow:0 6px 16px -8px rgba(0,0,0,.55);
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
   -webkit-tap-highlight-color:transparent;
-  animation:vsBackdropIn .3s ease both; }
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease, background .25s ease, border-color .25s ease;
+  animation:vsCloseIn .28s cubic-bezier(.22,1,.36,1) backwards; }
 .eng .video-focus-close.is-closing{ animation:vsBackdropOut .26s ease both; }
-.eng .video-focus-close:active{ transform:scale(.92); }
+/* Hover: enlarge, spin, and lift with a soft shadow. */
+.eng .video-focus-close:hover{
+  transform:scale(1.12) rotate(90deg);
+  background:rgba(28,30,38,.82); border-color:rgba(255,255,255,.5);
+  box-shadow:0 12px 28px -8px rgba(0,0,0,.65); }
+/* Click: subtle press before the viewer closes. */
+.eng .video-focus-close:active{ transform:scale(.9) rotate(90deg); }
+.eng .video-focus-close svg{ display:block; }
+@keyframes vsCloseIn{
+  from{ opacity:0; transform:scale(.8); }
+  to{ opacity:1; transform:scale(1); } }
 
 /* the focused reel — fixed + centered, fills most of the viewport (9:16). The
    extra-specific selector beats the in-strip card width rules. */
@@ -705,8 +721,10 @@ body.vs-focus .video-strip{ -webkit-mask-image:none; mask-image:none; }
    button, pinned at the top of the player and always visible. The high-specificity
    selectors beat the .is-playing / @media(hover) hide rules above. */
 .eng .video-card.is-expanded .video-play-btn{ display:none; }
+/* Focus view: Sound sits on the FAR right, with the Close (✕) button immediately
+   to its left — both on the same line (top:14px), equally spaced. */
 .eng .video-card.is-expanded .video-sound-btn{
-  width:42px; height:42px; top:14px; right:14px; opacity:1; pointer-events:auto; }
+  width:42px; height:42px; top:14px; left:auto; right:14px; opacity:1; pointer-events:auto; }
 
 @keyframes vsExpandIn{
   from{ transform:translate(-50%,-50%) scale(.86); opacity:0; }

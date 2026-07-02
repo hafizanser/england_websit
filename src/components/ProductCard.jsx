@@ -5,7 +5,8 @@ import { Plus, Minus, Check, CheckCircle, Package, ShoppingCartSimple } from '@p
 import { useCart } from '../context/CartContext'
 import { money, unitLabelFor } from '../lib/cartEngine'
 import { spring } from '../lib/motion'
-import { packSummary, perPiecePrice, perPcLabel, stockForUnit } from '../lib/pack'
+import { packSummary, perPiecePrice, perPcLabel, unitStockCap } from '../lib/pack'
+import { unitCartActions, cartAlert } from '../lib/unitCart'
 import { PLACEHOLDER, onImgError } from '../lib/img'
 
 // Stock pill — AA-contrast, derived from total_stock_cotton (in cartons).
@@ -36,23 +37,34 @@ function StockBadge({ stock }) {
 //   Row 2: [−] [Quantity] [+]  [ Add to Cart ]
 // Isolated + memoized so a cart change re-renders ONLY this control, never the
 // ~25 full card bodies.
-const CardCartControls = memo(function CardCartControls({ p, options, selected, onUnit }) {
-  const { add, qtyOf, toast } = useCart()
+const CardCartControls = memo(function CardCartControls({ p, options, selected, onUnit, cart, stackedControls = false }) {
+  // Storefront cards use the shared customer cart context. Callers that need the
+  // exact same UI + quantity/stock logic but a different destination (e.g. the
+  // admin create-order page) can inject a `cart` adapter with the same
+  // { add, qtyOf, toast } shape. useCart() is always called (CartProvider wraps
+  // the whole app) so hook order stays stable; the adapter just overrides it.
+  const ctxCart = useCart()
+  const cartApi = cart || ctxCart
+  const { toast } = cartApi
   const rawStock = Number(p.stock) || 0       // Opening Stock — stored in cartons
   const outOfStock = rawStock <= 0
-  // Cap for the SELECTED unit: cartons converted to this unit (e.g. 20 cartons =
-  // 480 boxes = 5,760 pieces), so every unit can be added up to its real stock.
-  const stock = stockForUnit(rawStock, selected.unit, p.conversions, options)
-  const inCart = qtyOf(p.id, selected.unit)   // qty of this unit already in cart
+  // Cap for the SELECTED unit, computed LIVE against the whole cart so Cartons and
+  // Boxes of this product share ONE pool: e.g. 4 Boxes/Carton with 75 boxes free,
+  // 10 Cartons already in the cart (=40 boxes) leaves only 35 boxes / 8 cartons.
+  const unitsInCart = cartApi.unitsOf ? cartApi.unitsOf(p.id) : []
+  const stock = unitStockCap(p, selected, unitsInCart)
+  // −/＋/Add share ONE behaviour + alert set across every page (see lib/unitCart):
+  // − removes one of this unit from the cart, + adds one, Add adds the manual qty.
+  const actions = unitCartActions(cartApi, p, selected, stock)
 
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
   const timer = useRef(null)
   useEffect(() => () => clearTimeout(timer.current), [])
 
-  // Quantity to add — always at least 1 (the minimum order), capped only by stock.
+  // Manual quantity for the Add button — always at least 1, capped at stock.
   const num = Math.max(1, Number(qty) || 1)
-  const overStock = () => toast(`Only ${stock} ${selected.label || 'units'} available in stock.`, 'warning')
+  const overStock = () => toast(cartAlert.overStock(stock, selected.label), 'warning')
 
   // Manual typing — digits only, min 1, capped at Opening Stock. Empty is allowed
   // while typing and snaps back to 1 on blur.
@@ -65,101 +77,126 @@ const CardCartControls = memo(function CardCartControls({ p, options, selected, 
   }
   const onBlur = () => { if (qty === '' || Number(qty) < 1) setQty(1) }
 
-  // + adds exactly one unit, capped at Opening Stock. Functional update so it
-  // always reads the latest quantity (immune to stale closures / fast taps).
-  const inc = () => {
-    if (stock > 0 && num >= stock) { overStock(); return }
-    setQty((q) => Math.max(1, Number(q) || 1) + 1)
-  }
+  // + adds one of this unit to the cart; − removes one (both alert via actions).
+  const inc = () => actions.plus()
+  const dec = () => actions.minus()
 
-  // − removes exactly one unit, never below the minimum of 1.
-  const dec = () => {
-    setQty((q) => Math.max(1, (Number(q) || 1) - 1))
-  }
-
-  // Add exactly the entered quantity of the selected unit — never exceeding stock.
+  // Add the entered quantity of the selected unit; open the cart on success.
   const handleAdd = () => {
     if (outOfStock || num < 1) return
-    if (stock > 0 && inCart + num > stock) { overStock(); return }
-    add(p, num, selected) // fires the aria-live confirmation toast
-    setAdded(true)
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => setAdded(false), 1100)
+    if (actions.addManual(num)) {
+      setAdded(true)
+      clearTimeout(timer.current)
+      timer.current = setTimeout(() => setAdded(false), 1100)
+      cartApi.openCart?.()
+    }
   }
 
   // Circular [−]/[+] step buttons that live inside the padded pill stepper.
   const stepBtn =
     'grid h-9 w-7 place-items-center rounded-full text-brand-600 transition-all hover:bg-brand-100 hover:text-brand-900 active:scale-90 disabled:cursor-not-allowed disabled:text-brand-200 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-saffron-500'
 
+  // Label visibility on the CTA: storefront hides the text on mobile (icon-only)
+  // to fit the side-by-side layout; the stacked (admin) layout gives the CTA its
+  // own full-width row, so the label is always shown.
+  const ctaLabelCls = stackedControls ? 'truncate' : 'hidden truncate sm:inline'
+
+  // Unit pills — single row; active unit highlighted, refined gold hover. In the
+  // stacked layout it flexes to share its row with the stepper.
+  const unitPills = (
+    <div role="group" aria-label="Unit chunein" className={`no-scrollbar -mx-0.5 flex gap-1.5 overflow-x-auto px-0.5 ${stackedControls ? 'min-w-0 flex-1' : ''}`}>
+      {options.map((o) => {
+        const on = selected.unit === o.unit
+        return (
+          <button
+            key={o.unit}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onUnit(o.unit)}
+            className={`min-h-[34px] shrink-0 rounded-full px-3.5 py-1 text-[11.5px] font-bold tracking-tight transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-saffron-500 active:scale-95 ${
+              on
+                ? 'bg-brand-700 text-white shadow-soft ring-1 ring-inset ring-white/15'
+                : 'border border-brand-200 bg-white text-brand-700 hover:border-saffron-300 hover:bg-saffron-50/50 hover:text-saffron-800'
+            }`}
+          >
+            {o.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  // [−] [qty] [+] pill stepper.
+  const stepper = (
+    <div className="flex shrink-0 items-center rounded-full border border-brand-200 bg-white p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+      <button type="button" onClick={dec} disabled={outOfStock} aria-label="Cart se ek kam karein" className={stepBtn}>
+        <Minus size={15} weight="bold" />
+      </button>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={qty}
+        onChange={onInput}
+        onBlur={onBlur}
+        disabled={outOfStock}
+        aria-label="Quantity"
+        className="h-9 w-8 bg-transparent text-center text-sm font-extrabold tabular-nums text-brand-900 outline-none disabled:text-brand-300"
+      />
+      <button type="button" onClick={inc} disabled={outOfStock} aria-label="Cart mein ek add karein" className={stepBtn}>
+        <Plus size={15} weight="bold" />
+      </button>
+    </div>
+  )
+
+  // Add-to-cart CTA. Stacked layout → full-width, ≥44px tall (h-11); storefront →
+  // flexes beside the stepper.
+  const addBtn = (
+    <button
+      type="button"
+      onClick={handleAdd}
+      disabled={outOfStock || num < 1}
+      aria-label={`${p.name} — ${num} ${selected.label} cart mein shamil karein`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-2 text-xs font-bold text-white shadow-soft transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500 ${
+        stackedControls ? 'h-11 w-full' : 'h-10 flex-1'
+      } ${outOfStock || num < 1 ? 'cursor-not-allowed bg-brand-300' : added ? 'bg-green-600' : 'bg-brand-700 hover:bg-brand-800'}`}
+    >
+      {outOfStock ? (
+        <span className="truncate">Stock khatam</span>
+      ) : added ? (
+        <><Check size={16} weight="bold" /> <span className={ctaLabelCls}>Added</span></>
+      ) : (
+        <><ShoppingCartSimple size={16} weight="bold" /> <span className={ctaLabelCls}>Add to Cart</span></>
+      )}
+    </button>
+  )
+
   return (
     <div className="mt-auto flex flex-col gap-2.5 pt-2.5">
-      {/* Unit pills — single row; active unit highlighted, refined gold hover */}
-      <div role="group" aria-label="Unit chunein" className="no-scrollbar -mx-0.5 flex gap-1.5 overflow-x-auto px-0.5">
-        {options.map((o) => {
-          const on = selected.unit === o.unit
-          return (
-            <button
-              key={o.unit}
-              type="button"
-              aria-pressed={on}
-              onClick={() => onUnit(o.unit)}
-              className={`min-h-[34px] shrink-0 rounded-full px-3.5 py-1 text-[11.5px] font-bold tracking-tight transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-saffron-500 active:scale-95 ${
-                on
-                  ? 'bg-brand-700 text-white shadow-soft ring-1 ring-inset ring-white/15'
-                  : 'border border-brand-200 bg-white text-brand-700 hover:border-saffron-300 hover:bg-saffron-50/50 hover:text-saffron-800'
-              }`}
-            >
-              {o.label}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* [−] [qty] [+]  [Add to Cart] — premium pill stepper + adaptive CTA */}
-      <div className="flex items-stretch gap-1.5 sm:gap-2">
-        <div className="flex shrink-0 items-center rounded-full border border-brand-200 bg-white p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-          <button type="button" onClick={dec} disabled={outOfStock} aria-label="Quantity kam karein" className={stepBtn}>
-            <Minus size={15} weight="bold" />
-          </button>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={qty}
-            onChange={onInput}
-            onBlur={onBlur}
-            disabled={outOfStock}
-            aria-label="Quantity"
-            className="h-9 w-8 bg-transparent text-center text-sm font-extrabold tabular-nums text-brand-900 outline-none disabled:text-brand-300"
-          />
-          <button type="button" onClick={inc} disabled={outOfStock || (stock > 0 && num >= stock)} aria-label="Quantity barhayein" className={stepBtn}>
-            <Plus size={15} weight="bold" />
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={outOfStock || num < 1}
-          aria-label={`${p.name} — ${num} ${selected.label} cart mein shamil karein`}
-          className={`inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-xs font-bold text-white shadow-soft transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500 ${
-            outOfStock || num < 1 ? 'cursor-not-allowed bg-brand-300' : added ? 'bg-green-600' : 'bg-brand-700 hover:bg-brand-800'
-          }`}
-        >
-          {outOfStock ? (
-            <span className="truncate">Stock khatam</span>
-          ) : added ? (
-            <><Check size={16} weight="bold" /> <span className="hidden truncate sm:inline">Added</span></>
-          ) : (
-            // Mobile: icon only. Tablet/desktop (sm+): icon + "Add to Cart".
-            <><ShoppingCartSimple size={16} weight="bold" /> <span className="hidden truncate sm:inline">Add to Cart</span></>
-          )}
-        </button>
-      </div>
+      {stackedControls ? (
+        // Admin: unit toggle + qty stepper share one row, full-width CTA below —
+        // so the Add button never clips in a narrow card.
+        <>
+          <div className="flex items-center gap-2">
+            {unitPills}
+            {stepper}
+          </div>
+          {addBtn}
+        </>
+      ) : (
+        // Storefront: unit pills on their own row, stepper + CTA side by side.
+        <>
+          {unitPills}
+          <div className="flex items-stretch gap-1.5 sm:gap-2">
+            {stepper}
+            {addBtn}
+          </div>
+        </>
+      )}
     </div>
   )
 })
 
-function ProductCardBase({ p, preferLargestUnit = false }) {
+function ProductCardBase({ p, preferLargestUnit = false, cart, linkToProduct = true, stackedControls = false }) {
   const reduce = useReducedMotion()
 
   // All unit types available for this product (from the database), with the
@@ -196,6 +233,48 @@ function ProductCardBase({ p, preferLargestUnit = false }) {
     return () => clearInterval(t)
   }, [multi, slides.length, reduce])
 
+  // Image content shared by the linked (storefront) and non-linked (admin) media
+  // wrappers, so the two branches can never visually drift.
+  const mediaInner = (
+    <div className="relative aspect-square overflow-hidden bg-sand-100">
+      {multi ? (
+        slides.map((src, i) => (
+          <img
+            key={i}
+            src={src}
+            alt={p.name}
+            loading="lazy"
+            onError={onImgError}
+            className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${
+              i === imgIdx ? 'scale-100 opacity-100' : 'scale-[1.04] opacity-0'
+            }`}
+          />
+        ))
+      ) : (
+        <img
+          src={slides[0]}
+          alt={p.name}
+          loading="lazy"
+          onError={onImgError}
+          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+        />
+      )}
+
+      {multi && (
+        <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1">
+          {slides.map((_, i) => (
+            <span
+              key={i}
+              className={`h-1.5 rounded-full bg-white shadow-soft transition-all duration-300 ${
+                i === imgIdx ? 'w-4 opacity-100' : 'w-1.5 opacity-60'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <motion.article
       initial={reduce ? false : { opacity: 0, y: 18 }}
@@ -204,51 +283,26 @@ function ProductCardBase({ p, preferLargestUnit = false }) {
       whileHover={reduce ? undefined : { y: -6 }}
       className="group flex flex-col overflow-hidden rounded-3xl border border-brand-100 bg-white shadow-soft focus-within:ring-2 focus-within:ring-saffron-400/50"
     >
-      {/* Media — clean, edge-to-edge image (fixed aspect ratio → no CLS). */}
-      <Link
-        to={`/product/${p.id}`}
-        aria-label={p.name}
-        onMouseEnter={() => multi && setImgIdx((i) => (i + 1) % slides.length)}
-        className="relative block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
-      >
-        <div className="relative aspect-square overflow-hidden bg-sand-100">
-          {multi ? (
-            slides.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                alt={p.name}
-                loading="lazy"
-                onError={onImgError}
-                className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${
-                  i === imgIdx ? 'scale-100 opacity-100' : 'scale-[1.04] opacity-0'
-                }`}
-              />
-            ))
-          ) : (
-            <img
-              src={slides[0]}
-              alt={p.name}
-              loading="lazy"
-              onError={onImgError}
-              className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-            />
-          )}
-
-          {multi && (
-            <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1">
-              {slides.map((_, i) => (
-                <span
-                  key={i}
-                  className={`h-1.5 rounded-full bg-white shadow-soft transition-all duration-300 ${
-                    i === imgIdx ? 'w-4 opacity-100' : 'w-1.5 opacity-60'
-                  }`}
-                />
-              ))}
-            </div>
-          )}
+      {/* Media — clean, edge-to-edge image (fixed aspect ratio → no CLS). Links to
+          the product page on the storefront; callers can disable that (admin) so a
+          click never navigates away from an in-progress form. */}
+      {linkToProduct ? (
+        <Link
+          to={`/product/${p.id}`}
+          aria-label={p.name}
+          onMouseEnter={() => multi && setImgIdx((i) => (i + 1) % slides.length)}
+          className="relative block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
+        >
+          {mediaInner}
+        </Link>
+      ) : (
+        <div
+          onMouseEnter={() => multi && setImgIdx((i) => (i + 1) % slides.length)}
+          className="relative block"
+        >
+          {mediaInner}
         </div>
-      </Link>
+      )}
 
       <div className="flex flex-1 flex-col gap-2 p-3.5 sm:p-4">
         <div className="flex items-center justify-between gap-2">
@@ -260,9 +314,13 @@ function ProductCardBase({ p, preferLargestUnit = false }) {
         </div>
 
         <div>
-          <Link to={`/product/${p.id}`} className="block">
-            <h3 className="line-clamp-2 text-sm font-bold leading-snug text-brand-950 transition-colors hover:text-brand-700">{p.name}</h3>
-          </Link>
+          {linkToProduct ? (
+            <Link to={`/product/${p.id}`} className="block">
+              <h3 className="line-clamp-2 text-sm font-bold leading-snug text-brand-950 transition-colors hover:text-brand-700">{p.name}</h3>
+            </Link>
+          ) : (
+            <h3 className="line-clamp-2 text-sm font-bold leading-snug text-brand-950">{p.name}</h3>
+          )}
           {/* Description always renders on a single clean line with ellipsis. */}
           <p className="mt-0.5 truncate text-xs text-brand-500" title={p.sub}>{(p.sub || '').replace(/\s*\\\s*/g, ' · ').replace(/\s+/g, ' ').trim()}</p>
         </div>
@@ -291,7 +349,7 @@ function ProductCardBase({ p, preferLargestUnit = false }) {
           Min order: 1 {selected.label}
         </span>
 
-        <CardCartControls p={p} options={options} selected={selected} onUnit={setSelUnit} />
+        <CardCartControls p={p} options={options} selected={selected} onUnit={setSelUnit} cart={cart} stackedControls={stackedControls} />
       </div>
     </motion.article>
   )

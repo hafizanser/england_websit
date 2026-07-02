@@ -252,6 +252,29 @@ export function CartProvider({ children }) {
     [state.rows],
   )
 
+  // All unit lines of ONE product currently in the cart → [{ unitKey, qty }].
+  // Feeds the shared-pool stock caps (lib/pack) so adding Cartons correctly
+  // eats into the Boxes still available, and vice-versa.
+  const unitsOf = useCallback(
+    (id) => state.rows.filter((r) => r.id === id).map((r) => ({ unitKey: r.unitKey, qty: r.qty })),
+    [state.rows],
+  )
+
+  // Set the ABSOLUTE quantity of a product-unit line (create / update / remove)
+  // WITHOUT firing a toast — the caller shows its own alert. This powers the
+  // −/＋/Add unit quantity controls so their messaging stays consistent across
+  // the Products, Product detail and Admin New Order pages.
+  const setUnitQty = useCallback((product, unitOption, qty) => {
+    const opt = unitOption || (product.unitOptions && product.unitOptions[0]) || null
+    const unitKey = opt ? opt.unit : product.unit
+    const key = rowKey(product.id, unitKey)
+    const cur = state.rows.find((r) => r.key === key)?.qty || 0
+    const q = Math.max(0, Math.min(999, Math.floor(Number(qty) || 0)))
+    if (q <= 0) { if (cur > 0) dispatch({ type: 'REMOVE', key }); return }
+    if (cur > 0) dispatch({ type: 'SET_QTY', key, qty: q })
+    else dispatch({ type: 'ADD', row: toRow(product, q, opt), qty: q })
+  }, [state.rows])
+
   const value = useMemo(
     () => ({
       items,
@@ -275,9 +298,11 @@ export function CartProvider({ children }) {
       applyCode,
       removeCode,
       qtyOf,
+      unitsOf,
+      setUnitQty,
       toast,
     }),
-    [items, freeItems, offers, state.rows, state.code, totals, count, units, cartOpen, openCart, closeCart, add, decrement, addMany, setQty, remove, restore, clear, applyCode, removeCode, qtyOf, toast],
+    [items, freeItems, offers, state.rows, state.code, totals, count, units, cartOpen, openCart, closeCart, add, decrement, addMany, setQty, remove, restore, clear, applyCode, removeCode, qtyOf, unitsOf, setUnitQty, toast],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

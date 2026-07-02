@@ -467,6 +467,26 @@ export default function VideoReviews() {
                         </svg>
                       )}
                     </button>
+
+                    {/* Close (✕) — only in the expanded/fullscreen view. Anchored to
+                        the video's top-right corner, on the same line as the Sound
+                        button (Sound left, Close right); it rides with the video on
+                        resize. Clicking it closes the focus view and returns to the
+                        carousel. stopPropagation so the card's tap handler doesn't
+                        also fire. */}
+                    {isExpandedCard && (
+                      <button
+                        type="button"
+                        className={`video-focus-close${closing ? ' is-closing' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); closeExpand() }}
+                        aria-label="Close video"
+                        title="Close"
+                      >
+                        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 )
               })}

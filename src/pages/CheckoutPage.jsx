@@ -19,7 +19,7 @@ import { useCustomerAuth } from '../context/CustomerAuthContext'
 import { useNotify } from '../context/NotifyContext'
 import { placeOrder } from '../api/orders'
 import { money, unitLabelFor, groupByProduct } from '../lib/cartEngine'
-import { stockForUnit } from '../lib/pack'
+import { groupOverStock, stockPoolLabel } from '../lib/pack'
 import { waLink } from '../lib/whatsapp'
 import { imgSrc, onImgError } from '../lib/img'
 
@@ -196,14 +196,14 @@ export default function CheckoutPage() {
   const productCount = useMemo(() => groupByProduct(items).length, [items])
   const liveWaHref = useMemo(() => waLink(buildOrderMsg(items, totals, form, code)), [items, totals, form, code])
 
-  // Stock guard — admin stock is the single source of truth. Any line that is out
-  // of stock or exceeds available stock blocks checkout (the backend re-validates).
-  // Only enforce when stock is a KNOWN number (null = unknown → backend decides),
-  // so pre-existing carts / live-only products are never falsely blocked.
-  // Compare each line's qty against its stock IN THAT LINE'S UNIT. Stock is held
-  // in cartons, so 480 boxes (= 20 cartons) is valid and must not be flagged.
+  // Stock guard — admin stock is the single source of truth. Validation happens
+  // per PRODUCT (not per line) at the shared pool: a product's Cartons + Boxes are
+  // summed to pieces and compared to its total stock, so 10 Cartons + 5 Boxes can
+  // over-draw even when each line alone looks fine. Only enforced when stock is a
+  // KNOWN number (null = unknown → backend decides), so pre-existing carts /
+  // live-only products are never falsely blocked.
   const stockIssues = useMemo(
-    () => items.filter((i) => typeof i.stock === 'number' && (i.stock <= 0 || i.qty > stockForUnit(i.stock, i.unitKey, i.conv))),
+    () => groupByProduct(items).filter((g) => typeof g.stock === 'number' && groupOverStock(g)),
     [items],
   )
   const hasStockIssue = stockIssues.length > 0
@@ -487,9 +487,9 @@ export default function CheckoutPage() {
                   <WarningCircle size={18} weight="fill" /> Stock update ho gaya — order se pehle theek karein:
                 </p>
                 <ul className="mt-2 space-y-1 pl-7 text-[13px] font-medium">
-                  {stockIssues.map((i) => (
-                    <li key={i.key} className="list-disc">
-                      {i.name} — {Number(i.stock) <= 0 ? 'Out of Stock' : `Only ${stockForUnit(i.stock, i.unitKey, i.conv)} ${unitLabelFor(i.unitKey)} available`}
+                  {stockIssues.map((g) => (
+                    <li key={g.id} className="list-disc">
+                      {g.name} — {Number(g.stock) <= 0 ? 'Out of Stock' : `Sirf ${stockPoolLabel(g) || 'kam stock'} available`}
                     </li>
                   ))}
                 </ul>
