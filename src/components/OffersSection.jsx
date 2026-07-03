@@ -6,6 +6,7 @@ import { money, unitLabelFor } from '../lib/cartEngine'
 import { imgSrc, onImgError } from '../lib/img'
 import { dealUrdu } from '../lib/offerUrdu'
 import { Reveal, Check } from './Reveal'
+import MrpPerPiece from './MrpPerPiece'
 
 // ---- offer helpers (mirror the /offers "Featured Deals" cards) --------------
 const productMap = new Map(products.map((p) => [p.id, p]))
@@ -81,6 +82,7 @@ export default function OffersSection() {
           {offers.map((o, i) => {
             const facts = dealFacts(o)
             const urdu = dealUrdu(o)
+            const linked = resolveProducts(o)
             const cols = facts.length === 1 ? ' one' : facts.length === 2 ? ' two' : ''
             return (
               <article className="offer" key={o.id || o.slug || i}>
@@ -93,6 +95,7 @@ export default function OffersSection() {
                   <h3>{o.title}</h3>
                   {urdu && <div className="offer-ur ur">{urdu}</div>}
                   {(o.description || o.desc) && <p>{o.description || o.desc}</p>}
+                  {linked[0] && <MrpPerPiece product={linked[0]} size="sm" />}
                   {facts.length > 0 && (
                     <div className={`offer-facts${cols}`}>
                       {facts.map((f) => (

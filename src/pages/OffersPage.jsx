@@ -28,6 +28,7 @@ import { products, commerce } from '../data/site'
 import { money, unitLabelFor } from '../lib/cartEngine'
 import { waLink } from '../lib/whatsapp'
 import { imgSrc, onImgError } from '../lib/img'
+import MrpPerPiece from '../components/MrpPerPiece'
 import { dealUrdu } from '../lib/offerUrdu'
 import { fadeUp, stagger } from '../lib/motion'
 
@@ -313,6 +314,9 @@ const DealCard = memo(function DealCard({ offer, featured = false, motionSafe = 
             <span className="line-clamp-1 text-xs font-medium text-brand-500">{linked.map((p) => p.name).join(' + ')}</span>
           </div>
         )}
+
+        {/* MRP per piece for the offer's product (selling prices are hidden). */}
+        {linked[0] && <MrpPerPiece product={linked[0]} size="sm" />}
 
         {/* 3 bordered info boxes */}
         {facts.length > 0 && (

@@ -20,6 +20,7 @@ import { ErrorState } from '../components/ui'
 import ProductReviews from '../components/ProductReviews'
 import RelatedProducts from '../components/RelatedProducts'
 import EnquiryButton from '../components/EnquiryButton'
+import MrpPerPiece from '../components/MrpPerPiece'
 import { unitLabelFor } from '../lib/cartEngine'
 
 // Split admin text (newline / bullet separated) into clean bullet points.
@@ -223,6 +224,9 @@ export default function ProductDetailPage() {
               <h1 className="mt-3 font-display text-2xl font-extrabold leading-tight tracking-tight text-brand-950 sm:text-3xl md:text-4xl">
                 {p.name}
               </h1>
+
+              {/* MRP per piece — the only price shown (selling prices are hidden). */}
+              <MrpPerPiece product={p} className="mt-4 text-base" />
 
               {/* Short description — one bullet per unit */}
               {shortBullets.length > 0 && (

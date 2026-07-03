@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { Plus, PencilSimple, Trash, Package, MagnifyingGlass, CircleNotch, Eye, X, Star } from '@phosphor-icons/react'
 import { adminListProducts, saveProduct, deleteProduct, adminListCategories } from '../../api/admin'
-import { totalSmallUnits, unitsPerMainUnit } from '../../lib/pack'
+import { totalSmallUnits, unitsPerMainUnit, mrpPerPiece, mrpPieceLabel } from '../../lib/pack'
 import { useNotify } from '../../context/NotifyContext'
 import Modal, { field, fieldLabel } from '../../components/admin/Modal'
 import './AdminProducts.css'
@@ -385,9 +385,19 @@ export default function AdminProducts() {
                         </div>
                       </td>
 
-                      {/* Rate — price hidden (data kept in DB, shown only in edit form) */}
+                      {/* Rate — only the MRP per piece is shown; selling prices stay hidden. */}
                       <td>
-                        <div className="pf-price-tag" style={{ color: 'var(--pf-ink-soft)' }}>—</div>
+                        {(() => {
+                          const mrpLabel = mrpPieceLabel(mrpPerPiece(p))
+                          return mrpLabel ? (
+                            <div className="pf-price-tag">
+                              <span style={{ display: 'block', fontWeight: 700 }}>{mrpLabel}</span>
+                              <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--pf-ink-soft)' }}>MRP / piece</span>
+                            </div>
+                          ) : (
+                            <div className="pf-price-tag" style={{ color: 'var(--pf-ink-soft)' }}>—</div>
+                          )
+                        })()}
                       </td>
 
                       {/* Stock — cartons + boxes left */}

@@ -113,16 +113,8 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-white/10">
-        <div className="container-page flex flex-col items-center justify-between gap-3 py-6 text-center text-[13px] text-[#8a7866] sm:flex-row sm:text-left">
+        <div className="container-page flex flex-col items-center justify-center gap-3 py-6 text-center text-[13px] text-[#8a7866]">
           <p>© 2026 {brand.full} · MT Traders. Tamaam haqooq mehfooz.</p>
-          <a
-            href="https://www.englandcare.com"
-            target="_blank"
-            rel="noreferrer"
-            className="break-words transition-colors hover:text-saffron-400"
-          >
-            www.englandcare.com
-          </a>
         </div>
       </div>
     </footer>

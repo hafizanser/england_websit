@@ -7,6 +7,7 @@ import { getFeaturedReviews } from '../api/reviews'
 import { deliveryCities } from '../components/CitiesDelivery'
 import { unitLabelFor } from '../lib/cartEngine'
 import { enquiryHref } from '../lib/whatsapp'
+import MrpPerPiece from '../components/MrpPerPiece'
 import { imgSrc, onImgError } from '../lib/img'
 import VideoReviews from '../components/VideoReviews'
 import OffersSection from '../components/OffersSection'
@@ -108,6 +109,7 @@ function HomeProduct({ p }) {
             ))}
           </div>
         )}
+        <MrpPerPiece product={p} className="my-0.5" />
         <a
           className="btn btn-wa order-btn"
           href={enquiryHref(p.name, sel.label)}

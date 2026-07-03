@@ -151,6 +151,35 @@ export function perPcLabel(perPc) {
   return `${commerce.currency}${val.toLocaleString('en-PK')}`
 }
 
+// MRP (retail) for a SINGLE piece of a product — the only price shown anywhere now
+// that selling prices are hidden. Admin raw rows carry `mrp_piece` directly and are
+// used as-is; storefront products derive it from the retail (MRP) of any sellable
+// unit ÷ the pieces that unit contains (MRP scales linearly, so any unit yields the
+// same per-piece figure). Returns null when there is no usable MRP data.
+export function mrpPerPiece(product) {
+  if (!product) return null
+  const direct = Number(product.mrp_piece)
+  if (Number.isFinite(direct) && direct > 0) return direct
+  const conv = product.conversions || {}
+  const options = product.unitOptions && product.unitOptions.length
+    ? product.unitOptions
+    : (product.unit ? [{ unit: product.unit, retail: product.retail }] : [])
+  for (const o of options) {
+    const pcs = piecesPerUnit(o.unit, conv)
+    const mrp = Number(o.retail ?? 0)
+    if (pcs > 0 && mrp > 0) return mrp / pcs
+  }
+  return null
+}
+
+// "Rs. 50" — formatted MRP-per-piece amount (rounded, grouped). Empty string when
+// there is no value, so callers can hide the line gracefully.
+export function mrpPieceLabel(value) {
+  const v = Number(value)
+  if (!Number.isFinite(v) || v <= 0) return ''
+  return `Rs. ${Math.round(v).toLocaleString('en-PK')}`
+}
+
 // A single, unambiguous pack-size summary line, e.g.
 //   "1 Carton = 36 Box · 1 Box = 24 Pcs"   (carton/box product)
 //   "1 Bundle = 80 Pcs"                      (bundle product)

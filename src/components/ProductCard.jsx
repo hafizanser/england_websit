@@ -7,6 +7,7 @@ import { spring } from '../lib/motion'
 import { packSummary } from '../lib/pack'
 import { PLACEHOLDER, onImgError } from '../lib/img'
 import EnquiryButton from './EnquiryButton'
+import MrpPerPiece from './MrpPerPiece'
 
 // Stock pill — AA-contrast, derived from total_stock_cotton (in cartons).
 function StockBadge({ stock }) {
@@ -200,6 +201,9 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true })
             <span>{pack}</span>
           </p>
         )}
+
+        {/* MRP per piece — the only price shown (selling prices are hidden). */}
+        <MrpPerPiece product={p} />
 
         {/* MOQ — minimum order for the selected unit */}
         <span className="w-fit rounded-full bg-sand-100 px-2 py-0.5 text-[10px] font-bold text-brand-700">

@@ -1,8 +1,9 @@
-import { memo, useEffect, useRef, useState } from 'react'
-import { ShoppingCart, CheckCircle, Minus, Plus } from '@phosphor-icons/react'
+import { memo, useState } from 'react'
+import { Minus, Plus } from '@phosphor-icons/react'
 import { unitLabelFor } from '../../lib/cartEngine'
-import { packSummary, unitStockCap } from '../../lib/pack'
-import { unitCartActions, cartAlert } from '../../lib/unitCart'
+import { packSummary, unitStockCap, mrpPerPiece, mrpPieceLabel } from '../../lib/pack'
+import { useNotify } from '../../context/NotifyContext'
+import EnquiryButton from '../EnquiryButton'
 
 // Two-letter monogram for the image placeholder (matches the reference thumb):
 // significant words of the product name, ignoring the "England" brand prefix.
@@ -13,11 +14,11 @@ export function initials(name) {
 }
 
 // Admin New Order product card — styled to match the reference (flat white card,
-// 14px radius, cream thumb, gold accents). SAME purchase logic as the storefront:
-// unit toggle, +/- & manual qty, per-unit stock cap + warning, Add feeds the
-// injected `cart` adapter ({ qtyOf, setUnitQty, toast }) via shared unit actions.
-function OrderProductCardBase({ p, cart }) {
-  const { toast } = cart
+// 14px radius, cream thumb, gold accents). The customer picks a unit and quantity
+// (validated against the shared stock pool) and then opens WhatsApp via the shared
+// EnquiryButton to ask for the rate. No selling price is shown — only MRP/piece.
+function OrderProductCardBase({ p }) {
+  const { toast } = useNotify()
 
   const options = p.unitOptions && p.unitOptions.length
     ? p.unitOptions
@@ -28,43 +29,37 @@ function OrderProductCardBase({ p, cart }) {
   const conv = p.conversions || {}
   const pack = packSummary(conv)
   const rawStock = Number(p.stock) || 0
-  const outOfStock = rawStock <= 0
-  // Cap for the selected unit against the OTHER units already in this order, so the
-  // product's shared stock pool is honoured (see lib/pack → unitStockCap).
-  const unitsInOrder = cart.unitsOf ? cart.unitsOf(p.id) : []
-  const stock = unitStockCap(p, selected, unitsInOrder)
-  // −/＋/Add share ONE behaviour + alert set with the storefront (see lib/unitCart).
-  const actions = unitCartActions(cart, p, selected, stock)
+  // Cap for the selected unit (empty order — no cross-unit consumption to net out).
+  //   Infinity → unknown stock (no cap)   0 → out of stock
+  const cap = unitStockCap(p, selected, [])
+  const hasCap = Number.isFinite(cap)
+  const outOfStock = rawStock <= 0 || cap === 0
 
+  const mrpLabel = mrpPieceLabel(mrpPerPiece(p))
+
+  // Local quantity, clamped to [1, cap]. The stepper + numeric input drive it.
   const [qty, setQty] = useState(1)
-  const [added, setAdded] = useState(false)
   const [imgFailed, setImgFailed] = useState(false)
-  const timer = useRef(null)
-  useEffect(() => () => clearTimeout(timer.current), [])
 
-  const num = Math.max(1, Number(qty) || 1)
-  const overStock = () => toast(cartAlert.overStock(stock, selected.label), 'warning')
-
+  const clamp = (n) => {
+    let v = Math.max(1, Math.floor(Number(n) || 1))
+    if (hasCap && v > cap) v = cap
+    return v
+  }
+  const inc = () => setQty((q) => {
+    const next = clamp(q + 1)
+    if (hasCap && q >= cap) { toast(`Sirf ${cap} ${selected.label} stock mein hain.`, 'warning'); return q }
+    return next
+  })
+  const dec = () => setQty((q) => Math.max(1, clamp(q) - 1))
   const onInput = (e) => {
     const digits = e.target.value.replace(/[^\d]/g, '').slice(0, 4)
     if (digits === '') return setQty('')
     let n = parseInt(digits, 10)
-    if (stock > 0 && n > stock) { n = stock; overStock() }
+    if (hasCap && n > cap) { n = cap; toast(`Sirf ${cap} ${selected.label} stock mein hain.`, 'warning') }
     setQty(Math.max(1, n))
   }
   const onBlur = () => { if (qty === '' || Number(qty) < 1) setQty(1) }
-  // + adds one of this unit to the order; − removes one (both alert via actions).
-  const inc = () => actions.plus()
-  const dec = () => actions.minus()
-
-  const handleAdd = () => {
-    if (outOfStock || num < 1) return
-    if (actions.addManual(num)) {
-      setAdded(true)
-      clearTimeout(timer.current)
-      timer.current = setTimeout(() => setAdded(false), 1100)
-    }
-  }
 
   const image = (p.images && p.images[0]) || p.image
   const showImg = image && !imgFailed
@@ -97,9 +92,12 @@ function OrderProductCardBase({ p, cart }) {
         <div className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#C29A45]">{p.category}</div>
         <h3 className="line-clamp-2 min-h-[36px] text-[14.5px] font-bold leading-[1.25] text-[#2A2117]">{p.name}</h3>
         {pack && <p className="text-[11.5px] leading-[1.35] text-[#9C9078]">{pack}</p>}
+        {mrpLabel && (
+          <p className="text-[12.5px] text-[#6E6250]">MRP (Per Piece): <span className="font-extrabold text-[#2A2117]">{mrpLabel}</span></p>
+        )}
         <span className="self-start rounded-[7px] bg-[#F4E8CE] px-2 py-[3px] text-[11px] font-semibold text-[#9E7418]">Min order: 1 {selected.label}</span>
 
-        {/* controls: [unit toggle | stepper] then full-width Add */}
+        {/* controls: [unit toggle | stepper] then full-width WhatsApp enquiry */}
         <div className="mt-auto flex flex-col gap-[9px] pt-1">
           <div className="flex items-center justify-between gap-2">
             <div className="no-scrollbar inline-flex min-w-0 gap-[3px] overflow-x-auto rounded-[9px] bg-[#f0e7d4] p-[3px]">
@@ -111,7 +109,7 @@ function OrderProductCardBase({ p, cart }) {
                     type="button"
                     aria-pressed={on}
                     disabled={outOfStock}
-                    onClick={() => setSelUnit(o.unit)}
+                    onClick={() => { setSelUnit(o.unit); setQty(1) }}
                     className={`min-h-[32px] shrink-0 rounded-[7px] px-3 py-1.5 text-xs font-bold transition-all disabled:opacity-40 ${
                       on ? 'bg-[#3A2E1F] text-white shadow-[0_1px_2px_rgba(58,46,31,0.2)]' : 'text-[#6E6250] hover:text-[#2A2117]'
                     }`}
@@ -123,7 +121,7 @@ function OrderProductCardBase({ p, cart }) {
             </div>
 
             <div className="flex shrink-0 items-center overflow-hidden rounded-[9px] border border-[#D9CDB1] bg-white">
-              <button type="button" onClick={dec} disabled={outOfStock} aria-label="Cart se ek kam karein" className={stepBtn}><Minus size={14} weight="bold" /></button>
+              <button type="button" onClick={dec} disabled={outOfStock} aria-label="Ek kam karein" className={stepBtn}><Minus size={14} weight="bold" /></button>
               <input
                 type="text"
                 inputMode="numeric"
@@ -134,21 +132,11 @@ function OrderProductCardBase({ p, cart }) {
                 aria-label="Quantity"
                 className="h-9 w-[34px] bg-transparent text-center text-sm font-bold tabular-nums text-[#2A2117] outline-none disabled:text-[#c3b28a]"
               />
-              <button type="button" onClick={inc} disabled={outOfStock} aria-label="Cart mein ek add karein" className={stepBtn}><Plus size={14} weight="bold" /></button>
+              <button type="button" onClick={inc} disabled={outOfStock} aria-label="Ek zyada karein" className={stepBtn}><Plus size={14} weight="bold" /></button>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={outOfStock || num < 1}
-            aria-label={`${p.name} — ${num} ${selected.label} add karein`}
-            className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-[11px] text-sm font-bold text-white shadow-[0_1px_2px_rgba(58,46,31,0.06)] transition-all active:scale-[0.985] ${
-              outOfStock || num < 1 ? 'cursor-not-allowed bg-[#c9bda4]' : added ? 'bg-[#2F7D55]' : 'bg-[#3A2E1F] hover:bg-[#4b3b28]'
-            }`}
-          >
-            {outOfStock ? 'Stock khatam' : added ? <><CheckCircle size={16} weight="bold" /> Added</> : <><ShoppingCart size={16} weight="bold" /> Add</>}
-          </button>
+          <EnquiryButton name={p.name} unit={selected.label} size="md" />
         </div>
       </div>
     </article>
