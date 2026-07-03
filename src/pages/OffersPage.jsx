@@ -187,10 +187,11 @@ function dealHint(offer) {
 function dealEnquiryHref(offer) {
   const hint = dealHint(offer)
   const msg =
-    `Hi, I'm interested in this offer:\n` +
+    `Assalam-o-Alaikum,\n` +
+    `Main is offer mein interested hoon.\n\n` +
     `Offer: ${offer.title}\n` +
     (hint ? `Deal: ${hint}\n` : '') +
-    `Please share the price and availability.`
+    `\nPlease price aur availability share kar dein. Shukriya.`
   return waLink(msg)
 }
 

@@ -14,10 +14,11 @@ export const waLink = (msg = '') =>
 // customer asks for the rate here — the message carries the exact product name
 // and the unit they picked (Carton / Box / Bundle / …).
 export const enquiryMessage = (productName, unitLabel) =>
-  `Hi, I'm interested in buying this product:\n` +
+  `Assalam-o-Alaikum,\n` +
+  `Main ye product buy karna chahta hoon.\n\n` +
   `Product: ${productName || ''}\n` +
-  `Unit: ${unitLabel || ''}\n` +
-  `Please share the price and availability.`
+  `Unit: ${unitLabel || ''}\n\n` +
+  `Please price aur availability share kar dein. Shukriya.`
 
 // wa.me deep link for a product enquiry (name + selected unit).
 export const enquiryHref = (productName, unitLabel) =>

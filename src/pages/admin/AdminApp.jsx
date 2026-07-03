@@ -6,6 +6,7 @@ import AdminLogin from './AdminLogin'
 import AdminDashboard from './AdminDashboard'
 import AdminOrders from './AdminOrders'
 import AdminOrderDetail from './AdminOrderDetail'
+import AdminCreateOrder from './AdminCreateOrder'
 import AdminCustomers from './AdminCustomers'
 import AdminCustomerDetail from './AdminCustomerDetail'
 import AdminProducts from './AdminProducts'
@@ -49,6 +50,7 @@ export default function AdminApp() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="orders" element={<AdminOrders />} />
+          <Route path="orders/new" element={<AdminCreateOrder />} />
           <Route path="orders/:id" element={<AdminOrderDetail />} />
           <Route path="invoices" element={<Navigate to="/admin/orders" replace />} />
           <Route path="invoices/:id" element={<Navigate to="/admin/orders" replace />} />
