@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { brand } from '../data/site'
-import { useCart } from '../context/CartContext'
 import { useAsync } from '../hooks/useAsync'
 import { getCategories, getTopSelling } from '../api/catalog'
 import { getFeaturedReviews } from '../api/reviews'
 import { deliveryCities } from '../components/CitiesDelivery'
-import { money, unitLabelFor } from '../lib/cartEngine'
+import { unitLabelFor } from '../lib/cartEngine'
+import { enquiryHref } from '../lib/whatsapp'
 import { imgSrc, onImgError } from '../lib/img'
 import VideoReviews from '../components/VideoReviews'
 import OffersSection from '../components/OffersSection'
@@ -84,10 +84,10 @@ const steps = [
 ]
 
 // ---- product card -----------------------------------------------------------
-function HomeProduct({ p, onAdd }) {
+function HomeProduct({ p }) {
   const options = p.unitOptions && p.unitOptions.length
     ? p.unitOptions
-    : [{ unit: p.unit, label: unitLabelFor(p.unit), price: p.wholesale, retail: p.retail }]
+    : [{ unit: p.unit, label: unitLabelFor(p.unit) }]
   const [unit, setUnit] = useState(() => options.reduce((a, b) => (Number(b.price) > Number(a.price) ? b : a), options[0]).unit)
   const sel = options.find((o) => o.unit === unit) || options[0]
   const img = imgSrc(p.images && p.images[0], p.image)
@@ -108,8 +108,14 @@ function HomeProduct({ p, onAdd }) {
             ))}
           </div>
         )}
-        <div className="price"><span className="amt">{money(sel.price)}</span><span className="per">/ {sel.label}</span></div>
-        <button className="btn btn-wa order-btn" onClick={() => onAdd(p, 1, sel)}>Order karein</button>
+        <a
+          className="btn btn-wa order-btn"
+          href={enquiryHref(p.name, sel.label)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Wa className="ico" /> WhatsApp pe poochein
+        </a>
       </div>
     </article>
   )
@@ -187,7 +193,6 @@ function displayStars(review, i) {
 }
 
 export default function Home() {
-  const { add } = useCart()
   const cats = useAsync(() => getCategories(), [])
   const products = useAsync(() => getTopSelling(), [])
   const reviewsA = useAsync(() => getFeaturedReviews(12), [])
@@ -266,7 +271,7 @@ export default function Home() {
             <div className="right"><Link className="btn btn-outline" to="/products">Saara catalog</Link></div>
           </Reveal>
           <Reveal className="prod-grid">
-            {top.map((p) => <HomeProduct key={p.id} p={p} onAdd={add} />)}
+            {top.map((p) => <HomeProduct key={p.id} p={p} />)}
           </Reveal>
         </div>
       </section>

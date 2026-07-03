@@ -23,7 +23,6 @@ import PageBanner from '../components/PageBanner'
 import { SectionHeading, EmptyState, ErrorState } from '../components/ui'
 import { getOffers } from '../api/offers'
 import { useAsync } from '../hooks/useAsync'
-import { useCart } from '../context/CartContext'
 import { useNotify } from '../context/NotifyContext'
 import { products, commerce } from '../data/site'
 import { money, unitLabelFor } from '../lib/cartEngine'
@@ -162,74 +161,53 @@ function urgencyOf(offer) {
   return { label: exp || 'Limited time offer', urgent: false }
 }
 
-// ---- Cart action (the ONLY cart-subscribed part of a card, so adding a deal
-// re-renders the buttons — not every card) ----------------------------------
-function useOfferAction(offer) {
-  const cart = useCart()
-  const linked = resolveProducts(offer)
+// ---- Deal enquiry action ----------------------------------------------------
+// The purchase flow is now a WhatsApp enquiry (prices are hidden). Each deal's
+// button opens WhatsApp pre-filled with the offer so the shopkeeper can ask for
+// the rate and how to avail it. A short unit hint (e.g. "3 Carton + 1 Carton
+// free") is appended when the offer defines one.
+function dealHint(offer) {
   const cfg = offer.config || {}
-  const applied = offer.code && cart.code === offer.code
-
-  if (offer.type === 'combo') {
-    const inCart = linked.length > 0 && linked.every((p) => cart.qtyOf(p.id) > 0)
-    return {
-      label: inCart ? 'Bundle cart mein hai' : 'Bundle cart mein daalein',
-      sub: linked.length ? `(${linked.length} cartons)` : null,
-      done: inCart,
-      run: () => cart.addMany(linked, 'Deal cart mein add ho gaya'),
-    }
-  }
   if (offer.type === 'bxgy') {
-    const p = offer.mainProduct || linked[0]
+    const p = offer.mainProduct || resolveProducts(offer)[0]
     const buyQty = Number(cfg.buyQty) || 1
     const freeQty = Number(cfg.freeQty) || 0
-    const inCart = p && cart.qtyOf(p.id) > 0
     const mu = unitLabelFor(cfg.mainUnit || p?.unit)
     const fu = unitLabelFor(cfg.freeUnit || cfg.mainUnit || p?.unit)
-    return {
-      label: inCart ? 'Cart mein add hai' : 'Deal cart mein daalein',
-      sub: `(${buyQty} ${mu} + ${freeQty} ${fu} free)`,
-      done: inCart,
-      run: () => p && cart.add(p, buyQty, mainUnitOption(offer)),
-    }
+    return `${buyQty} ${mu} + ${freeQty} ${fu} free`
   }
-  if (offer.type === 'percent') {
-    return {
-      label: applied ? `Code ${offer.code} applied` : 'Code apply karein',
-      sub: applied ? null : `(Code: ${offer.code})`,
-      done: applied,
-      run: () => cart.applyCode(offer.code),
-    }
+  if (offer.type === 'combo') {
+    const n = resolveProducts(offer).length
+    return n ? `${n} cartons bundle` : null
   }
-  return { label: 'Products dekhein', sub: null, to: '/products', done: false }
+  if (offer.type === 'percent' && offer.code) return `Code: ${offer.code}`
+  return null
+}
+
+function dealEnquiryHref(offer) {
+  const hint = dealHint(offer)
+  const msg =
+    `Hi, I'm interested in this offer:\n` +
+    `Offer: ${offer.title}\n` +
+    (hint ? `Deal: ${hint}\n` : '') +
+    `Please share the price and availability.`
+  return waLink(msg)
 }
 
 function DealCardAction({ offer }) {
-  const action = useOfferAction(offer)
-  const base =
-    'inline-flex w-full min-h-[44px] items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-400'
-  if (action.to) {
-    return (
-      <Link to={action.to} className={`${base} border border-brand-200 text-brand-800 hover:bg-sand-50`}>
-        {action.label} <ArrowRight size={16} weight="bold" />
-      </Link>
-    )
-  }
+  const hint = dealHint(offer)
   return (
-    <button
-      type="button"
-      onClick={action.run}
-      disabled={action.done}
-      className={`${base} flex-col !gap-0.5 ${
-        action.done ? 'bg-brand-50 text-brand-700' : 'bg-brand-700 text-white shadow-soft hover:bg-brand-800'
-      }`}
+    <a
+      href={dealEnquiryHref(offer)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex w-full min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white shadow-soft ring-1 ring-inset ring-white/20 transition-all hover:bg-[#1ebe5d] hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1ebe5d]"
     >
       <span className="inline-flex items-center gap-2">
-        {action.done ? <Check size={16} weight="bold" /> : <PlusCircle size={17} weight="fill" />}
-        {action.label}
+        <WhatsappLogo size={17} weight="fill" /> WhatsApp pe poochein
       </span>
-      {action.sub && !action.done && <span className="text-[11px] font-medium opacity-80">{action.sub}</span>}
-    </button>
+      {hint && <span className="text-[11px] font-medium opacity-90">({hint})</span>}
+    </a>
   )
 }
 
@@ -402,44 +380,9 @@ function DealCardSkeleton() {
   )
 }
 
-// Build an itemized WhatsApp order message from the live cart (Fix O).
-function buildOrderMsg(items, totals) {
-  if (!items.length) return 'Assalam o alaikum! Main England se order dena chahta hoon.'
-  const lines = items.map((i) => `• ${i.name} — ${i.qty} ${i.unit} (${money(i.lineTotal)})`)
-  return `Assalam o alaikum! England se mera order:\n\n${lines.join('\n')}\n\nTotal: ${money(totals.total)}`
-}
-
-// Sticky bottom cart bar — mobile only, sits above the bottom nav, isolated cart
-// subscription so it doesn't re-render the deal grid (Fix I/M).
-function MobileCartBar() {
-  const { items, totals, count } = useCart()
-  if (count === 0) return null
-  return (
-    <div className="fixed inset-x-0 z-30 px-3 md:hidden" style={{ bottom: 'calc(3.75rem + env(safe-area-inset-bottom))' }}>
-      <div className="flex items-stretch gap-2 rounded-full bg-brand-900 p-1.5 shadow-lift">
-        <Link
-          to="/cart"
-          className="flex min-h-[48px] flex-1 flex-col justify-center rounded-full px-4 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-400"
-        >
-          <span className="text-[11px] font-semibold text-white/70">Cart ({count})</span>
-          <span className="text-sm font-extrabold leading-tight">{money(totals.total)} — Cart dekhein</span>
-        </Link>
-        <a
-          href={waLink(buildOrderMsg(items, totals))}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-[48px] items-center gap-1.5 rounded-full bg-[#25D366] px-5 text-sm font-bold text-white transition-colors hover:bg-[#1ebe5d] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        >
-          <WhatsappLogo size={18} weight="fill" /> Order <ArrowRight size={15} weight="bold" />
-        </a>
-      </div>
-    </div>
-  )
-}
-
-// Hero CTA block (Fix K) — own cart subscription so the page body stays static.
+// Hero CTA block — scrolls to the deals grid. A WhatsApp button sits beside it so
+// shoppers can enquire straight away.
 function HeroActions({ reduce }) {
-  const { totals, count } = useCart()
   const scrollToDeals = () => {
     const el = document.getElementById('deals')
     if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
@@ -453,22 +396,22 @@ function HeroActions({ reduce }) {
       >
         <ArrowDown size={18} weight="bold" /> Deals dekhein
       </button>
-      {count > 0 && (
-        <Link
-          to="/cart"
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-white/25 px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        >
-          Cart: {count} • {money(totals.total)} <ArrowRight size={16} weight="bold" />
-        </Link>
-      )}
+      <a
+        href={waLink('Assalam o alaikum! England ki current offers ke baare mein maloomat chahiye.')}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-[#1ebe5d] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      >
+        <WhatsappLogo size={18} weight="fill" /> WhatsApp pe poochein
+      </a>
     </div>
   )
 }
 
 const steps = [
-  { icon: ShoppingBagOpen, title: 'Maal chunein', text: 'Products ya bundle cart mein daalein.' },
-  { icon: Tag, title: 'Code apply karein', text: 'Promo code cart par lagayein.' },
-  { icon: Truck, title: 'Bachat ke sath order', text: 'Discount lagta hai, delivery free.' },
+  { icon: ShoppingBagOpen, title: 'Deal chunein', text: 'Apni pasand ki offer ya products dekhein.' },
+  { icon: Tag, title: 'WhatsApp par poochein', text: 'Offer ka rate aur tafseel WhatsApp par lein.' },
+  { icon: Truck, title: 'Agle din delivery', text: 'Order confirm — seedha dukaan par maal.' },
 ]
 
 export default function OffersPage() {
@@ -607,23 +550,23 @@ export default function OffersPage() {
             </motion.div>
           )}
 
-          {/* Cart ready band (kept) */}
+          {/* Enquiry band — order any deal over WhatsApp */}
           <div className="mt-10 flex flex-col items-center justify-between gap-4 rounded-4xl bg-brand-950 p-6 text-white sm:flex-row sm:p-8">
             <div>
-              <p className="text-lg font-extrabold tracking-tight">Cart ready hai?</p>
-              <p className="text-sm text-white/70">Discounts cart par khud lagte hain — abhi check karein.</p>
+              <p className="text-lg font-extrabold tracking-tight">Koi deal pasand aayi?</p>
+              <p className="text-sm text-white/70">WhatsApp par poochein — rate aur availability foran mil jayegi.</p>
             </div>
-            <Link
-              to="/cart"
-              className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-full bg-saffron-400 px-6 py-3 text-sm font-bold text-brand-950 shadow-glow transition-all hover:bg-saffron-300 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            <a
+              href={waLink('Assalam o alaikum! England ki offers ke baare mein maloomat chahiye.')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-full bg-[#25D366] px-6 py-3 text-sm font-bold text-white shadow-glow transition-all hover:bg-[#1ebe5d] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              Cart dekhein <ArrowRight size={16} weight="bold" />
-            </Link>
+              <WhatsappLogo size={18} weight="fill" /> WhatsApp pe poochein
+            </a>
           </div>
         </div>
       </section>
-
-      <MobileCartBar />
     </>
   )
 }

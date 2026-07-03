@@ -5,7 +5,6 @@ import {
   MagnifyingGlass,
   ArrowRight,
   Receipt,
-  Plus,
   FadersHorizontal,
   Funnel,
   CalendarBlank,
@@ -20,7 +19,7 @@ import { listOrders, updateOrderStatus } from '../../api/admin'
 import { useAsync } from '../../hooks/useAsync'
 import { useNotify } from '../../context/NotifyContext'
 import { money } from '../../lib/cartEngine'
-import { AdminTitle, Loader, Card, StatusBadge, STATUSES, Btn, ErrorCard, statusMeta } from '../../components/admin/ui'
+import { AdminTitle, Loader, Card, StatusBadge, STATUSES, ErrorCard, statusMeta } from '../../components/admin/ui'
 import { SourceBadge } from '../../components/admin/SourceBadge'
 
 const SOURCE_META = {
@@ -291,11 +290,7 @@ export default function AdminOrders() {
 
   return (
     <>
-      <AdminTitle eyebrow="Orders" icon={Receipt} title={meta.title} subtitle={meta.subtitle}>
-        <Btn as={Link} to="/admin/orders/new">
-          <Plus size={17} weight="bold" /> Naya order
-        </Btn>
-      </AdminTitle>
+      <AdminTitle eyebrow="Orders" icon={Receipt} title={meta.title} subtitle={meta.subtitle} />
 
       {/* ====================== PREMIUM FILTER PANEL ====================== */}
       <Card className="mb-5">

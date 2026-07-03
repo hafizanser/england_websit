@@ -1,13 +1,12 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Plus, Minus, Check, CheckCircle, Package, ShoppingCartSimple } from '@phosphor-icons/react'
-import { useCart } from '../context/CartContext'
-import { money, unitLabelFor } from '../lib/cartEngine'
+import { CheckCircle, Package } from '@phosphor-icons/react'
+import { unitLabelFor } from '../lib/cartEngine'
 import { spring } from '../lib/motion'
-import { packSummary, perPiecePrice, perPcLabel, unitStockCap } from '../lib/pack'
-import { unitCartActions, cartAlert } from '../lib/unitCart'
+import { packSummary } from '../lib/pack'
 import { PLACEHOLDER, onImgError } from '../lib/img'
+import EnquiryButton from './EnquiryButton'
 
 // Stock pill — AA-contrast, derived from total_stock_cotton (in cartons).
 function StockBadge({ stock }) {
@@ -32,193 +31,62 @@ function StockBadge({ stock }) {
   )
 }
 
-// Purchase section — premium B2B layout, fixed height (never expands on Add):
-//   Row 1: unit pills (Carton · Box · Pack · Piece) — tap to set the active unit
-//   Row 2: [−] [Quantity] [+]  [ Add to Cart ]
-// Isolated + memoized so a cart change re-renders ONLY this control, never the
-// ~25 full card bodies.
-const CardCartControls = memo(function CardCartControls({ p, options, selected, onUnit, cart, stackedControls = false }) {
-  // Storefront cards use the shared customer cart context. Callers that need the
-  // exact same UI + quantity/stock logic but a different destination (e.g. the
-  // admin create-order page) can inject a `cart` adapter with the same
-  // { add, qtyOf, toast } shape. useCart() is always called (CartProvider wraps
-  // the whole app) so hook order stays stable; the adapter just overrides it.
-  const ctxCart = useCart()
-  const cartApi = cart || ctxCart
-  const { toast } = cartApi
-  const rawStock = Number(p.stock) || 0       // Opening Stock — stored in cartons
-  const outOfStock = rawStock <= 0
-  // Cap for the SELECTED unit, computed LIVE against the whole cart so Cartons and
-  // Boxes of this product share ONE pool: e.g. 4 Boxes/Carton with 75 boxes free,
-  // 10 Cartons already in the cart (=40 boxes) leaves only 35 boxes / 8 cartons.
-  const unitsInCart = cartApi.unitsOf ? cartApi.unitsOf(p.id) : []
-  const stock = unitStockCap(p, selected, unitsInCart)
-  // −/＋/Add share ONE behaviour + alert set across every page (see lib/unitCart):
-  // − removes one of this unit from the cart, + adds one, Add adds the manual qty.
-  const actions = unitCartActions(cartApi, p, selected, stock)
-
-  const [qty, setQty] = useState(1)
-  const [added, setAdded] = useState(false)
-  const timer = useRef(null)
-  useEffect(() => () => clearTimeout(timer.current), [])
-
-  // Manual quantity for the Add button — always at least 1, capped at stock.
-  const num = Math.max(1, Number(qty) || 1)
-  const overStock = () => toast(cartAlert.overStock(stock, selected.label), 'warning')
-
-  // Manual typing — digits only, min 1, capped at Opening Stock. Empty is allowed
-  // while typing and snaps back to 1 on blur.
-  const onInput = (e) => {
-    const digits = e.target.value.replace(/[^\d]/g, '').slice(0, 4)
-    if (digits === '') return setQty('')
-    let n = parseInt(digits, 10)
-    if (stock > 0 && n > stock) { n = stock; overStock() }
-    setQty(Math.max(1, n))
-  }
-  const onBlur = () => { if (qty === '' || Number(qty) < 1) setQty(1) }
-
-  // + adds one of this unit to the cart; − removes one (both alert via actions).
-  const inc = () => actions.plus()
-  const dec = () => actions.minus()
-
-  // Add the entered quantity of the selected unit; open the cart on success.
-  const handleAdd = () => {
-    if (outOfStock || num < 1) return
-    if (actions.addManual(num)) {
-      setAdded(true)
-      clearTimeout(timer.current)
-      timer.current = setTimeout(() => setAdded(false), 1100)
-      cartApi.openCart?.()
-    }
-  }
-
-  // Circular [−]/[+] step buttons that live inside the padded pill stepper.
-  const stepBtn =
-    'grid h-9 w-7 place-items-center rounded-full text-brand-600 transition-all hover:bg-brand-100 hover:text-brand-900 active:scale-90 disabled:cursor-not-allowed disabled:text-brand-200 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-saffron-500'
-
-  // Label visibility on the CTA: storefront hides the text on mobile (icon-only)
-  // to fit the side-by-side layout; the stacked (admin) layout gives the CTA its
-  // own full-width row, so the label is always shown.
-  const ctaLabelCls = stackedControls ? 'truncate' : 'hidden truncate sm:inline'
-
-  // Unit pills — single row; active unit highlighted, refined gold hover. In the
-  // stacked layout it flexes to share its row with the stepper.
-  const unitPills = (
-    <div role="group" aria-label="Unit chunein" className={`no-scrollbar -mx-0.5 flex gap-1.5 overflow-x-auto px-0.5 ${stackedControls ? 'min-w-0 flex-1' : ''}`}>
-      {options.map((o) => {
-        const on = selected.unit === o.unit
-        return (
-          <button
-            key={o.unit}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onUnit(o.unit)}
-            className={`min-h-[34px] shrink-0 rounded-full px-3.5 py-1 text-[11.5px] font-bold tracking-tight transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-saffron-500 active:scale-95 ${
-              on
-                ? 'bg-brand-700 text-white shadow-soft ring-1 ring-inset ring-white/15'
-                : 'border border-brand-200 bg-white text-brand-700 hover:border-saffron-300 hover:bg-saffron-50/50 hover:text-saffron-800'
-            }`}
-          >
-            {o.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-
-  // [−] [qty] [+] pill stepper.
-  const stepper = (
-    <div className="flex shrink-0 items-center rounded-full border border-brand-200 bg-white p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-      <button type="button" onClick={dec} disabled={outOfStock} aria-label="Cart se ek kam karein" className={stepBtn}>
-        <Minus size={15} weight="bold" />
-      </button>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={qty}
-        onChange={onInput}
-        onBlur={onBlur}
-        disabled={outOfStock}
-        aria-label="Quantity"
-        className="h-9 w-8 bg-transparent text-center text-sm font-extrabold tabular-nums text-brand-900 outline-none disabled:text-brand-300"
-      />
-      <button type="button" onClick={inc} disabled={outOfStock} aria-label="Cart mein ek add karein" className={stepBtn}>
-        <Plus size={15} weight="bold" />
-      </button>
-    </div>
-  )
-
-  // Add-to-cart CTA. Stacked layout → full-width, ≥44px tall (h-11); storefront →
-  // flexes beside the stepper.
-  const addBtn = (
-    <button
-      type="button"
-      onClick={handleAdd}
-      disabled={outOfStock || num < 1}
-      aria-label={`${p.name} — ${num} ${selected.label} cart mein shamil karein`}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-2 text-xs font-bold text-white shadow-soft transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500 ${
-        stackedControls ? 'h-11 w-full' : 'h-10 flex-1'
-      } ${outOfStock || num < 1 ? 'cursor-not-allowed bg-brand-300' : added ? 'bg-green-600' : 'bg-brand-700 hover:bg-brand-800'}`}
-    >
-      {outOfStock ? (
-        <span className="truncate">Stock khatam</span>
-      ) : added ? (
-        <><Check size={16} weight="bold" /> <span className={ctaLabelCls}>Added</span></>
-      ) : (
-        <><ShoppingCartSimple size={16} weight="bold" /> <span className={ctaLabelCls}>Add to Cart</span></>
-      )}
-    </button>
-  )
-
+// Unit chooser + WhatsApp enquiry — the purchase flow is now a WhatsApp enquiry
+// (prices are hidden). The customer picks a unit (Carton / Box / Bundle / …) and
+// the button opens WhatsApp pre-filled with the product name + that unit.
+// Isolated + memoized so unit selection re-renders ONLY this control.
+const CardEnquiry = memo(function CardEnquiry({ p, options, selected, onUnit }) {
   return (
     <div className="mt-auto flex flex-col gap-2.5 pt-2.5">
-      {stackedControls ? (
-        // Admin: unit toggle + qty stepper share one row, full-width CTA below —
-        // so the Add button never clips in a narrow card.
-        <>
-          <div className="flex items-center gap-2">
-            {unitPills}
-            {stepper}
-          </div>
-          {addBtn}
-        </>
-      ) : (
-        // Storefront: unit pills on their own row, stepper + CTA side by side.
-        <>
-          {unitPills}
-          <div className="flex items-stretch gap-1.5 sm:gap-2">
-            {stepper}
-            {addBtn}
-          </div>
-        </>
+      {/* Unit pills — single row; active unit highlighted, refined gold hover. */}
+      {options.length > 1 && (
+        <div role="group" aria-label="Unit chunein" className="no-scrollbar -mx-0.5 flex gap-1.5 overflow-x-auto px-0.5">
+          {options.map((o) => {
+            const on = selected.unit === o.unit
+            return (
+              <button
+                key={o.unit}
+                type="button"
+                aria-pressed={on}
+                onClick={() => onUnit(o.unit)}
+                className={`min-h-[34px] shrink-0 rounded-full px-3.5 py-1 text-[11.5px] font-bold tracking-tight transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-saffron-500 active:scale-95 ${
+                  on
+                    ? 'bg-brand-700 text-white shadow-soft ring-1 ring-inset ring-white/15'
+                    : 'border border-brand-200 bg-white text-brand-700 hover:border-saffron-300 hover:bg-saffron-50/50 hover:text-saffron-800'
+                }`}
+              >
+                {o.label}
+              </button>
+            )
+          })}
+        </div>
       )}
+
+      <EnquiryButton name={p.name} unit={selected.label} size="md" />
     </div>
   )
 })
 
-function ProductCardBase({ p, preferLargestUnit = false, cart, linkToProduct = true, stackedControls = false }) {
+function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true }) {
   const reduce = useReducedMotion()
 
   // All unit types available for this product (from the database), with the
   // primary unit as a fallback when the product declares none.
-  // TODO: if a backend unit option ever ships without a price, surface a clear
-  // "rate poochein" state instead of pricing it at 0 here.
   const options = p.unitOptions && p.unitOptions.length
     ? p.unitOptions
-    : [{ unit: p.unit, label: unitLabelFor(p.unit), price: p.wholesale, retail: p.retail }]
+    : [{ unit: p.unit, label: unitLabelFor(p.unit) }]
   // Default unit: on the full catalog prefer the largest selling unit (e.g.
   // Carton = highest per-unit price); elsewhere keep the product's primary unit.
   const [selUnit, setSelUnit] = useState(() =>
     preferLargestUnit && options.length
-      ? options.reduce((a, b) => (b.price > a.price ? b : a), options[0]).unit
+      ? options.reduce((a, b) => ((b.price || 0) > (a.price || 0) ? b : a), options[0]).unit
       : options[0]?.unit,
   )
   const selected = options.find((o) => o.unit === selUnit) || options[0]
 
-  // Derived pack info (consistent across every card via the shared helpers).
+  // Derived pack info (consistent across every card via the shared helper).
   const conv = p.conversions || {}
   const pack = packSummary(conv)
-  const perPc = perPiecePrice(selected, conv)
   const stock = Number(p.stock) || 0
 
   // Image gallery — all product images (primary first). Multiple images
@@ -233,7 +101,7 @@ function ProductCardBase({ p, preferLargestUnit = false, cart, linkToProduct = t
     return () => clearInterval(t)
   }, [multi, slides.length, reduce])
 
-  // Image content shared by the linked (storefront) and non-linked (admin) media
+  // Image content shared by the linked (storefront) and non-linked media
   // wrappers, so the two branches can never visually drift.
   const mediaInner = (
     <div className="relative aspect-square overflow-hidden bg-sand-100">
@@ -333,28 +201,16 @@ function ProductCardBase({ p, preferLargestUnit = false, cart, linkToProduct = t
           </p>
         )}
 
-        {/* Live price — number + unit BOTH follow the selected unit. */}
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <p className="flex items-baseline gap-1 font-display text-lg font-extrabold tracking-tight text-brand-900 sm:text-xl">
-            {money(selected.price)}
-            <span className="text-xs font-semibold text-brand-500">/ {selected.label}</span>
-          </p>
-          {perPc && (
-            <span className="text-[11px] font-semibold text-brand-500">≈ {perPcLabel(perPc)}/pc</span>
-          )}
-        </div>
-
         {/* MOQ — minimum order for the selected unit */}
         <span className="w-fit rounded-full bg-sand-100 px-2 py-0.5 text-[10px] font-bold text-brand-700">
           Min order: 1 {selected.label}
         </span>
 
-        <CardCartControls p={p} options={options} selected={selected} onUnit={setSelUnit} cart={cart} stackedControls={stackedControls} />
+        <CardEnquiry p={p} options={options} selected={selected} onUnit={setSelUnit} />
       </div>
     </motion.article>
   )
 }
 
-// Memoized: re-renders only when its product prop changes — cart mutations are
-// absorbed by the isolated CardCartControls child above.
+// Memoized: re-renders only when its product prop changes.
 export default memo(ProductCardBase)

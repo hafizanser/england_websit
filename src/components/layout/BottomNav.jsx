@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { House, Storefront, Tag, ShoppingBag, UserCircle } from '@phosphor-icons/react'
-import { useCart } from '../../context/CartContext'
+import { House, Storefront, Tag, WhatsappLogo, UserCircle } from '@phosphor-icons/react'
+import { waLink } from '../../lib/whatsapp'
 
 const items = [
   { to: '/', label: 'Home', icon: House, end: true },
@@ -32,8 +32,7 @@ function Item({ to, label, icon: Icon, end, active }) {
   )
 }
 
-export default function BottomNav({ onCartOpen }) {
-  const { count } = useCart()
+export default function BottomNav() {
   const { pathname } = useLocation()
   const isActive = (to, end) => (end ? pathname === to : pathname.startsWith(to))
 
@@ -56,28 +55,19 @@ export default function BottomNav({ onCartOpen }) {
           <Item key={it.to} {...it} active={isActive(it.to, it.end)} />
         ))}
 
-        {/* center cart button */}
-        <button
-          type="button"
-          onClick={onCartOpen}
-          aria-label="Cart kholein"
+        {/* center WhatsApp enquiry button — opens WhatsApp to ask for rates / order */}
+        <a
+          href={waLink()}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="WhatsApp pe poochein"
           className="relative flex flex-1 flex-col items-center gap-1 py-2"
         >
-          <span className="relative -mt-5 grid h-14 w-14 place-items-center rounded-full bg-brand-700 text-white shadow-lift ring-4 ring-sand-50 transition-transform active:scale-95">
-            <ShoppingBag size={24} weight="fill" />
-            {count > 0 && (
-              <motion.span
-                key={count}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="absolute -right-1 -top-1 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-saffron-400 px-1 text-[11px] font-extrabold text-brand-950 ring-2 ring-sand-50"
-              >
-                {count > 99 ? '99+' : count}
-              </motion.span>
-            )}
+          <span className="relative -mt-5 grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white shadow-lift ring-4 ring-sand-50 transition-transform active:scale-95">
+            <WhatsappLogo size={26} weight="fill" />
           </span>
-          <span className="text-[10px] font-semibold text-brand-400">Cart</span>
-        </button>
+          <span className="text-[10px] font-semibold text-brand-400">WhatsApp</span>
+        </a>
 
         {items.slice(2).map((it) => (
           <Item key={it.to} {...it} active={isActive(it.to, it.end)} />

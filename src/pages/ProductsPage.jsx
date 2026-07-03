@@ -6,48 +6,7 @@ import ProductCard from '../components/ProductCard'
 import { ProductSkeleton, ErrorState, EmptyState } from '../components/ui'
 import { getProducts, getCategories } from '../api/catalog'
 import { useAsync } from '../hooks/useAsync'
-import { useCart } from '../context/CartContext'
-import { money } from '../lib/cartEngine'
 import { waLink } from '../lib/whatsapp'
-
-// Build an itemized WhatsApp order message from the live cart.
-function buildOrderMsg(items, totals) {
-  if (!items.length) return 'Assalam o alaikum! Main England se order dena chahta hoon.'
-  const lines = items.map((i) => `• ${i.name} — ${i.qty} ${i.unit} (${money(i.lineTotal)})`)
-  return `Assalam o alaikum! England se mera order:\n\n${lines.join('\n')}\n\nTotal: ${money(totals.total)}`
-}
-
-// Sticky bottom cart bar (mobile only) — sits above the bottom nav, respects the
-// safe-area inset. Isolated component so it owns its cart subscription.
-function MobileCartBar() {
-  const { items, totals, count } = useCart()
-  if (count === 0) return null
-  return (
-    <div
-      className="fixed inset-x-0 z-30 px-3 md:hidden"
-      style={{ bottom: 'calc(3.75rem + env(safe-area-inset-bottom))' }}
-    >
-      <div className="flex items-stretch gap-2 rounded-full bg-brand-900 p-1.5 shadow-lift">
-        <Link
-          to="/cart"
-          aria-live="polite"
-          className="flex min-h-[48px] flex-1 flex-col justify-center rounded-full px-4 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-400"
-        >
-          <span className="text-[11px] font-semibold text-white/70">Cart ({count})</span>
-          <span className="text-sm font-extrabold leading-tight">{money(totals.total)}</span>
-        </Link>
-        <a
-          href={waLink(buildOrderMsg(items, totals))}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-[48px] items-center gap-1.5 rounded-full bg-[#25D366] px-5 text-sm font-bold text-white transition-colors hover:bg-[#1ebe5d] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        >
-          <WhatsappLogo size={18} weight="fill" /> Order bhejein <ArrowRight size={15} weight="bold" />
-        </a>
-      </div>
-    </div>
-  )
-}
 
 export default function ProductsPage() {
   const [params, setParams] = useSearchParams()
@@ -100,7 +59,7 @@ export default function ProductsPage() {
         title="Saare"
         accent="products"
         urdu="ہر ضرورت کا تھوک مال"
-        desc="Tissue se agarbatti tak — sab thok rate par. Category chunein, search karein, aur seedha cart mein daalein."
+        desc="Tissue se agarbatti tak — sab thok rate par. Category chunein, search karein, aur WhatsApp par rate poochein."
         hideCrumb
         image="/banner.jpg"
         tone="brand"
@@ -213,8 +172,6 @@ export default function ProductsPage() {
       <div className="eng">
         <OffersSection />
       </div>
-
-      <MobileCartBar />
     </>
   )
 }

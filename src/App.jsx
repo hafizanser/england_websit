@@ -13,8 +13,6 @@ import RegisterPage from './pages/RegisterPage'
 import MyProfilePage from './pages/MyProfilePage'
 import WholesalePage from './pages/WholesalePage'
 import AboutPage from './pages/AboutPage'
-import CartPage from './pages/CartPage'
-import CheckoutPage from './pages/CheckoutPage'
 import OrderHistoryPage from './pages/OrderHistoryPage'
 import OrderDetailPage from './pages/OrderDetailPage'
 import NotFound from './pages/NotFound'
@@ -46,8 +44,6 @@ export default function App() {
         <Route path="blog/:slug" element={<BlogDetailPage />} />
         <Route path="wholesale" element={<WholesalePage />} />
         <Route path="about" element={<AboutPage />} />
-        <Route path="cart" element={<CartPage />} />
-        <Route path="checkout" element={<CheckoutPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
         <Route path="profile" element={<MyProfilePage />} />

@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { Plus, PencilSimple, Trash, Package, MagnifyingGlass, CircleNotch, Eye, X, Star } from '@phosphor-icons/react'
 import { adminListProducts, saveProduct, deleteProduct, adminListCategories } from '../../api/admin'
-import { money } from '../../lib/cartEngine'
 import { totalSmallUnits, unitsPerMainUnit } from '../../lib/pack'
 import { useNotify } from '../../context/NotifyContext'
 import Modal, { field, fieldLabel } from '../../components/admin/Modal'
@@ -269,8 +268,8 @@ export default function AdminProducts() {
   }
 
   // KPI roll-ups (mirror the reference inventory metrics).
+  // Stock Valuation (monetary) intentionally omitted — prices are hidden on admin displays.
   const totalCartons = rows.reduce((sum, p) => sum + (parseFloat(p.total_stock_cotton) || 0), 0)
-  const totalValuation = rows.reduce((sum, p) => sum + (parseFloat(p.total_stock_cotton) || 0) * (parseFloat(p.cotton_price) || 0), 0)
 
   return (
     <>
@@ -304,7 +303,7 @@ export default function AdminProducts() {
           </div>
           <div className="pf-kpi">
             <span className="pf-kpi-label">Stock Valuation</span>
-            <div className="pf-kpi-val"><span style={{ fontSize: '1.5rem', color: 'var(--pf-gold)' }}>RS</span> {fmtInt(totalValuation)}</div>
+            <div className="pf-kpi-val" style={{ color: 'var(--pf-ink-soft)' }}>—</div>
           </div>
         </div>
 
@@ -386,9 +385,9 @@ export default function AdminProducts() {
                         </div>
                       </td>
 
-                      {/* Rate — carton price */}
+                      {/* Rate — price hidden (data kept in DB, shown only in edit form) */}
                       <td>
-                        <div className="pf-price-tag"><span>RS</span> {fmtInt(p.cotton_price)}</div>
+                        <div className="pf-price-tag" style={{ color: 'var(--pf-ink-soft)' }}>—</div>
                       </td>
 
                       {/* Stock — cartons + boxes left */}
@@ -624,14 +623,11 @@ export default function AdminProducts() {
 
             <div className="overflow-hidden rounded-2xl border border-brand-100">
               <table className="w-full text-sm">
-                <thead><tr className="bg-sand-50 text-left text-xs uppercase tracking-wider text-brand-400"><th className="px-4 py-2">Unit</th><th className="px-4 py-2 text-right">Selling</th><th className="px-4 py-2 text-right">MRP</th><th className="px-4 py-2 text-right">Cost</th></tr></thead>
+                <thead><tr className="bg-sand-50 text-left text-xs uppercase tracking-wider text-brand-400"><th className="px-4 py-2">Unit</th></tr></thead>
                 <tbody>
                   {UNITS.filter((u) => (viewing.unit_types || []).includes(u.key)).map((u) => (
                     <tr key={u.key} className="border-t border-brand-50">
                       <td className="px-4 py-2 font-semibold text-brand-800">{u.label}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{viewing[u.price] > 0 ? money(viewing[u.price]) : '—'}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{viewing[u.mrp] > 0 ? money(viewing[u.mrp]) : '—'}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{viewing[u.cost] > 0 ? money(viewing[u.cost]) : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
