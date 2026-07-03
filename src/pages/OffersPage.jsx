@@ -24,8 +24,8 @@ import { SectionHeading, EmptyState, ErrorState } from '../components/ui'
 import { getOffers } from '../api/offers'
 import { useAsync } from '../hooks/useAsync'
 import { useNotify } from '../context/NotifyContext'
-import { products, commerce } from '../data/site'
-import { money, unitLabelFor } from '../lib/cartEngine'
+import { products } from '../data/site'
+import { unitLabelFor } from '../lib/cartEngine'
 import { waLink } from '../lib/whatsapp'
 import { imgSrc, onImgError } from '../lib/img'
 import MrpPerPiece from '../components/MrpPerPiece'
@@ -41,16 +41,6 @@ const resolveProducts = (offer) => {
   return (offer.productIds || []).map((id) => productMap.get(id)).filter(Boolean)
 }
 
-// The unit option on the main product that the offer is priced in.
-const mainUnitOption = (offer) => {
-  const p = offer.mainProduct
-  if (!p) return null
-  return (p.unitOptions || []).find((o) => o.unit === offer.config?.mainUnit) || (p.unitOptions || [])[0] || null
-}
-
-// Per-unit price for a catalogue product (wholesale is the shopkeeper rate).
-const unitPriceOf = (p) => (p ? Number(p.wholesale ?? p.retail ?? 0) : 0)
-
 // Use the admin-set banner image when present, else a themed placeholder.
 const bannerOf = (offer) => imgSrc(offer.config?.banner, offer.banner)
 
@@ -59,84 +49,6 @@ const typeMeta = {
   percent: { icon: Percent, label: 'Promo code' },
   bxgy: { icon: Sparkle, label: 'Free units' },
   shipping: { icon: Truck, label: 'Free delivery' },
-}
-
-// Render a price with a thin gap after the "Rs." prefix ("Rs. 800", matching the
-// reference) and a non-breaking space so the amount never splits across lines —
-// fixes the cramped "Rs.800" under font-extrabold. No-op on non-price strings.
-const padRs = (s) => String(s).replace('Rs.', 'Rs.\u00A0')
-
-// The three bordered info boxes (KHAREEDEIN / BILKUL MUFT / AAP KI BACHAT …).
-// Derived from the offer config + product unit pricing. Savings fall back to the
-// wholesale price when an offer has no explicit unit option (seeded offers).
-function dealFacts(offer) {
-  const cfg = offer.config || {}
-  const linked = resolveProducts(offer)
-  const facts = []
-  if (offer.type === 'bxgy') {
-    const buyQty = Number(cfg.buyQty) || 0
-    const freeQty = Number(cfg.freeQty) || 0
-    const fp = offer.freeProduct || linked[0]
-    const freeOpt = fp ? (fp.unitOptions || []).find((o) => o.unit === cfg.freeUnit) || (fp.unitOptions || [])[0] : null
-    const unitPrice = freeOpt ? Number(freeOpt.price) || 0 : unitPriceOf(fp)
-    const freeValue = unitPrice * freeQty
-    if (buyQty) facts.push({ k: 'Khareedein', v: `${buyQty} ${unitLabelFor(cfg.mainUnit || linked[0]?.unit)}` })
-    if (freeQty) facts.push({ k: 'Bilkul muft', v: `${freeQty} ${unitLabelFor(cfg.freeUnit || cfg.mainUnit || fp?.unit)}`, accent: true })
-    if (freeValue) facts.push({ k: 'Aap ki bachat', v: money(freeValue), highlight: true })
-  } else if (offer.type === 'combo') {
-    if (cfg.pct) facts.push({ k: 'Bundle discount', v: `${cfg.pct}% OFF`, highlight: true })
-    facts.push({ k: 'Items', v: `${linked.length} cartons` })
-    facts.push({ k: 'Shart', v: 'Saare items cart mein' })
-  } else if (offer.type === 'percent') {
-    if (cfg.pct) facts.push({ k: 'Discount', v: `${cfg.pct}% OFF`, highlight: true })
-    if (cfg.minSubtotal) facts.push({ k: 'Min order', v: money(cfg.minSubtotal) })
-    if (offer.code) facts.push({ k: 'Code', v: offer.code })
-  } else if (offer.type === 'shipping') {
-    facts.push({ k: 'Delivery', v: cfg.minSubtotal ? `${money(cfg.minSubtotal)}+ par free` : 'Har order par free', highlight: true })
-    if (cfg.minSubtotal) facts.push({ k: 'Min order', v: money(cfg.minSubtotal) })
-  }
-  return facts.slice(0, 3)
-}
-
-// Plain-language savings context (Fix F): "{buy} = Rs.{total} · Aap bachayein Rs.{x}".
-function dealEconomics(offer) {
-  const cfg = offer.config || {}
-  const linked = resolveProducts(offer)
-  if (offer.type === 'bxgy') {
-    const main = linked[0]
-    const buyQty = Number(cfg.buyQty) || 0
-    const freeQty = Number(cfg.freeQty) || 0
-    if (!main || !buyQty) return null
-    // Price the offer in its ACTUAL unit option (carton/box/bundle), not the base
-    // wholesale — so "5 Carton = …" is (carton price × 5), and the savings equal the
-    // free item's value shown in the AAP KI BACHAT tile (identical maths to dealFacts).
-    const mainOpt = (main.unitOptions || []).find((o) => o.unit === cfg.mainUnit) || (main.unitOptions || [])[0] || null
-    const mainPrice = mainOpt ? Number(mainOpt.price) || 0 : unitPriceOf(main)
-    const fp = offer.freeProduct || main
-    const freeOpt = (fp.unitOptions || []).find((o) => o.unit === cfg.freeUnit) || (fp.unitOptions || [])[0] || null
-    const freePrice = freeOpt ? Number(freeOpt.price) || 0 : unitPriceOf(fp)
-    return {
-      context: `${buyQty} ${unitLabelFor(cfg.mainUnit || main.unit)} = ${money(mainPrice * buyQty)}`,
-      savings: freePrice * freeQty, // = free item value → matches the AAP KI BACHAT tile
-    }
-  }
-  if (offer.type === 'combo') {
-    const bundleTotal = linked.reduce((s, p) => s + unitPriceOf(p), 0)
-    const pct = Number(cfg.pct) || 0
-    if (!bundleTotal || !pct) return null
-    return { context: `Bundle = ${money(bundleTotal)}`, savings: Math.round((bundleTotal * pct) / 100) }
-  }
-  if (offer.type === 'percent') {
-    const min = Number(cfg.minSubtotal) || 0
-    const pct = Number(cfg.pct) || 0
-    if (!min || !pct) return null
-    return { context: `${money(min)}+ par ${pct}% off`, savings: Math.round((min * pct) / 100) }
-  }
-  if (offer.type === 'shipping') {
-    const min = Number(cfg.minSubtotal) || 0
-    return { context: min ? `${money(min)}+ order par` : 'Har order par', savings: commerce.deliveryFee }
-  }
-  return null
 }
 
 const MONTHS = {
@@ -244,8 +156,6 @@ const DealCard = memo(function DealCard({ offer, featured = false, motionSafe = 
   const meta = typeMeta[offer.type] || typeMeta.percent
   const Icon = meta.icon
   const linked = resolveProducts(offer)
-  const facts = dealFacts(offer)
-  const econ = dealEconomics(offer)
   const urg = urgencyOf(offer)
   const urdu = dealUrdu(offer)
 
@@ -318,27 +228,6 @@ const DealCard = memo(function DealCard({ offer, featured = false, motionSafe = 
         {/* MRP per piece for the offer's product (selling prices are hidden). */}
         {linked[0] && <MrpPerPiece product={linked[0]} size="sm" />}
 
-        {/* 3 bordered info boxes */}
-        {facts.length > 0 && (
-          <div className="grid grid-cols-3 gap-2">
-            {facts.map((f) => (
-              <div key={f.k} className="rounded-xl bg-sand-50 px-3 py-2.5 ring-1 ring-brand-100">
-                <p className="text-[10.5px] font-bold uppercase tracking-wide text-brand-400">{f.k}</p>
-                <p className={`mt-1 text-[15.5px] font-extrabold leading-tight tabular-nums ${f.highlight ? 'text-green-700' : f.accent ? 'text-red-600' : 'text-brand-900'}`}>{padRs(f.v)}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* savings clarity line (Fix F) */}
-        {econ && (
-          <p className="text-[13px] leading-normal text-green-700 tabular-nums">
-            <span className="font-semibold">{padRs(econ.context)}</span>
-            <span aria-hidden="true" className="px-1.5 text-green-600/60">·</span>
-            <span className="whitespace-nowrap font-extrabold text-green-800">Aap bachayein {padRs(money(econ.savings))}</span>
-          </p>
-        )}
-
         {/* shartein checklist (consistent on every card, Fix E) */}
         {offer.terms?.length > 0 && (
           <ul className="space-y-1.5">
@@ -374,12 +263,8 @@ function DealCardSkeleton() {
         <div className="h-4 w-24 animate-pulse rounded-full bg-sand-200" />
         <div className="h-5 w-4/5 animate-pulse rounded-full bg-sand-200" />
         <div className="h-3 w-full animate-pulse rounded-full bg-sand-100" />
-        <div className="grid grid-cols-3 gap-2">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-12 animate-pulse rounded-xl bg-sand-100" />
-          ))}
-        </div>
-        <div className="mt-2 h-11 animate-pulse rounded-2xl bg-sand-200" />
+        <div className="h-4 w-40 animate-pulse rounded-full bg-sand-100" />
+        <div className="mt-auto h-11 animate-pulse rounded-2xl bg-sand-200" />
       </div>
     </div>
   )
