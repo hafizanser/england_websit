@@ -366,7 +366,7 @@ export default function CategoriesPage() {
                   rel="noopener noreferrer"
                   className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-[#25D366] px-6 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#1ebe5d] active:translate-y-px"
                 >
-                  <WhatsappLogo size={20} weight="fill" /> WhatsApp pe order
+                  <WhatsappLogo size={20} weight="fill" className="shrink-0" /> <span className="whitespace-nowrap">Order on WhatsApp</span>
                 </a>
                 <a
                   href={phoneHref}
@@ -393,7 +393,7 @@ export default function CategoriesPage() {
             rel="noopener noreferrer"
             className="flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-bold text-white shadow-lift active:translate-y-px"
           >
-            <WhatsappLogo size={20} weight="fill" /> WhatsApp pe order bhejein
+            <WhatsappLogo size={20} weight="fill" className="shrink-0" /> <span className="whitespace-nowrap">Order on WhatsApp</span>
           </a>
         </div>
       )}

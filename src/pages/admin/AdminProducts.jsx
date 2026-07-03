@@ -392,7 +392,7 @@ export default function AdminProducts() {
                           return mrpLabel ? (
                             <div className="pf-price-tag">
                               <span style={{ display: 'block', fontWeight: 700 }}>{mrpLabel}</span>
-                              <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--pf-ink-soft)' }}>MRP / piece</span>
+                              <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--pf-ink-soft)' }}>Per Piece Price</span>
                             </div>
                           ) : (
                             <div className="pf-price-tag" style={{ color: 'var(--pf-ink-soft)' }}>—</div>

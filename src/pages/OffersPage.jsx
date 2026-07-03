@@ -206,7 +206,7 @@ function DealCardAction({ offer }) {
       className="inline-flex w-full min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white shadow-soft ring-1 ring-inset ring-white/20 transition-all hover:bg-[#1ebe5d] hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1ebe5d]"
     >
       <span className="inline-flex items-center gap-2">
-        <WhatsappLogo size={17} weight="fill" /> WhatsApp pe poochein
+        <WhatsappLogo size={17} weight="fill" className="shrink-0" /> Order on WhatsApp
       </span>
       {hint && <span className="text-[11px] font-medium opacity-90">({hint})</span>}
     </a>
@@ -407,7 +407,7 @@ function HeroActions({ reduce }) {
         rel="noopener noreferrer"
         className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-[#1ebe5d] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
-        <WhatsappLogo size={18} weight="fill" /> WhatsApp pe poochein
+        <WhatsappLogo size={18} weight="fill" className="shrink-0" /> Order on WhatsApp
       </a>
     </div>
   )
@@ -533,7 +533,7 @@ export default function OffersPage() {
                       rel="noopener noreferrer"
                       className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#1ebe5d] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1ebe5d]"
                     >
-                      <ChatCircleDots size={17} weight="fill" /> WhatsApp pe poochein
+                      <ChatCircleDots size={17} weight="fill" /> Order on WhatsApp
                     </a>
                     <Link
                       to="/products"
@@ -567,7 +567,7 @@ export default function OffersPage() {
               rel="noopener noreferrer"
               className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-full bg-[#25D366] px-6 py-3 text-sm font-bold text-white shadow-glow transition-all hover:bg-[#1ebe5d] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              <WhatsappLogo size={18} weight="fill" /> WhatsApp pe poochein
+              <WhatsappLogo size={18} weight="fill" className="shrink-0" /> Order on WhatsApp
             </a>
           </div>
         </div>

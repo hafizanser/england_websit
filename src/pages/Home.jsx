@@ -116,7 +116,7 @@ function HomeProduct({ p }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Wa className="ico" /> WhatsApp pe poochein
+          <Wa className="ico" /> Order on WhatsApp
         </a>
       </div>
     </article>
@@ -435,7 +435,7 @@ export default function Home() {
           <div className="urgency"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg> Aaj 4 baje tak order = kal subah delivery</div>
           <p className="bd">12,400+ dukaandaar England pe bharosa karte hain. Aaj order karein, kal subah maal aapki dukaan pe.</p>
           <div className="cta">
-            <a className="btn btn-wa" href={waHref('Assalam-o-alaikum, order karna hai')} target="_blank" rel="noopener noreferrer"><Wa className="ico" /> WhatsApp pe order karein</a>
+            <a className="btn btn-wa" href={waHref('Assalam-o-alaikum, order karna hai')} target="_blank" rel="noopener noreferrer"><Wa className="ico" /> Order on WhatsApp</a>
             <a className="btn btn-call" href={`tel:${brand.phone.replace(/\s/g, '')}`}><svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3.1-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.4 1.8.7 2.7a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.4-1.4a2 2 0 012.1-.5c.9.3 1.8.6 2.7.7a2 2 0 011.7 2.1z" /></svg> Call: {brand.phone}</a>
           </div>
           <div className="trust">

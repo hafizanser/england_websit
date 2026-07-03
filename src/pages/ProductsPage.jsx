@@ -158,7 +158,7 @@ export default function ProductsPage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#1ebe5d] active:translate-y-px"
                   >
-                    <WhatsappLogo size={18} weight="fill" /> WhatsApp pe poochein
+                    <WhatsappLogo size={18} weight="fill" className="shrink-0" /> Order on WhatsApp
                   </a>
                 </div>
               }

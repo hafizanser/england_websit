@@ -15,9 +15,11 @@ import { enquiryHref } from '../lib/whatsapp'
 //
 // `size`  sm | md | lg   controls height + typography (cards use sm/md, the
 //                        product detail page uses lg). `full` stretches to width.
+// Text scales up on wider screens; on narrow 2-col mobile cards it stays compact
+// with tight padding so "Order on WhatsApp" fits on ONE line without truncation.
 const SIZES = {
-  sm: { cls: 'h-11 gap-2 px-3 text-[12px] sm:text-[13px]', icon: 16 },
-  md: { cls: 'h-12 gap-2 px-4 text-[12px] sm:text-sm', icon: 18 },
+  sm: { cls: 'h-11 gap-1.5 px-2.5 text-[10.5px] sm:text-xs', icon: 15 },
+  md: { cls: 'h-11 gap-1.5 px-3 text-[11px] sm:text-sm', icon: 16 },
   lg: { cls: 'h-[52px] gap-2.5 px-6 text-[15px]', icon: 20 },
 }
 

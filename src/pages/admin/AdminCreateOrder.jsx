@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, MagnifyingGlass, Headset, Package } from '@phosphor-icons/react'
 import { getProducts, getCategories } from '../../api/catalog'
 import { useAsync } from '../../hooks/useAsync'
-import { Skeleton } from '../../components/admin/ui'
-import OrderProductCard from '../../components/admin/OrderProductCard'
+import ProductCard from '../../components/ProductCard'
+import { ProductSkeleton } from '../../components/ui'
 
 const GRID_CAP = 24 // safeguard against huge catalogs — chips + search narrow it
 
@@ -93,19 +93,8 @@ export default function AdminCreateOrder() {
           <div className="-mx-1 px-1 pb-1">
           {/* grid states */}
           {productsLoading && (
-            <div className="grid grid-cols-2 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="overflow-hidden rounded-[14px] border border-[#E6DCC5] bg-white">
-                  <Skeleton className="h-[120px] w-full rounded-none" />
-                  <div className="space-y-2.5 p-[13px]">
-                    <Skeleton className="h-3 w-2/5" />
-                    <Skeleton className="h-4 w-4/5" />
-                    <Skeleton className="h-3 w-3/5" />
-                    <Skeleton className="h-5 w-1/2" />
-                    <Skeleton className="h-9 w-full rounded-[9px]" />
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-3 sm:gap-5 min-[760px]:grid-cols-3 min-[1100px]:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => <ProductSkeleton key={i} />)}
             </div>
           )}
 
@@ -129,9 +118,9 @@ export default function AdminCreateOrder() {
 
           {!productsLoading && !productsError && results.length > 0 && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-5 min-[760px]:grid-cols-3 min-[1100px]:grid-cols-4">
                 {capped.map((p) => (
-                  <OrderProductCard key={p.id} p={p} />
+                  <ProductCard key={p.id} p={p} preferLargestUnit linkToProduct={false} />
                 ))}
               </div>
               {results.length > GRID_CAP && (

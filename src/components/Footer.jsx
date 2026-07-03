@@ -106,7 +106,7 @@ export default function Footer() {
               rel="noreferrer"
               className="mt-5 inline-flex items-center gap-2 rounded-full bg-wa-500 px-5 py-3 text-sm font-bold text-white shadow-[0_14px_28px_-12px_rgba(31,168,85,0.9)] ring-1 ring-wa-400/50 transition-all hover:-translate-y-0.5 hover:bg-wa-600 active:translate-y-0"
             >
-              <WhatsappLogo size={18} weight="fill" /> WhatsApp Pe Order
+              <WhatsappLogo size={18} weight="fill" className="shrink-0" /> <span className="whitespace-nowrap">Order on WhatsApp</span>
             </a>
           </div>
         </div>

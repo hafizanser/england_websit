@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { useTransition } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { House, Storefront, Tag, WhatsappLogo, UserCircle } from '@phosphor-icons/react'
 import { waLink } from '../../lib/whatsapp'
@@ -12,11 +13,12 @@ const items = [
   { to: '/profile', label: 'Account', icon: UserCircle },
 ]
 
-function Item({ to, label, icon: Icon, end, active }) {
+function Item({ to, label, icon: Icon, end, active, onNav }) {
   return (
     <NavLink
       to={to}
       end={end}
+      onClick={onNav(to)}
       className="tap-target relative flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-opacity active:opacity-60"
     >
       {active && (
@@ -34,7 +36,18 @@ function Item({ to, label, icon: Icon, end, active }) {
 
 export default function BottomNav() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const [, startTransition] = useTransition()
   const isActive = (to, end) => (end ? pathname === to : pathname.startsWith(to))
+
+  // Smooth tab switch: run the route change in a transition so React yields to the
+  // browser and the tab-bar/page-in animations never freeze on mobile. Modifier /
+  // middle clicks keep their native new-tab behaviour.
+  const onNav = (to) => (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return
+    e.preventDefault()
+    startTransition(() => navigate(to))
+  }
 
   return (
     <nav
@@ -52,15 +65,15 @@ export default function BottomNav() {
     >
       <div className="mx-auto flex max-w-md items-stretch px-2">
         {items.slice(0, 2).map((it) => (
-          <Item key={it.to} {...it} active={isActive(it.to, it.end)} />
+          <Item key={it.to} {...it} active={isActive(it.to, it.end)} onNav={onNav} />
         ))}
 
-        {/* center WhatsApp enquiry button — opens WhatsApp to ask for rates / order */}
+        {/* center WhatsApp button — opens WhatsApp to place an order / ask for rates */}
         <a
           href={waLink()}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="WhatsApp pe poochein"
+          aria-label="Order on WhatsApp"
           className="relative flex flex-1 flex-col items-center gap-1 py-2"
         >
           <span className="relative -mt-5 grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white shadow-lift ring-4 ring-sand-50 transition-transform active:scale-95">
@@ -70,7 +83,7 @@ export default function BottomNav() {
         </a>
 
         {items.slice(2).map((it) => (
-          <Item key={it.to} {...it} active={isActive(it.to, it.end)} />
+          <Item key={it.to} {...it} active={isActive(it.to, it.end)} onNav={onNav} />
         ))}
       </div>
     </nav>

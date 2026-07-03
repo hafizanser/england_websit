@@ -184,11 +184,11 @@ export default function Navbar() {
               href={waHref}
               target="_blank"
               rel="noreferrer"
-              aria-label="WhatsApp Pe Order"
-              className="hidden shrink-0 items-center gap-2 rounded-full bg-[#25D366] px-3 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#1ebe5d] hover:-translate-y-0.5 active:translate-y-0 sm:flex sm:px-5"
+              aria-label="Order on WhatsApp"
+              className="hidden shrink-0 items-center gap-2 rounded-full bg-[#25D366] px-3 py-2.5 text-sm font-bold text-white shadow-md ring-1 ring-inset ring-white/25 transition-all duration-200 hover:bg-[#20bd5a] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98] sm:flex sm:px-5"
             >
-              <WhatsappLogo size={18} weight="fill" className="text-white" />
-              <span className="hidden sm:inline">WhatsApp Pe Order</span>
+              <WhatsappLogo size={18} weight="fill" className="shrink-0 text-white" />
+              <span className="hidden whitespace-nowrap sm:inline">Order on WhatsApp</span>
             </a>
 
             <ProfileButton />
@@ -254,7 +254,7 @@ export default function Navbar() {
                     <Link
                       key={link.label}
                       to={link.to}
-                      onClick={() => setOpen(false)}
+                      onClick={closeAndGo(link.to)}
                       className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-base font-semibold transition-colors ${
                         active ? 'bg-white text-saffron-700 shadow-soft' : 'text-brand-900 hover:bg-white'
                       }`}
@@ -277,7 +277,7 @@ export default function Navbar() {
                       <p className="truncate text-sm font-bold text-brand-900">{customer?.name || 'Mera account'}</p>
                       <p className="truncate text-xs text-brand-400">{customer?.phone}</p>
                     </div>
-                    <Link to="/profile" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
+                    <Link to="/profile" onClick={closeAndGo('/profile')} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
                       <User size={18} weight="bold" /> My Profile
                     </Link>
                     <button
@@ -290,10 +290,10 @@ export default function Navbar() {
                   </>
                 ) : (
                   <>
-                    <Link to="/register" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
+                    <Link to="/register" onClick={closeAndGo('/register')} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
                       <UserPlus size={18} weight="bold" /> Register
                     </Link>
-                    <Link to="/login" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
+                    <Link to="/login" onClick={closeAndGo('/login')} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
                       <SignIn size={18} weight="bold" /> Login
                     </Link>
                   </>
@@ -305,9 +305,9 @@ export default function Navbar() {
                   href={waHref}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 py-3.5 text-base font-bold text-white shadow-soft active:translate-y-px"
+                  className="flex min-h-[52px] items-center justify-center gap-2.5 rounded-full bg-[#25D366] px-5 text-base font-bold text-white shadow-md ring-1 ring-inset ring-white/25 transition-all duration-200 hover:bg-[#20bd5a] hover:shadow-lg active:scale-[0.98]"
                 >
-                  <WhatsappLogo size={20} weight="fill" /> WhatsApp pe order karein
+                  <WhatsappLogo size={20} weight="fill" className="shrink-0" /> <span className="whitespace-nowrap">Order on WhatsApp</span>
                 </a>
               </div>
             </motion.aside>

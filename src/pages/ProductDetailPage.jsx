@@ -297,7 +297,7 @@ export default function ProductDetailPage() {
                       Out of Stock
                     </div>
                   ) : (
-                    <EnquiryButton name={p.name} unit={selected ? selected.label : p.unit} size="lg" label="WhatsApp pe rate poochein" />
+                    <EnquiryButton name={p.name} unit={selected ? selected.label : p.unit} size="lg" label="Order on WhatsApp" />
                   )}
                   <p className="mt-2 text-center text-[11px] text-brand-400">Rate aur availability WhatsApp par foran mil jayegi.</p>
                 </div>
@@ -378,7 +378,7 @@ export default function ProductDetailPage() {
                 {outOfStock ? (
                   <span className="inline-flex min-h-[48px] shrink-0 cursor-not-allowed items-center rounded-xl bg-brand-300 px-5 text-sm font-bold text-white">Out of Stock</span>
                 ) : (
-                  <EnquiryButton name={p.name} unit={selected.label} size="md" full={false} label="WhatsApp pe poochein" className="min-h-[48px]" />
+                  <EnquiryButton name={p.name} unit={selected.label} size="md" full={false} label="Order on WhatsApp" className="min-h-[48px]" />
                 )}
               </div>
             </div>
