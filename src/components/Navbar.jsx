@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { List, X, WhatsappLogo, CaretRight, MagnifyingGlass, SignIn, UserPlus, User, SignOut } from '@phosphor-icons/react'
@@ -54,8 +54,21 @@ export default function Navbar() {
   const [open, setOpen] = useState(false)
   const [term, setTerm] = useState('')
   const navigate = useNavigate()
+  const [, startTransition] = useTransition()
   const { pathname, search } = useLocation()
   const { isLoggedIn, customer, logout } = useCustomerAuth()
+
+  // Navigate from the mobile drawer without a UI freeze: close the drawer
+  // immediately (urgent) and run the route change inside a transition so React
+  // yields to the browser — the drawer-close + page-in animations stay smooth
+  // while the (potentially heavy) destination renders concurrently. Modifier /
+  // middle clicks fall through to the browser's native new-tab behaviour.
+  const closeAndGo = (to) => (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return
+    e.preventDefault()
+    setOpen(false)
+    startTransition(() => navigate(to))
+  }
 
   // Active-state resolver. The two product entries share the /products path, so
   // we disambiguate them by the `view` query param — only one is ever active.
