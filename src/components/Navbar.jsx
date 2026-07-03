@@ -98,6 +98,37 @@ export default function Navbar() {
     return lockScroll()
   }, [open])
 
+  // Auto-close on ANY route change — link taps close instantly via closeAndGo, but
+  // this is the safety net for back/forward, logout, or any programmatic navigation
+  // so the drawer + scroll-lock can never linger over a new page. Runs a no-op
+  // setState when already closed, so it's cheap.
+  useEffect(() => {
+    setOpen(false)
+  }, [pathname, search])
+
+  // Close on Escape (desktop responsive mode / keyboards). Listener is added ONLY
+  // while open and removed on close, so there are never duplicate listeners.
+  useEffect(() => {
+    if (!open) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  // If the viewport grows to the desktop breakpoint while the drawer is open, the
+  // drawer is hidden by `lg:hidden` but `open` would stay true — leaving the body
+  // scroll-locked with no visible menu. Force it closed when we cross into desktop.
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 1024px)')
+    const onChange = (e) => { if (e.matches) setOpen(false) }
+    if (mql.addEventListener) mql.addEventListener('change', onChange)
+    else mql.addListener(onChange) // Safari < 14
+    return () => {
+      if (mql.removeEventListener) mql.removeEventListener('change', onChange)
+      else mql.removeListener(onChange)
+    }
+  }, [])
+
   return (
     <header className="sticky top-0 z-50">
       {/* Announcement marquee — Urdu (pads the notch/status-bar inset on phones) */}
@@ -205,23 +236,36 @@ export default function Navbar() {
         </nav>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — the backdrop and the panel each live in their own
+          AnimatePresence with a single *keyed* child. A bare Fragment holding both
+          motion elements made framer-motion's exit tracking unreliable (the panel
+          would snap/glitch on close); two single-child presences fix that while
+          keeping the exact same fade + spring-slide visuals. */}
       <AnimatePresence>
         {open && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setOpen(false)}
-              className="fixed inset-0 z-50 bg-brand-950/50 backdrop-blur-sm lg:hidden"
-            />
+          <motion.div
+            key="nav-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+            className="fixed inset-0 z-50 touch-none bg-brand-950/50 backdrop-blur-sm lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {open && (
             <motion.aside
+              key="nav-drawer"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={spring}
-              className="fixed inset-y-0 right-0 z-50 flex w-[84%] max-w-sm flex-col bg-sand-50 shadow-lift lg:hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu"
+              className="fixed inset-y-0 right-0 z-50 flex w-[84%] max-w-sm flex-col overscroll-contain bg-sand-50 shadow-lift lg:hidden"
             >
               <div className="flex items-center justify-between border-b border-brand-100 px-5 py-4">
                 <Logo onClick={() => setOpen(false)} />
@@ -247,7 +291,7 @@ export default function Navbar() {
                 />
               </form>
 
-              <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+              <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-3 py-4">
                 {navLinks.map((link) => {
                   const active = isNavActive(link.to)
                   return (
@@ -311,7 +355,6 @@ export default function Navbar() {
                 </a>
               </div>
             </motion.aside>
-          </>
         )}
       </AnimatePresence>
     </header>
