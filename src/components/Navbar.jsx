@@ -86,8 +86,8 @@ export default function Navbar() {
   const runSearch = (e) => {
     e.preventDefault()
     const q = term.trim()
-    navigate(q ? `/products?q=${encodeURIComponent(q)}` : '/products')
     setOpen(false)
+    startTransition(() => navigate(q ? `/products?q=${encodeURIComponent(q)}` : '/products'))
   }
 
   // Lock background scroll while the mobile menu is open; the counted lock
