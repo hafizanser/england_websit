@@ -169,16 +169,16 @@ const REVIEW_STAR_MIX = [5, 5, 5, 4, 5, 5, 3, 5, 4, 5, 5, 4]
 // city, applied by card order. Only the shown name is overridden; each review's
 // text, rating, product meta and animations stay exactly as they come from the API.
 const REVIEW_NAMES = [
-  'Yaseen – Daska',
-  'Hafeez – Daska',
-  'Saleem General Store – Sargodha',
-  'Nadeem – Pakpattan',
-  'Mukhtyar – Bahawalnagar',
-  'Osama – Bahawalnagar',
-  'Umar – Karachi',
-  'Tanveer – Karachi',
-  'Rao – Mailsi',
-  'Nadeem – Okara',
+  'Yaseen – Lahore, Pakistan',
+  'Hafeez – Lahore, Pakistan',
+  'Saleem General Store – Lahore, Pakistan',
+  'Nadeem – Lahore, Pakistan',
+  'Mukhtyar – Lahore, Pakistan',
+  'Osama – Lahore, Pakistan',
+  'Umar – Lahore, Pakistan',
+  'Tanveer – Lahore, Pakistan',
+  'Rao – Lahore, Pakistan',
+  'Nadeem – Lahore, Pakistan',
 ]
 function displayStars(review, i) {
   const real = Math.round(Number(review?.rating))
@@ -215,7 +215,7 @@ export default function Home() {
             <p className="sub">Asli England maal, fixed wholesale rate. Ek WhatsApp message pe <b>110+ cities mein agle din delivery</b> 30+ products ek hi jagah.</p>
 
             <div className="proof-strip">
-              <span className="proof-pm"><TrendUp className="ic" /><span className="pm-txt"><b>20–70%</b><span className="sm">Profit Margin</span></span></span>
+              <span className="proof-pm"><TrendUp className="ic" /><span className="pm-txt"><b>20% - 70%</b></span></span>
               <span className="dot" />
               <span className="proof-item">12,400+ <span className="pm">dukaandaar</span></span>
               <span className="dot" />
@@ -401,13 +401,14 @@ export default function Home() {
                   <div className="review" key={i}>
                     <div className="stars" aria-label={`${r.stars} out of 5 stars`}>
                       <span className="on">{'★'.repeat(r.stars)}</span><span className="off">{'★'.repeat(5 - r.stars)}</span>
+                      <span className="rating-num">{r.stars.toFixed(1)}</span>
                     </div>
                     <q>{r.comment}</q>
                     <div className="who">
                       <span className="avatar">{(r.customer_name || 'C').charAt(0).toUpperCase()}</span>
                       <div>
                         <b>{r.customer_name}</b>
-                        <div className="meta"><span className="verified">✓ Verified</span> · {r.product_name || 'England'}</div>
+                        <div className="meta">{r.product_name || 'England'}</div>
                       </div>
                     </div>
                   </div>

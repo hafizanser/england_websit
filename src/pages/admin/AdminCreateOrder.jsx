@@ -290,14 +290,14 @@ export default function AdminCreateOrder() {
         </span>
       </div>
 
-      {/* Desktop: a fixed-height app-shell region so the product grid + rail scroll
-          independently and the overall page never grows. Mobile: normal flow. */}
-      <form onSubmit={submit} className="grid gap-[22px] lg:grid-cols-[1fr_388px] lg:h-[calc(100vh-14rem)] lg:items-stretch lg:overflow-hidden">
+      {/* Single natural page scroll — the two columns flow with the document; no
+          nested scroll regions on either desktop or mobile. */}
+      <form onSubmit={submit} className="grid gap-[22px] lg:grid-cols-[1fr_388px] lg:items-start">
         {/* ── product picker ── */}
-        <Panel className="p-5 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
-          <h2 className="mb-3.5 shrink-0 text-base font-extrabold tracking-[-0.01em] text-[#2A2117]">Products add karein</h2>
+        <Panel className="p-5">
+          <h2 className="mb-3.5 text-base font-extrabold tracking-[-0.01em] text-[#2A2117]">Products add karein</h2>
 
-          <div className="relative mb-3.5 shrink-0">
+          <div className="relative mb-3.5">
             <MagnifyingGlass size={17} weight="bold" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9C9078]" />
             <input
               value={q}
@@ -307,16 +307,16 @@ export default function AdminCreateOrder() {
             />
           </div>
 
-          {/* category chips with counts */}
-          <div className="no-scrollbar -mx-1 mb-[18px] flex shrink-0 gap-2 overflow-x-auto px-1">
+          {/* category chips with counts — wrap to match the theme (.chips: flex-wrap) */}
+          <div className="mb-[18px] flex flex-wrap gap-2">
             <Chip active={cat === 'all'} onClick={() => setCat('all')} label="All" count={products?.length || 0} />
             {categoryList.map((c) => (
               <Chip key={c.id} active={String(cat) === String(c.id)} onClick={() => setCat(c.id)} label={c.name} count={catCounts[c.id] || 0} />
             ))}
           </div>
 
-          {/* Scrollable product area — grid scrolls on its own; the page stays put. */}
-          <div className="no-scrollbar -mx-1 px-1 pb-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+          {/* Product area — flows in the page; no isolated scroll. */}
+          <div className="-mx-1 px-1 pb-1">
           {/* grid states */}
           {productsLoading && (
             <div className="grid grid-cols-2 gap-4">
@@ -368,9 +368,8 @@ export default function AdminCreateOrder() {
           </div>
         </Panel>
 
-        {/* ── order rail — fixed & always visible; fills the region, scrolls only if
-            its own content overflows (Order lines scroll independently below) ── */}
-        <div className="no-scrollbar space-y-4 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-0.5">
+        {/* ── order rail — flows with the page (no isolated scroll) ── */}
+        <div className="space-y-4">
           {/* 1. customer */}
           <Panel className="p-[18px]">
             <h2 className="mb-3.5 text-base font-extrabold tracking-[-0.01em] text-[#2A2117]">Customer tafseelat</h2>
@@ -443,7 +442,7 @@ export default function AdminCreateOrder() {
                 <p className="text-[12.5px] text-[#9C9078]">Left se product add karein</p>
               </div>
             ) : (
-              <ul className="no-scrollbar -mx-1 max-h-[320px] space-y-0.5 overflow-y-auto px-1">
+              <ul className="-mx-1 space-y-0.5 px-1">
                 {lines.map((l) => (
                   <li
                     key={l.key}
@@ -545,7 +544,7 @@ function Chip({ active, onClick, label, count }) {
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`inline-flex min-h-[36px] shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 text-[12.5px] font-bold transition-all active:scale-95 ${
+      className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border px-3.5 py-2 text-[12.5px] font-bold transition-all active:scale-95 ${
         active ? 'border-[#3A2E1F] bg-[#3A2E1F] text-white' : 'border-[#D9CDB1] bg-white text-[#6E6250] hover:border-[#3A2E1F] hover:text-[#2A2117]'
       }`}
     >

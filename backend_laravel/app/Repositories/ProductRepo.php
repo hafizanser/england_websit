@@ -33,13 +33,15 @@ class ProductRepo extends BaseRepo
 
     /**
      * Adjust a product's available stock (total_stock_cotton = single source of
-     * truth). Negative delta RESERVES units (order placed); positive delta
-     * RESTORES them (order cancelled). Clamped at 0 so stock can never go
-     * negative. Best-effort: an unknown/legacy product id just updates 0 rows.
+     * truth, measured in main units / Cartons). Negative delta RESERVES units
+     * (order placed); positive delta RESTORES them (order cancelled). The delta is
+     * a FLOAT because selling a sub-unit (Box/Bundle/Packet) consumes a FRACTION of
+     * a main unit — callers convert via App\Support\StockMath. Clamped at 0 so stock
+     * can never go negative. Best-effort: an unknown id just updates 0 rows.
      */
-    public function adjustStock(string $productId, int $delta): void
+    public function adjustStock(string $productId, float $delta): void
     {
-        if ($productId === '' || $delta === 0) {
+        if ($productId === '' || abs($delta) < 1e-9) {
             return;
         }
         $this->exec(

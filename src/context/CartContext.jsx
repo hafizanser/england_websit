@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useCallback, useState, useRef } from 'react'
 import { hydrate, deriveTotals, findOfferByCode, toRow, unitLabelFor, rowKey, computeFreeItems } from '../lib/cartEngine'
+import { unitStockCap } from '../lib/pack'
+import { cartAlert } from '../lib/unitCart'
 import { getOffers } from '../api/offers'
 import { getServerCart, saveServerCart, clearServerCart } from '../api/cart'
 import { useNotify } from './NotifyContext'
@@ -183,16 +185,35 @@ export function CartProvider({ children }) {
   // line, so the "Already in your cart" warning only fires for the SAME unit.
   const add = useCallback((product, qty = 1, unitOption = null) => {
     const opt = unitOption || (product.unitOptions && product.unitOptions[0]) || null
-    const row = toRow(product, qty, opt)
-    const prev = state.rows.find((r) => r.key === row.key)?.qty || 0
-    dispatch({ type: 'ADD', row, qty })
-    setCartOpen(true)
+    const unitKey = opt ? opt.unit : product.unit
+    const key = rowKey(product.id, unitKey)
     const label = opt?.label || unitLabelFor(product.unit)
+    const prev = state.rows.find((r) => r.key === key)?.qty || 0
+    const want = Math.max(0, Math.floor(Number(qty) || 0))
+
+    // Shared-pool backstop: convert every unit of THIS product already in the cart
+    // to the base and cap the add so mixed units can never exceed real stock
+    // (lib/pack → unitStockCap; internal exclusion handles this unit's own line).
+    // Infinity → unknown stock (no cap).
+    const others = state.rows.filter((r) => r.id === product.id).map((r) => ({ unitKey: r.unitKey, qty: r.qty }))
+    const cap = unitStockCap(product, opt || { unit: unitKey }, others)
+    let addQty = want
+    if (Number.isFinite(cap)) {
+      const room = Math.max(0, cap - prev)
+      if (room <= 0) { toast(cartAlert.overStock(Math.max(0, cap), label), 'warning'); return }
+      if (addQty > room) addQty = room
+    }
+    if (addQty <= 0) return
+
+    dispatch({ type: 'ADD', row: toRow(product, addQty, opt), qty: addQty })
+    setCartOpen(true)
     const plural = (n) => (n === 1 ? label : `${label}s`)
-    if (prev > 0 && qty === prev) {
+    if (addQty < want) {
+      toast(cartAlert.overStock(Math.max(0, cap), label), 'warning')
+    } else if (prev > 0 && addQty === prev) {
       toast(`Already in your cart — You already added ${prev} ${plural(prev)} of ${product.name}.`, 'warning')
     } else {
-      toast(`Added to cart — ${product.name} (${qty} ${plural(qty)})`, 'success')
+      toast(`Added to cart — ${product.name} (${addQty} ${plural(addQty)})`, 'success')
     }
   }, [state.rows, toast])
 
@@ -269,7 +290,15 @@ export function CartProvider({ children }) {
     const unitKey = opt ? opt.unit : product.unit
     const key = rowKey(product.id, unitKey)
     const cur = state.rows.find((r) => r.key === key)?.qty || 0
-    const q = Math.max(0, Math.min(999, Math.floor(Number(qty) || 0)))
+    let q = Math.max(0, Math.min(999, Math.floor(Number(qty) || 0)))
+    // Shared-pool backstop (silent — the −/＋/Add callers show their own alert):
+    // never let the absolute qty push this product's units past real stock. This
+    // makes the cart context itself the single enforcement point (lib/pack).
+    if (q > 0) {
+      const others = state.rows.filter((r) => r.id === product.id).map((r) => ({ unitKey: r.unitKey, qty: r.qty }))
+      const cap = unitStockCap(product, opt || { unit: unitKey }, others)
+      if (Number.isFinite(cap)) q = Math.min(q, Math.max(0, cap))
+    }
     if (q <= 0) { if (cur > 0) dispatch({ type: 'REMOVE', key }); return }
     if (cur > 0) dispatch({ type: 'SET_QTY', key, qty: q })
     else dispatch({ type: 'ADD', row: toRow(product, q, opt), qty: q })

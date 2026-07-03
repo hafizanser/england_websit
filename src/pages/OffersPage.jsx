@@ -1,6 +1,6 @@
-import { memo, useMemo } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   Tag,
   ArrowRight,
@@ -30,7 +30,7 @@ import { money, unitLabelFor } from '../lib/cartEngine'
 import { waLink } from '../lib/whatsapp'
 import { imgSrc, onImgError } from '../lib/img'
 import { dealUrdu } from '../lib/offerUrdu'
-import { fadeUp, stagger, viewportOnce } from '../lib/motion'
+import { fadeUp, stagger } from '../lib/motion'
 
 const productMap = new Map(products.map((p) => [p.id, p]))
 
@@ -484,9 +484,28 @@ export default function OffersPage() {
     return [...list].sort((a, b) => rank(a) - rank(b))
   }, [data])
 
+  // Reveal the grid as soon as the offers are loaded — an on-render animation
+  // (same fadeUp + stagger keyframes) rather than a scroll/viewport trigger. A
+  // whileInView + once observer raced the async load: it could resolve during the
+  // skeleton phase and disconnect, leaving the real cards stuck at opacity:0 (the
+  // "blank until manual refresh" bug). Animating on mount is deterministic.
   const containerMotion = reduce
     ? {}
-    : { variants: stagger(0.06), initial: 'hidden', whileInView: 'show', viewport: viewportOnce }
+    : { variants: stagger(0.06), initial: 'hidden', animate: 'show' }
+
+  // When arriving via the homepage "View All Offers" button (/offers#offers-grid),
+  // smoothly scroll to the offers grid so the deal banners sit fully below the
+  // sticky navbar (the grid's scroll-mt-24 supplies the top offset).
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (hash !== '#offers-grid') return undefined
+    const el = document.getElementById('offers-grid')
+    if (!el) return undefined
+    const raf = requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [hash, reduce])
 
   return (
     <>
@@ -536,15 +555,24 @@ export default function OffersPage() {
             ))}
           </div>
 
-          {/* single offers grid — exactly 2 per row on desktop & tablet, 1 on mobile */}
-          <motion.div {...containerMotion} className="mt-8 grid gap-5 sm:grid-cols-2">
-            {loading && Array.from({ length: 6 }).map((_, i) => <DealCardSkeleton key={i} />)}
+          {/* single offers grid — exactly 2 per row on desktop & tablet, 1 on mobile.
+              Loading / error / empty render in a plain container; the animated grid
+              mounts ONLY once the cards exist, so the reveal fires deterministically
+              on load instead of racing a viewport observer. */}
+          {loading && (
+            <div id="offers-grid" className="mt-8 grid scroll-mt-24 gap-5 sm:grid-cols-2">
+              {Array.from({ length: 6 }).map((_, i) => <DealCardSkeleton key={i} />)}
+            </div>
+          )}
 
-            {!loading && error && (
+          {!loading && error && (
+            <div id="offers-grid" className="mt-8 grid scroll-mt-24 gap-5 sm:grid-cols-2">
               <ErrorState message="Offers load nahi huye — dobara try karein." onRetry={reload} />
-            )}
+            </div>
+          )}
 
-            {!loading && !error && offersList.length === 0 && (
+          {!loading && !error && offersList.length === 0 && (
+            <div id="offers-grid" className="mt-8 grid scroll-mt-24 gap-5 sm:grid-cols-2">
               <EmptyState
                 icon={Tag}
                 title="Abhi koi active offer nahi"
@@ -568,14 +596,16 @@ export default function OffersPage() {
                   </div>
                 }
               />
-            )}
+            </div>
+          )}
 
-            {!loading &&
-              !error &&
-              offersList.map((offer) => (
+          {!loading && !error && offersList.length > 0 && (
+            <motion.div {...containerMotion} id="offers-grid" className="mt-8 grid scroll-mt-24 gap-5 sm:grid-cols-2">
+              {offersList.map((offer) => (
                 <DealCard key={offer.id} offer={offer} featured={Boolean(offer.featured)} motionSafe={!reduce} />
               ))}
-          </motion.div>
+            </motion.div>
+          )}
 
           {/* Cart ready band (kept) */}
           <div className="mt-10 flex flex-col items-center justify-between gap-4 rounded-4xl bg-brand-950 p-6 text-white sm:flex-row sm:p-8">

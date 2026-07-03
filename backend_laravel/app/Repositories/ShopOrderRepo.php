@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Models\ShopCustomer;
+use App\Support\StockMath;
 
 /**
  * Storefront orders (FMCG-only fmcg_orders table). Port of the legacy
@@ -127,11 +128,35 @@ class ShopOrderRepo extends BaseRepo
     {
         $items = (new ShopOrderItemRepo())->byOrder($orderId);
         $products = new ProductRepo();
+
+        // Group the order's lines by product so mixed units convert against ONE
+        // pool, then reserve/restore the exact main-unit (carton) amount — the same
+        // conversion checkout used, so cancel/un-cancel reverses it precisely.
+        $byProduct = [];
         foreach ($items as $it) {
             $pid = (string) ($it['product_id'] ?? '');
             $qty = (int) ($it['qty'] ?? 0);
-            if ($pid !== '' && $qty > 0) {
-                $products->adjustStock($pid, $sign * $qty);
+            if ($pid === '' || $qty <= 0) {
+                continue;
+            }
+            // Order items persist the unit LABEL; StockMath::unitLabel accepts it.
+            $byProduct[$pid][] = ['unitKey' => (string) ($it['unit'] ?? ''), 'qty' => $qty];
+        }
+        if (!$byProduct) {
+            return;
+        }
+
+        $catalog = $products->byStorefrontIds(array_keys($byProduct));
+        foreach ($byProduct as $pid => $lines) {
+            $p = $catalog[$pid] ?? null;
+            $conv = $p['conversions'] ?? [];
+            $unitKeys = $p ? array_map(fn ($o) => (string) ($o['unit'] ?? ''), $p['unitOptions'] ?? []) : [];
+            $basePerMain = StockMath::basePerMain($conv, $unitKeys);
+            $cartons = $basePerMain > 0
+                ? StockMath::committedBase($lines, $conv) / $basePerMain
+                : (float) array_sum(array_map(fn ($l) => (int) $l['qty'], $lines));
+            if ($cartons > 0) {
+                $products->adjustStock((string) $pid, $sign * $cartons);
             }
         }
     }

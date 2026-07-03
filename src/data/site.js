@@ -23,8 +23,8 @@ export const brand = {
   trustUrdu: 'جس پر پورے پاکستان کا بھروسہ',
   phone: '+92 312 4361300',
   whatsapp: '+92 312 4361300',
-  email: 'englandofficial590@gmail.com',
-  address: 'Shah Alam Market, Lahore, Pakistan',
+  email: 'englandwaly9@gmail.com',
+  address: 'Lahore, Pakistan',
 }
 
 // Cart / commerce constants

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { Plus, PencilSimple, Trash, Package, MagnifyingGlass, CircleNotch, Eye, X, Star } from '@phosphor-icons/react'
 import { adminListProducts, saveProduct, deleteProduct, adminListCategories } from '../../api/admin'
 import { money } from '../../lib/cartEngine'
+import { totalSmallUnits, unitsPerMainUnit } from '../../lib/pack'
 import { useNotify } from '../../context/NotifyContext'
 import Modal, { field, fieldLabel } from '../../components/admin/Modal'
 import './AdminProducts.css'
@@ -41,11 +42,37 @@ const emptyProduct = () => ({
 // Padded SKU code derived from the DB id (mirrors the reference inventory view).
 const skuOf = (id) => `SKU: ${String(id ?? '').padStart(5, '0')}`
 
+// The "Units" column total (boxes_in_cotton × cartons) counts the product's
+// SECONDARY sub-unit per carton — which is a Box, Bundle, Pack, etc. depending on
+// how the product is sold. Resolve that unit's label from the product's unit_types
+// so the column never mislabels a Bundle product as "BOXES".
+const UNIT_LABELS = { box: 'Box', cotton: 'Carton', packet: 'Packet', dozen: 'Dozen', bundle: 'Bundle', piece: 'Piece' }
+const UNIT_PLURALS = { Box: 'Boxes', Carton: 'Cartons', Packet: 'Packets', Dozen: 'Dozens', Bundle: 'Bundles', Piece: 'Pieces' }
+const SECONDARY_ORDER = ['box', 'bundle', 'packet', 'dozen', 'piece']
+
+// The product's SECONDARY sub-unit (the one packed inside a Carton), resolved from
+// its selected unit_types — Box, Bundle, Packet, Dozen or Piece. This is the single
+// source shared by the inventory "Units" column AND the dynamic Add/Edit field
+// label, so they can never disagree. `boxes_in_cotton` = how many of THIS unit fit
+// in one Carton (→ lib/pack unitsPerMainUnit, the stock pool's conversion).
+const secondaryUnitKey = (unitTypes) => {
+  const types = Array.isArray(unitTypes) ? unitTypes : []
+  return SECONDARY_ORDER.find((k) => types.includes(k)) || 'box'
+}
+const secondaryUnitPlural = (unitTypes) => UNIT_PLURALS[UNIT_LABELS[secondaryUnitKey(unitTypes)]] || 'Boxes'
+const secondaryUnitLabel = (p) => secondaryUnitPlural(p.unit_types).toUpperCase()
+// Dynamic "Boxes/Bundles/Packets/… in Carton" label for the packing field.
+const secondaryPerCartonLabel = (unitTypes) => `${secondaryUnitPlural(unitTypes)} in Carton`
+
 // Derive carton/box stock figures from the carton total + boxes-per-carton.
+// The available-small-units number comes from the SHARED utility (lib/pack →
+// totalSmallUnits = Main Unit Stock × Units Per Main Unit), so the admin
+// inventory can never disagree with the cart's stock pool.
 const stockInfo = (p) => {
-  const bpc = parseInt(p.boxes_in_cotton ?? 0, 10) || 0
+  const conv = { boxesPerCarton: parseInt(p.boxes_in_cotton ?? 0, 10) || 0 }
+  const bpc = unitsPerMainUnit(conv)
   const cartons = parseFloat(p.total_stock_cotton ?? 0) || 0
-  const totalBoxes = Math.round(bpc * cartons)
+  const totalBoxes = totalSmallUnits(cartons, conv)
   const cartonsInt = bpc > 0 ? Math.floor(totalBoxes / bpc) : Math.round(cartons)
   const leftover = bpc > 0 ? totalBoxes - cartonsInt * bpc : 0
   const level = cartons < 10 ? 'crit' : cartons < 50 ? 'warn' : 'ok'
@@ -383,7 +410,7 @@ export default function AdminProducts() {
                       <td className="pf-text-center">
                         <div className="pf-carton-badge" style={{ borderColor: 'var(--pf-gold)', background: 'rgba(197, 157, 95, 0.05)', margin: '0 auto' }}>
                           <span className="num" style={{ color: 'var(--pf-gold)' }}>{fmtInt(s.totalBoxes)}</span>
-                          <span className="lbl" style={{ color: 'var(--pf-gold)' }}>BOXES</span>
+                          <span className="lbl" style={{ color: 'var(--pf-gold)' }}>{secondaryUnitLabel(p)}</span>
                         </div>
                       </td>
 
@@ -514,7 +541,7 @@ export default function AdminProducts() {
               <h4 className="text-xs font-bold uppercase tracking-wider text-brand-400">Packing &amp; stock</h4>
               <div className="grid grid-cols-2 gap-3">
                 {priceInput('dozen_in_box', 'Dozen in box')}
-                {priceInput('boxes_in_cotton', 'Boxes in carton')}
+                {priceInput('boxes_in_cotton', secondaryPerCartonLabel(editing.unit_types))}
                 {editing.unit_types.includes('bundle') && priceInput('pieces_per_bundle', 'Pieces / bundle')}
                 {editing.unit_types.includes('packet') && priceInput('pieces_per_packet', 'Pieces / packet')}
                 {priceInput('total_stock_cotton', 'Opening stock (cartons)')}

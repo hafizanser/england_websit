@@ -357,6 +357,7 @@
 .eng .review .stars{color:var(--gold);letter-spacing:2px;font-size:15px}
 /* filled stars stay gold (inherited); empty stars render as faded "outline" */
 .eng .review .stars .off{color:rgba(110,97,76,.30)}
+.eng .review .stars .rating-num{margin-left:8px;letter-spacing:0;font-size:14px;font-weight:800;color:var(--ink)}
 .eng .review q{display:block;quotes:none;font-size:16px;line-height:1.55;margin:12px 0 16px;color:var(--ink)}
 .eng .review .who{display:flex;align-items:center;gap:12px}
 .eng .avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#fff;font-weight:800;display:grid;place-items:center;font-size:18px;flex:0 0 auto}

@@ -33,30 +33,52 @@ export function piecesPerUnit(unitKey, conv = {}) {
 }
 
 // Size of ONE `unitKey` in the product's SMALLEST sellable denominator — the base
-// used for ALL stock math. It prefers true pieces, but when a product has no
-// piece-level data (e.g. a Carton/Box product with no dozen_in_box, so
-// piecesPerBox = 0) it DEGRADES to Boxes as the common denominator instead of
-// collapsing to 0. That keeps cross-unit caps working for Carton/Box products —
-// the common real-world case — where piecesPerUnit alone would silently disable
-// them. (perPiecePrice deliberately keeps using piecesPerUnit, since a "per piece"
-// price is meaningless without real piece data.)
-//   Carton → pieces/carton, else boxes/carton
+// used for ALL stock math. Every unit of a product MUST resolve to the SAME base,
+// otherwise the shared-pool caps mix apples and oranges (e.g. a Carton measured in
+// "boxes" against a Bundle measured in "pieces" — the cross-unit subtraction is
+// then meaningless and secondary units stop respecting cartons already in the cart).
+//
+// It prefers true pieces. When a product has no box-level piece data (e.g. a
+// Carton/Box product with no dozen_in_box, so piecesPerBox = 0) it DEGRADES to
+// Boxes as the common denominator instead of collapsing to 0 — keeping cross-unit
+// caps working for Carton/Box products. Crucially, when the carton has no piece
+// data but a secondary sub-unit does (the Carton + Bundle / Packet case, where
+// `boxesPerCarton` counts how many secondary units fit in a carton — e.g.
+// 6 Bundles/Carton), the carton BRIDGES through that secondary unit's own base so
+// both share one consistent denominator. (perPiecePrice deliberately keeps using
+// piecesPerUnit, since a "per piece" price is meaningless without real piece data.)
+//   Carton → pieces/carton, else (boxesPerCarton × secondary-unit base), else boxes/carton
 //   Box    → pieces/box,     else 1 (the box IS the base)
 export function unitBase(unitKey, conv = {}) {
   const c = conv || {}
   const ppb = Number(c.piecesPerBox) || 0
   const bpc = Number(c.boxesPerCarton) || 0
   switch (unitLabelFor(unitKey)) {
-    case 'Carton':
+    case 'Carton': {
       if (ppb && bpc) return ppb * bpc
       if (Number(c.piecesPerCarton)) return Number(c.piecesPerCarton)
-      return bpc || 0
+      if (bpc) {
+        // No box-level pieces. `boxesPerCarton` counts the product's secondary
+        // sub-unit per carton, so bridge to that unit's base (its pieces) — this
+        // keeps Carton and Bundle/Packet on ONE denominator. If the secondary unit
+        // has no pieces either, degrade to the raw secondary-unit count.
+        const sec = Math.max(Number(c.piecesPerBundle) || 0, Number(c.piecesPerPacket) || 0)
+        return sec ? bpc * sec : bpc
+      }
+      return 0
+    }
     case 'Box':
       return ppb || (bpc ? 1 : 0)
+    // Packet / Bundle are secondary sub-units, exactly like Box. When their own
+    // piece data is missing but they ARE the carton's sub-unit (bpc = sub-units per
+    // carton), they degrade to 1 so they remain the shared base — matching the
+    // Carton's own `bpc` degrade above. Without this they collapsed to 0, which made
+    // remainingUnits() bail to the raw per-unit cap and stop honouring the cartons
+    // already in the cart (the cross-unit over-sell bug).
     case 'Packet':
-      return Number(c.piecesPerPacket) || 0
+      return Number(c.piecesPerPacket) || (bpc ? 1 : 0)
     case 'Bundle':
-      return Number(c.piecesPerBundle) || 0
+      return Number(c.piecesPerBundle) || (bpc ? 1 : 0)
     case 'Dozen':
       return Number(c.piecesPerDozen) || 12
     case 'Piece':
@@ -88,6 +110,29 @@ export function stockForUnit(stock, unitKey, conv = {}, options = []) {
   )
   if (!perUnit || !perBase) return s
   return Math.floor((s * perBase) / perUnit)
+}
+
+// ---------------------------------------------------------------------------
+// The admin's plain-language conversion, exposed as shared helpers so the
+// inventory view, product cards and the cart pool can never drift apart.
+// ---------------------------------------------------------------------------
+
+// Small (secondary) units contained in ONE main unit — i.e. "Units Per Main Unit"
+// as entered in Add/Edit Product (Boxes/Bundles/Packs per Carton). This is the
+// single definition of the carton→secondary factor.
+export function unitsPerMainUnit(conv = {}) {
+  return Number(conv?.boxesPerCarton) || 0
+}
+
+// Total available SMALL units for a product = Main Unit Stock × Units Per Main Unit.
+// Main-unit stock (admin's total_stock_cotton) is the single source of truth. This
+// equals the empty-cart availability the shared pool (remainingUnits) enforces for
+// the secondary unit, so the inventory number and the cart cap can never disagree.
+// Returns 0 when there is no secondary conversion (single-unit product).
+export function totalSmallUnits(mainStock, conv = {}) {
+  const s = Number(mainStock) || 0
+  const per = unitsPerMainUnit(conv)
+  return s > 0 && per > 0 ? Math.round(s * per) : 0
 }
 
 // Per-piece price for a chosen unit option. Returns null when it can't be
