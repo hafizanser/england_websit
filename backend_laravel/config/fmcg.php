@@ -20,4 +20,18 @@ return [
     // are written there too so both projects stay in sync. They are streamed
     // back through this backend's GET /image route.
     'uploads_path' => env('FMCG_UPLOADS_PATH', 'D:/xamp/htdocs/order_management/public/uploads'),
+
+    // Homepage video reels (uploaded or re-hosted from Google Drive). These are
+    // NOT web-served directly — they stream back through this backend's
+    // GET /video route (with HTTP range support) so playback matches the
+    // self-hosted <video> behaviour on the homepage. Kept separate from the
+    // image uploads folder so a stray .mp4 never lands in an Apache-served dir.
+    'videos_path' => env('FMCG_VIDEOS_PATH', base_path('uploads/videos')),
+
+    // ffmpeg / ffprobe binaries used to optimise/compress uploaded (or
+    // Drive-fetched) reels. Defaults to the PATH lookup; set an absolute path if
+    // they aren't on PATH. If ffmpeg is unavailable the original file is stored
+    // as-is (no compression) so the feature still works.
+    'ffmpeg_path'  => env('FMCG_FFMPEG_PATH', 'ffmpeg'),
+    'ffprobe_path' => env('FMCG_FFPROBE_PATH', 'ffprobe'),
 ];

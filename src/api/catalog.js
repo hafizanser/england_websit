@@ -66,6 +66,35 @@ export function getBlogBySlug(slug) {
   return http.get(`/blogs/${slug}`).then((r) => r.data)
 }
 
+// ---- homepage reel videos (public) -----------------------------------------
+// The order shown in the "products in action" carousel is whatever the admin
+// dashboard saved. If the backend is unreachable we fall back to the reels that
+// shipped in /public/videos so the section never regresses to empty.
+const FALLBACK_REEL_NUMS = [1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+const fallbackVideos = () =>
+  FALLBACK_REEL_NUMS.map((i, idx) => {
+    const n = String(i).padStart(2, '0')
+    return {
+      id: `dvreel-${n}`,
+      position: idx + 1,
+      source_type: 'upload',
+      video_url: `/videos/dvreel-${n}.mp4`,
+      poster_url: `/videos/dvreel-${n}.jpg`,
+    }
+  })
+
+export function getHomepageVideos() {
+  return withFallback(
+    async () => {
+      const data = (await http.get('/homepage-videos')).data
+      // Guard against an empty table (e.g. migration not run yet) so the homepage
+      // keeps showing the shipped reels rather than an empty carousel.
+      return Array.isArray(data) && data.length ? data : fallbackVideos()
+    },
+    async () => fallbackVideos(),
+  )
+}
+
 export function getTopSelling() {
   return withFallback(
     async () => (await http.get('/products/top-selling')).data,

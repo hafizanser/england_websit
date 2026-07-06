@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { lockScroll } from '../lib/scroll'
+import { getHomepageVideos } from '../api/catalog'
 
 /**
  * VIDEO REVIEW SECTION — "Experience Excellence / See the products in action".
@@ -36,33 +37,29 @@ import { lockScroll } from '../lib/scroll'
  * muted autoplay is allowed.
  */
 
-// Curated reels, already ordered (pinned first, then 2×A / 2×B repeating) and
-// transcoded to /public/videos/dvreel-NN.mp4 (+ .jpg poster). See transcode notes
-// above — the Drive→H.264 conversion is a one-off; this list is just the result.
-// dvreel-04 is omitted: it's the same footage as dvreel-03 (the Drive clip).
-// dvreel-05 (the 4th rendered card) is also removed per request; the remaining
-// reels keep their order and there is no empty card (the array maps 1:1).
-const REEL_NUMS = [1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-const RAW_REELS = REEL_NUMS.map((i) => {
+// The reels + their order now come from the Admin dashboard (GET /homepage-videos).
+// This module-scope list is the offline/backend-down FALLBACK: the reels that
+// shipped in /public/videos, in their original card order, so the section never
+// regresses if the API is unreachable. (dvreel-04/05 stay omitted, matching the
+// seeded dashboard order — the array maps 1:1, no empty cards, no repeats.)
+const FALLBACK_REEL_NUMS = [1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+const FALLBACK_CARDS = FALLBACK_REEL_NUMS.map((i) => {
   const n = String(i).padStart(2, '0')
   return { id: `dvreel-${n}`, src: `/videos/dvreel-${n}.mp4`, poster: `/videos/dvreel-${n}.jpg` }
 })
-// De-duplicate by unique video URL (falling back to id) so the same clip can
-// never appear twice. Keeps the FIRST occurrence, leaving the order untouched.
-const REELS = (() => {
-  const seenKeys = new Set()
-  return RAW_REELS.filter((r) => {
-    const key = r.src || r.id
-    if (seenKeys.has(key)) return false
-    seenKeys.add(key)
-    return true
-  })
-})()
-// Render each unique reel exactly ONCE (no doubling) — a video never repeats in
-// the carousel. The < / > arrows scroll the single row; there is no auto-scroll.
-const CARDS = REELS
+
+// Map a dashboard video row → the shape this carousel renders. Rows with no
+// playable URL are dropped so a broken entry never shows an empty card.
+const toCard = (v, idx) => ({
+  id: v.id != null ? String(v.id) : `reel-${idx}`,
+  src: v.video_url || '',
+  poster: v.poster_url || '',
+})
 
 export default function VideoReviews() {
+  // Reels + order from the dashboard; starts on the shipped fallback so the
+  // first paint is never empty, then swaps to the saved order once it loads.
+  const [cards, setCards] = useState(FALLBACK_CARDS)
   const sectionRef = useRef(null)
   const stripRef = useRef(null)
   const trackRef = useRef(null)
@@ -238,6 +235,25 @@ export default function VideoReviews() {
     playOnly(i) // promotes this reel to the active one and unmutes it
   }, [playOnly, revealControls])
 
+  // Pull the reels + saved order from the dashboard. Any playable rows replace
+  // the fallback; on error/empty the shipped reels stay, so the section never
+  // breaks. Dead-file tracking is reset so a fresh list starts clean.
+  useEffect(() => {
+    let alive = true
+    getHomepageVideos()
+      .then((rows) => {
+        if (!alive || !Array.isArray(rows)) return
+        const mapped = rows.map(toCard).filter((c) => c.src)
+        if (mapped.length) {
+          setCards(mapped)
+          setDead(new Set())
+          setReady(new Set())
+        }
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
+
   // Detect hover capability once (kept current if the device/profile changes).
   useEffect(() => {
     const mq = window.matchMedia('(hover: hover) and (pointer: fine)')
@@ -385,8 +401,8 @@ export default function VideoReviews() {
             onMouseLeave={() => setHover(null)}
           >
             <div className="video-track" ref={trackRef} aria-hidden={!seen}>
-              {CARDS.map((r, i) => {
-                const reelIdx = i % REELS.length
+              {cards.map((r, i) => {
+                const reelIdx = i // reels map 1:1 to cards (no doubling)
                 if (dead.has(reelIdx)) return null // file failed → drop this card (no gap)
                 const isPlaying = i === activeIndex && !paused
                 const isExpandedCard = i === expanded
@@ -397,7 +413,7 @@ export default function VideoReviews() {
                     className={`video-card${i === activeIndex ? ' is-active' : ''}${isPlaying ? ' is-playing' : ''}${isExpandedCard ? ' is-expanded' : ''}${isExpandedCard && closing ? ' is-closing' : ''}${isExpandedCard && controlsOn ? ' is-controls' : ''}`}
                     onMouseEnter={() => { if (canHoverRef.current) setHover(i) }}
                     onClick={() => handleTap(i)}
-                    aria-label={`Customer reel ${(i % REELS.length) + 1}`}
+                    aria-label={`Customer reel ${i + 1}`}
                   >
                     <video
                       ref={(el) => {
@@ -419,15 +435,18 @@ export default function VideoReviews() {
 
                     {/* Poster cover — a real <img> (lazy-loaded to save bandwidth) that
                         sits over the video until it starts playing, so the card shows the
-                        thumbnail instead of a black/empty frame while the clip buffers. */}
-                    <img
-                      className={`video-poster${ready.has(i) ? ' is-hidden' : ''}`}
-                      src={r.poster}
-                      alt=""
-                      aria-hidden="true"
-                      draggable="false"
-                      loading="lazy"
-                    />
+                        thumbnail instead of a black/empty frame while the clip buffers.
+                        Skipped when a reel has no poster (e.g. a Drive fallback). */}
+                    {r.poster && (
+                      <img
+                        className={`video-poster${ready.has(i) ? ' is-hidden' : ''}`}
+                        src={r.poster}
+                        alt=""
+                        aria-hidden="true"
+                        draggable="false"
+                        loading="lazy"
+                      />
+                    )}
 
                     <button
                       type="button"

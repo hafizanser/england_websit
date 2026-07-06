@@ -9,6 +9,7 @@ import {
   SquaresFour,
   Tag,
   Article,
+  VideoCamera,
   ChartLineUp,
   SignOut,
   List,
@@ -48,6 +49,7 @@ const sections = [
       { to: '/admin/categories', label: 'Categories', icon: SquaresFour },
       { to: '/admin/offers', label: 'Offers', icon: Tag },
       { to: '/admin/blogs', label: 'Blog', icon: Article },
+      { to: '/admin/videos', label: 'Homepage Videos', icon: VideoCamera },
     ],
   },
   {

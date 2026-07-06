@@ -100,6 +100,24 @@ export async function deleteBlog(id) {
   return http.del(`/admin/blogs/${id}`, { auth: true })
 }
 
+// ---- homepage reel videos --------------------------------------------------
+export async function adminListVideos() {
+  return (await http.get('/admin/homepage-videos', { auth: true })).data
+}
+// `v` may carry a `video` File field (multipart) OR a `drive_url` string.
+// Uploads/optimisation can take a while, so allow a generous timeout.
+export async function saveVideo(v) {
+  const fd = toFormData(v)
+  const path = v.id ? `/admin/homepage-videos/${v.id}` : '/admin/homepage-videos'
+  return (await http.postForm(path, fd, { auth: true, timeout: 300000 })).video
+}
+export async function deleteVideo(id) {
+  return http.del(`/admin/homepage-videos/${id}`, { auth: true })
+}
+export async function reorderVideos(order) {
+  return (await http.post('/admin/homepage-videos/reorder', { order }, { auth: true })).data
+}
+
 // ---- profit breakdown (PIN-gated) ------------------------------------------
 export async function verifyProfitPin(pin) {
   return (await http.post('/admin/profit/verify', { pin }, { auth: true })).unlocked

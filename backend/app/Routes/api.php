@@ -10,7 +10,9 @@ use App\Controllers\OrderController;
 use App\Controllers\CartController;
 use App\Controllers\ReviewController;
 use App\Controllers\AuthController;
+use App\Controllers\HomepageVideoController;
 use App\Controllers\Admin\ReviewController as AdminReviewController;
+use App\Controllers\Admin\HomepageVideoController as AdminHomepageVideoController;
 use App\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Controllers\Admin\OrderController as AdminOrderController;
 use App\Controllers\Admin\CustomerController as AdminCustomerController;
@@ -30,6 +32,10 @@ return function (Router $r): void {
     // Served via query param (?file=) so the path carries no file extension —
     // keeps the php -S built-in server from mis-routing dotted paths.
     $r->get('/image', [UploadController::class, 'show']);
+
+    // ---- Homepage reel videos (public) ------------------------------------
+    $r->get('/homepage-videos', [HomepageVideoController::class, 'index']);
+    $r->get('/video', [HomepageVideoController::class, 'stream']);
 
     // ---- Catalog (public) -------------------------------------------------
     $r->get('/products/top-selling', [CatalogController::class, 'topSelling']);
@@ -125,6 +131,15 @@ return function (Router $r): void {
     $r->put('/admin/reviews/{id}', [AdminReviewController::class, 'update']);
     $r->delete('/admin/reviews/{id}', [AdminReviewController::class, 'destroy']);
     $r->get('/admin/notifications', [AdminNotificationController::class, 'index']);
+
+    // ---- Admin: homepage reel videos --------------------------------------
+    // reorder registered BEFORE {id} so the pattern router doesn't capture it.
+    $r->get('/admin/homepage-videos', [AdminHomepageVideoController::class, 'index']);
+    $r->post('/admin/homepage-videos', [AdminHomepageVideoController::class, 'store']);
+    $r->post('/admin/homepage-videos/reorder', [AdminHomepageVideoController::class, 'reorder']);
+    $r->post('/admin/homepage-videos/{id}', [AdminHomepageVideoController::class, 'update']);
+    $r->put('/admin/homepage-videos/{id}', [AdminHomepageVideoController::class, 'update']);
+    $r->delete('/admin/homepage-videos/{id}', [AdminHomepageVideoController::class, 'destroy']);
 
     // ---- Admin: blog -----------------------------------------------------
     $r->get('/admin/blogs', [AdminBlogController::class, 'index']);

@@ -5,10 +5,12 @@ use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\HomepageVideoController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Admin\BlogController as AdminBlogController;
+use App\Http\Controllers\Admin\HomepageVideoController as AdminHomepageVideoController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
@@ -26,6 +28,10 @@ Route::get('/api', [CatalogController::class, 'categories']);
 
 // ---- Shared images (public) ----------------------------------------------
 Route::get('/image', [ImageController::class, 'show']);
+
+// ---- Homepage reel videos (public) ---------------------------------------
+Route::get('/homepage-videos', [HomepageVideoController::class, 'index']);
+Route::get('/video', [HomepageVideoController::class, 'stream']);
 
 // ---- Catalog (public) -----------------------------------------------------
 Route::get('/products/top-selling', [CatalogController::class, 'topSelling']);
@@ -127,6 +133,14 @@ Route::middleware('admin.auth')->group(function () {
     Route::put('/admin/reviews/{id}', [AdminReviewController::class, 'update']);
     Route::delete('/admin/reviews/{id}', [AdminReviewController::class, 'destroy']);
     Route::get('/admin/notifications', [AdminNotificationController::class, 'index']);
+
+    // homepage reel videos (reorder registered before {id} so it isn't captured)
+    Route::get('/admin/homepage-videos', [AdminHomepageVideoController::class, 'index']);
+    Route::post('/admin/homepage-videos', [AdminHomepageVideoController::class, 'store']);
+    Route::post('/admin/homepage-videos/reorder', [AdminHomepageVideoController::class, 'reorder']);
+    Route::post('/admin/homepage-videos/{id}', [AdminHomepageVideoController::class, 'update']); // multipart updates
+    Route::put('/admin/homepage-videos/{id}', [AdminHomepageVideoController::class, 'update']);
+    Route::delete('/admin/homepage-videos/{id}', [AdminHomepageVideoController::class, 'destroy']);
 
     // blog
     Route::get('/admin/blogs', [AdminBlogController::class, 'index']);

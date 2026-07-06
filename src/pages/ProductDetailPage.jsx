@@ -48,7 +48,7 @@ function unitBullets(text) {
     .filter(Boolean)
 }
 
-function Gallery({ images, name }) {
+function Gallery({ images, name, overview = [] }) {
   const [idx, setIdx] = useState(0)
   const list = images && images.length ? images : [null]
   const fallback = PLACEHOLDER
@@ -70,6 +70,25 @@ function Gallery({ images, name }) {
             className="h-full w-full object-cover"
           />
         </AnimatePresence>
+
+        {/* Packaging badge — premium glass/dashed overlay pinned to the TOP-RIGHT
+            of the image (~16px inset), on BOTH desktop and mobile. Compact so it
+            never masks the product; the dark translucent glass + white text keeps
+            it readable on any photo, and the padding/text scale down a touch on
+            small screens. Values are dynamic; decorative → never blocks the image
+            controls. */}
+        {overview.length > 0 && (
+          <div className="pointer-events-none absolute right-4 top-4 z-10 max-w-[60%] rounded-xl border border-dashed border-white/60 bg-brand-950/45 px-2.5 py-1.5 text-white shadow-soft backdrop-blur-md sm:rounded-2xl sm:px-3 sm:py-2">
+            <ul className="space-y-0.5 sm:space-y-1">
+              {overview.map((b, i) => (
+                <li key={i} className="flex items-center gap-1.5 text-[10px] font-semibold leading-tight sm:text-xs">
+                  <span className="h-1 w-1 shrink-0 rounded-full bg-saffron-300 sm:h-1.5 sm:w-1.5" />
+                  <span className="whitespace-nowrap">{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {list.length > 1 && (
           <>
@@ -193,8 +212,8 @@ export default function ProductDetailPage() {
         <>
           {/* Main section */}
           <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-            {/* LEFT — gallery */}
-            <Gallery images={p.images} name={p.name} />
+            {/* LEFT — gallery (with the packaging badge overlaid on the image) */}
+            <Gallery images={p.images} name={p.name} overview={shortBullets} />
 
             {/* RIGHT — info */}
             <motion.div
@@ -228,18 +247,36 @@ export default function ProductDetailPage() {
               {/* MRP per piece — the only price shown (selling prices are hidden). */}
               <MrpPerPiece product={p} className="mt-4 text-base" />
 
-              {/* Short description — one bullet per unit */}
+              {/* Product Overview — premium card directly below the per-piece price.
+                  Renders the product's per-unit packaging info as clean bullets (or a
+                  single tidy paragraph when there's just one point). All values are
+                  dynamic (from the product data) — nothing is hardcoded. */}
               {shortBullets.length > 0 && (
-                <ul className="mt-6 flex flex-col gap-2.5">
-                  {shortBullets.map((b, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm text-brand-700">
-                      <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-600">
-                        <Check size={12} weight="bold" />
-                      </span>
-                      <span>{b}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-6 rounded-3xl border border-brand-100 bg-gradient-to-b from-sand-50 to-white p-5 shadow-soft sm:p-6">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-700 text-white">
+                      <ListChecks size={16} weight="bold" />
+                    </span>
+                    <h2 className="font-display text-[15px] font-extrabold tracking-tight text-brand-950">
+                      Product Overview
+                    </h2>
+                  </div>
+
+                  {shortBullets.length === 1 ? (
+                    <p className="mt-4 text-[15px] leading-relaxed text-brand-700">{shortBullets[0]}</p>
+                  ) : (
+                    <ul className="mt-4 flex flex-col gap-3">
+                      {shortBullets.map((b, i) => (
+                        <li key={i} className="flex items-start gap-3 text-[15px] leading-relaxed text-brand-700">
+                          <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-600">
+                            <Check size={12} weight="bold" />
+                          </span>
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
 
               {/* Enquiry panel — unit selection + WhatsApp enquiry (prices are shared

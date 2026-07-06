@@ -34,6 +34,8 @@ class App
         // Serve product/category images through this backend so image links work
         // regardless of how the reference app's Apache vhost is configured.
         $GLOBALS['__config']['uploads_url'] = $request->appBaseUrl() . '/image';
+        // Homepage reel videos stream back through this backend's /video route.
+        $GLOBALS['__config']['videos_url'] = $request->appBaseUrl() . '/video';
         $router = new Router();
         (require __DIR__ . '/../Routes/api.php')($router);
 

@@ -13,6 +13,7 @@ import AdminProducts from './AdminProducts'
 import AdminCategories from './AdminCategories'
 import AdminOffers from './AdminOffers'
 import AdminBlogs from './AdminBlogs'
+import AdminVideos from './AdminVideos'
 import AdminProfitList from './AdminProfitList'
 import AdminProfitDetails from './AdminProfitDetails'
 import ProfitGuard from './ProfitGuard'
@@ -60,6 +61,7 @@ export default function AdminApp() {
           <Route path="categories" element={<AdminCategories />} />
           <Route path="offers" element={<AdminOffers />} />
           <Route path="blogs" element={<AdminBlogs />} />
+          <Route path="videos" element={<AdminVideos />} />
           <Route path="reviews" element={<AdminReviews />} />
           {/* PIN-gated section — ProfitGuard requires the PIN on every entry and
               clears it on leave (memory-only, mounted while under /admin/profits). */}
