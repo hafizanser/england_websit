@@ -19,7 +19,7 @@ return [
     // public/uploads folder, served by Apache. New uploads from this dashboard
     // are written there too so both projects stay in sync. They are streamed
     // back through this backend's GET /image route.
-    'uploads_path' => env('FMCG_UPLOADS_PATH', 'D:/xamp/htdocs/order_management/public/uploads'),
+    'uploads_path' => env('FMCG_UPLOADS_PATH') ?: base_path('uploads'),
 
     // Homepage video reels (uploaded or re-hosted from Google Drive). These are
     // NOT web-served directly — they stream back through this backend's
