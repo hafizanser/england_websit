@@ -10,12 +10,22 @@ import {
   YoutubeLogo,
   CaretRight,
 } from '@phosphor-icons/react'
-import { brand, categories, navLinks } from '../data/site'
+import { brand, navLinks } from '../data/site'
+import { getCategories } from '../api/catalog'
+import { useAsync } from '../hooks/useAsync'
 import BrandLogo from './BrandLogo'
 
 const waHref = `https://wa.me/${brand.whatsapp.replace(/[^0-9]/g, '')}`
 
 export default function Footer() {
+  // Categories MUST come from the admin API — they carry the real database ids
+  // that /products?cat= filters on. The old bundled `categories` list used
+  // hardcoded slugs ('tissues'), which never match tbl_product.category_id
+  // (numeric), so every footer link returned 0 products. New admin categories
+  // now appear here automatically.
+  const { data: cats } = useAsync(() => getCategories(), [])
+  const categoryList = (cats || []).slice(0, 5)
+
   return (
     <footer className="bg-brand-950 text-[#c9b89f]">
       <div className="container-page py-14 sm:py-16">
@@ -72,9 +82,16 @@ export default function Footer() {
           <div>
             <h5 className="text-[13px] font-bold uppercase tracking-[0.1em] text-white">Categories</h5>
             <ul className="mt-4 space-y-2.5">
-              {categories.slice(0, 5).map((c) => (
+              {categoryList.map((c) => (
                 <li key={c.id}>
-                  <Link to={`/products?cat=${c.id}`} className="group inline-flex items-center gap-1.5 text-[14.5px] text-[#bdab93] transition-colors hover:text-saffron-400">
+                  {/* `state.scrollToGrid` tells ProductsPage to land on the product
+                      grid instead of the banner (the global ScrollToTop resets to
+                      the top on every route change). */}
+                  <Link
+                    to={`/products?cat=${c.id}`}
+                    state={{ scrollToGrid: true }}
+                    className="group inline-flex items-center gap-1.5 text-[14.5px] text-[#bdab93] transition-colors hover:text-saffron-400"
+                  >
                     <CaretRight size={13} className="text-saffron-400 transition-transform group-hover:translate-x-0.5" />
                     {c.name}
                   </Link>

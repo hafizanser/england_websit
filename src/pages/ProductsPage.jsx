@@ -1,4 +1,5 @@
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { Link, useSearchParams, useLocation } from 'react-router-dom'
 import { X, Package, Stack, SquaresFour, Truck, ArrowRight, WhatsappLogo, Tag } from '@phosphor-icons/react'
 import PageBanner from '../components/PageBanner'
 import OffersSection from '../components/OffersSection'
@@ -7,9 +8,11 @@ import { ProductSkeleton, ErrorState, EmptyState } from '../components/ui'
 import { getProducts, getCategories } from '../api/catalog'
 import { useAsync } from '../hooks/useAsync'
 import { waLink } from '../lib/whatsapp'
+import { scrollBelowHeader } from '../lib/scroll'
 
 export default function ProductsPage() {
   const [params, setParams] = useSearchParams()
+  const location = useLocation()
   // Accept both ?cat= (internal convention) and ?category= (external/deep links).
   const cat = params.get('cat') || params.get('category') || 'all'
   // Search term comes straight from the URL (?q=) — the navbar search drives it,
@@ -52,6 +55,27 @@ export default function ProductsPage() {
     document.getElementById('offers')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  // Deep-links that ask for a category (e.g. the footer's category links) should
+  // land on the PRODUCT GRID, not the banner. We wait for the first load to finish
+  // so the grid has its real height, then scroll clear of BOTH sticky bars (header
+  // + category filter bar). scrollBelowHeader defers via rAF, so it lands after the
+  // global ScrollToTop reset that fires on route change. Runs once per navigation.
+  const gridRef = useRef(null)
+  const filterBarRef = useRef(null)
+  const didScrollRef = useRef(false)
+  const wantsGrid = Boolean(location.state?.scrollToGrid)
+
+  useEffect(() => {
+    didScrollRef.current = false // a new navigation may request the scroll again
+  }, [location.key])
+
+  useEffect(() => {
+    if (!wantsGrid || loading || didScrollRef.current || !gridRef.current) return
+    didScrollRef.current = true
+    const gap = (filterBarRef.current?.offsetHeight || 0) + 12
+    scrollBelowHeader(gridRef.current, { smooth: true, gap })
+  }, [wantsGrid, loading, location.key])
+
   return (
     <>
       <PageBanner
@@ -79,7 +103,7 @@ export default function ProductsPage() {
 
       {/* sticky filter bar — offset includes the notch inset so it aligns under
           the sticky header on phones with a safe-area top */}
-      <div className="sticky top-[calc(92px+env(safe-area-inset-top))] z-30 border-b border-brand-100 bg-sand-50/90 backdrop-blur-lg">
+      <div ref={filterBarRef} className="sticky top-[calc(92px+env(safe-area-inset-top))] z-30 border-b border-brand-100 bg-sand-50/90 backdrop-blur-lg">
         <div className="container-page py-4">
           {/* category pills — horizontal scroll, no wrap, no page overflow */}
           <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
@@ -92,7 +116,7 @@ export default function ProductsPage() {
       </div>
 
       {/* results */}
-      <section className="container-page py-10 sm:py-14">
+      <section id="products-grid" ref={gridRef} className="container-page py-10 sm:py-14">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-brand-600" aria-live="polite">
             {loading ? (

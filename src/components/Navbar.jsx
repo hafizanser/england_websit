@@ -1,7 +1,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { List, X, WhatsappLogo, CaretRight, MagnifyingGlass, SignIn, UserPlus, User, SignOut } from '@phosphor-icons/react'
+import { List, X, WhatsappLogo, CaretRight, MagnifyingGlass, User, SignOut } from '@phosphor-icons/react'
 import { brand, navLinks } from '../data/site'
 import { useCart } from '../context/CartContext'
 import { useCustomerAuth } from '../context/CustomerAuthContext'
@@ -313,36 +313,25 @@ export default function Navbar() {
                 })}
               </nav>
 
-              {/* account links */}
-              <div className="border-t border-brand-100 px-3 py-3">
-                {isLoggedIn ? (
-                  <>
-                    <div className="px-2 pb-1">
-                      <p className="truncate text-sm font-bold text-brand-900">{customer?.name || 'Mera account'}</p>
-                      <p className="truncate text-xs text-brand-400">{customer?.phone}</p>
-                    </div>
-                    <Link to="/profile" onClick={closeAndGo('/profile')} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
-                      <User size={18} weight="bold" /> My Profile
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={async () => { setOpen(false); await logout(); navigate('/') }}
-                      className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-saffron-700 hover:bg-white"
-                    >
-                      <SignOut size={18} weight="bold" /> Logout
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link to="/register" onClick={closeAndGo('/register')} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
-                      <UserPlus size={18} weight="bold" /> Register
-                    </Link>
-                    <Link to="/login" onClick={closeAndGo('/login')} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
-                      <SignIn size={18} weight="bold" /> Login
-                    </Link>
-                  </>
-                )}
-              </div>
+              {/* account links — signed-out users reach Login via the Account tab / cart */}
+              {isLoggedIn && (
+                <div className="border-t border-brand-100 px-3 py-3">
+                  <div className="px-2 pb-1">
+                    <p className="truncate text-sm font-bold text-brand-900">{customer?.name || 'Mera account'}</p>
+                    <p className="truncate text-xs text-brand-400">{customer?.phone}</p>
+                  </div>
+                  <Link to="/profile" onClick={closeAndGo('/profile')} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
+                    <User size={18} weight="bold" /> My Profile
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={async () => { setOpen(false); await logout(); navigate('/') }}
+                    className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-saffron-700 hover:bg-white"
+                  >
+                    <SignOut size={18} weight="bold" /> Logout
+                  </button>
+                </div>
+              )}
 
               <div className="border-t border-brand-100 p-4">
                 <a

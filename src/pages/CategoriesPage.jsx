@@ -24,13 +24,17 @@ const MotionLink = motion(Link)
 // Plural-safe item count: "1 item" / "0 items" / "12 items".
 const countLabel = (n) => `${n} ${n === 1 ? 'item' : 'items'}`
 
-// Quick filter chips. Categories are bucketed by id; any category not listed
-// here still appears under "Sab" so nothing is ever hidden by accident.
-const GROUPS = [
-  { key: 'all', label: 'Sab' },
-  { key: 'personal', label: 'Personal care', ids: ['shampoo', 'soap', 'razors', 'haircare', 'hellodr'] },
-  { key: 'ghar', label: 'Ghar', ids: ['tissues', 'mosquito', 'agarbati'] },
-  { key: 'health', label: 'Health', ids: ['ispaghol', 'babycare'] },
+// Quick filter chips are built AT RUNTIME from the admin categories API:
+//   [ All, ...every category ]
+// The old hardcoded buckets (Personal care / Ghar / Health) grouped by slug ids
+// ('shampoo', 'tissues', …) which never match the real numeric category ids from
+// the database, so those filters silently matched nothing. Building the chips from
+// the API means categories added in the Admin panel appear here automatically with
+// no code change.
+const ALL_KEY = 'all'
+const buildGroups = (list) => [
+  { key: ALL_KEY, label: 'All' },
+  ...list.map((c) => ({ key: String(c.id), label: c.name })),
 ]
 
 // Branded fallback tile — used only when a category has no admin-uploaded image.
@@ -149,6 +153,7 @@ function CategoryCard({ cat, active, reduce }) {
   return (
     <MotionLink
       to={`/products?cat=${cat.id}`}
+      state={{ scrollToGrid: true }}
       aria-current={active ? 'true' : undefined}
       aria-label={`${cat.name} category dekhein${hasCount ? ` (${countLabel(cat.items)})` : ''}`}
       className={baseClass}
@@ -185,20 +190,24 @@ export default function CategoriesPage() {
   const reduce = useReducedMotion()
 
   const [query, setQuery] = useState('')
-  const [group, setGroup] = useState('all')
+  const [group, setGroup] = useState(ALL_KEY)
 
   // Categories come ONLY from the admin catalogue API (single source of truth).
   const { data, loading, error, reload } = useAsync(() => getCategories(), [])
   const list = data || []
 
-  // Client-side filter: by name (case-insensitive) + active quick-filter group.
+  // Chips are derived from the live list, so new admin categories show up here
+  // with no code change.
+  const groups = useMemo(() => buildGroups(list), [list])
+  const activeGroupLabel = groups.find((g) => g.key === String(group))?.label || ''
+
+  // Client-side filter: by name (case-insensitive) + the selected category chip.
+  // Ids are compared as strings so a numeric DB id and a URL/state string match.
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    const activeGroup = GROUPS.find((g) => g.key === group)
     return list.filter((cat) => {
       const matchesText = !needle || (cat.name || '').toLowerCase().includes(needle)
-      const matchesGroup =
-        !activeGroup || activeGroup.key === 'all' || activeGroup.ids?.includes(cat.id)
+      const matchesGroup = group === ALL_KEY || String(cat.id) === String(group)
       return matchesText && matchesGroup
     })
   }, [list, query, group])
@@ -251,10 +260,10 @@ export default function CategoriesPage() {
             )}
           </label>
 
-          {/* Quick group chips */}
+          {/* Quick category chips — built from the live admin categories */}
           <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
-            {GROUPS.map((g) => {
-              const on = group === g.key
+            {groups.map((g) => {
+              const on = String(group) === String(g.key)
               return (
                 <button
                   key={g.key}
@@ -308,13 +317,13 @@ export default function CategoriesPage() {
         <EmptyState
           icon={MagnifyingGlass}
           title="Kuch nahi mila"
-          text={`"${query || GROUPS.find((g) => g.key === group)?.label}" ke liye koi category nahi mili. Doosra naam try karein.`}
+          text={`"${query || activeGroupLabel}" ke liye koi category nahi mili. Doosra naam try karein.`}
           action={
             <button
               type="button"
               onClick={() => {
                 setQuery('')
-                setGroup('all')
+                setGroup(ALL_KEY)
               }}
               className="mt-5 rounded-full bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-800 active:translate-y-px"
             >
@@ -380,23 +389,6 @@ export default function CategoriesPage() {
         </section>
       )}
 
-      {/* Sticky mobile order bar — sits just above the bottom nav, respecting the
-          safe-area inset. Hidden on desktop where the floating button covers it. */}
-      {showGrid && (
-        <div
-          className="fixed inset-x-0 z-30 px-3 md:hidden"
-          style={{ bottom: 'calc(3.75rem + env(safe-area-inset-bottom))' }}
-        >
-          <a
-            href={waLink(orderMsg)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-bold text-white shadow-lift active:translate-y-px"
-          >
-            <WhatsappLogo size={20} weight="fill" className="shrink-0" /> <span className="whitespace-nowrap">Order on WhatsApp</span>
-          </a>
-        </div>
-      )}
     </>
   )
 }

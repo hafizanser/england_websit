@@ -186,6 +186,16 @@ class ProductRepo extends BaseRepo
         [$unit, $wholesale, $retail] = self::primaryPricing($r, $units);
         $name = (string) ($r['product_name'] ?? '');
 
+        // SINGLE SOURCE OF TRUTH for the storefront/admin "Per Piece Price".
+        // This is the admin "MRP Piece" field (tbl_product.mrp_piece) sent VERBATIM:
+        // no guard, no rounding-up to the selling price, and no derivation from a
+        // box/carton MRP. null when the admin left it blank, so the UI hides the
+        // line instead of substituting another price field. Never read `retail` or
+        // `wholesale` for a per-piece figure — `retail` falls back to the SELLING
+        // price when mrp <= price (see primaryPricing), which is not an MRP.
+        $mrpPieceRaw = (float) ($r['mrp_piece'] ?? 0);
+        $mrpPiece    = $mrpPieceRaw > 0 ? (int) round($mrpPieceRaw) : null;
+
         $unitLabels = ['piece' => 'Piece', 'box' => 'Box', 'cotton' => 'Carton', 'packet' => 'Packet', 'dozen' => 'Dozen', 'bundle' => 'Bundle'];
         $unitOptions = [];
         foreach ($units as $u) {
@@ -245,6 +255,7 @@ class ProductRepo extends BaseRepo
             'conversions' => $conversions,
             'wholesale'   => $wholesale,
             'retail'      => $retail,
+            'mrp_piece'   => $mrpPiece,
             'rating'      => 5,
             'sold'        => '',
             'badge'       => ((int) ($r['is_featured'] ?? 0)) ? 'Featured' : '',
