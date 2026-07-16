@@ -1,0 +1,164 @@
+name: Deploy to Bluehost (englandwaly)
+
+# Builds the React frontend, then rsyncs the build + backend PHP code over SSH
+# into the public_html/englandwaly folder.
+#
+# It is SAFE by design — it NEVER touches:
+#   • the live database            • api_app/.env
+#   • api_app/uploads (images/videos)  • api_app/vendor (Composer deps)
+#   • api_app/storage (logs/sessions)  • the /videos folder
+#
+# Composer install and DB migrations are intentionally NOT run here. If you ever
+# change composer.json/lock or add a migration, do that step manually once over
+# SSH:  cd api_app && composer install --no-dev -o   /   php artisan migrate --force
+#
+# ---- One-time setup: GitHub -> repo Settings -> Secrets and variables ->
+#      Actions -> New repository secret ----
+#   SSH_HOST         e.g.  box1234.bluehost.com   (or server hostname/IP)
+#   SSH_USER         your cPanel username          (e.g. codelpsc)
+#   SSH_PORT         SSH port                       (Bluehost is usually 22)
+#   SSH_PRIVATE_KEY  the PRIVATE key whose public key is authorized in
+#                    cPanel -> SSH Access -> Manage SSH Keys (full key text)
+#   DEPLOY_PATH      absolute path to the folder,
+#                    e.g.  /home1/codelpsc/public_html/englandwaly
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:        # adds a manual "Run workflow" button
+
+concurrency:
+  group: deploy-englandwaly
+  cancel-in-progress: false  # never interrupt a deploy mid-transfer
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---------- Build frontend (dist) ----------
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install & build frontend
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_BASE: /api        # same-origin API (works on .com and .online)
+
+      # ---------- SSH key ----------
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      # ---------- Backup the current live version (for rollback) ----------
+      # Snapshots the code that this deploy will change (frontend + api_app app
+      # code) into ~/englandwaly_backups/. Skips the big/unchanging dirs
+      # (vendor, uploads, storage, videos). If this step fails, the job stops
+      # BEFORE anything is overwritten — so we never deploy without a safety net.
+      - name: Backup current deployment
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" -o StrictHostKeyChecking=accept-new \
+            "$SSH_USER@$SSH_HOST" "
+              set -e
+              mkdir -p ~/englandwaly_backups
+              STAMP=\$(date +%Y%m%d-%H%M%S)
+              tar -czf ~/englandwaly_backups/predeploy.tar.gz \
+                -C '$DEPLOY_PATH' \
+                --exclude=videos \
+                --exclude=api_app/vendor \
+                --exclude=api_app/uploads \
+                --exclude=api_app/storage \
+                .
+              cp ~/englandwaly_backups/predeploy.tar.gz ~/englandwaly_backups/backup-\$STAMP.tar.gz
+              ls -1t ~/englandwaly_backups/backup-*.tar.gz | tail -n +6 | xargs -r rm -f || true
+              echo \"Backup saved: backup-\$STAMP.tar.gz\"
+            "
+
+      # ---------- Deploy frontend ----------
+      # 1) assets/ is pure build output -> mirror with --delete so old hashed
+      #    bundles are cleaned up (safe: assets/ only holds build files).
+      # 2) the rest of dist (index.html, images, manifest) -> copy without
+      #    --delete, and NEVER touch api/, api_app/ or videos/.
+      - name: Deploy frontend (assets, mirrored)
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT -o StrictHostKeyChecking=accept-new" \
+            dist/assets/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/assets/"
+
+      - name: Deploy frontend (root files)
+        run: |
+          rsync -az \
+            --exclude 'assets/' \
+            --exclude 'videos/' \
+            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT -o StrictHostKeyChecking=accept-new" \
+            dist/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
+
+      # ---------- Deploy backend PHP code (api_app) ----------
+      # Ships only app source. Excludes vendor, .env, uploads, storage, cache,
+      # public — so Composer deps, secrets, images and runtime state are left
+      # exactly as they are on the server. No --delete.
+      - name: Deploy backend (api_app)
+        run: |
+          rsync -az \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'vendor/' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude 'public/' \
+            --exclude 'uploads/' \
+            --exclude 'uploads.zip' \
+            --exclude 'storage/' \
+            --exclude 'bootstrap/cache/' \
+            --exclude 'tests/' \
+            --exclude 'node_modules/' \
+            --exclude 'database/*.sql' \
+            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT -o StrictHostKeyChecking=accept-new" \
+            backend_laravel/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/api_app/"
+
+      # ---------- Post-deploy: clear the Laravel config/route cache ----------
+      # (No PHP/Composer/migrations — just drop stale compiled cache so the new
+      #  code + existing .env take effect on the next request.)
+      - name: Clear config cache
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" -o StrictHostKeyChecking=accept-new \
+            "$SSH_USER@$SSH_HOST" "rm -f '$DEPLOY_PATH/api_app/bootstrap/cache/'*.php || true"
+
+      # ---------- Auto-rollback if ANY step above failed ----------
+      # Restores the pre-deploy snapshot, returning the site to the last working
+      # (previous-commit) version. Runs only on failure.
+      - name: Roll back on failure
+        if: failure()
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" -o StrictHostKeyChecking=accept-new \
+            "$SSH_USER@$SSH_HOST" "
+              if [ -f ~/englandwaly_backups/predeploy.tar.gz ]; then
+                echo 'Deploy failed - restoring previous version...'
+                tar -xzf ~/englandwaly_backups/predeploy.tar.gz -C '$DEPLOY_PATH'
+                rm -f '$DEPLOY_PATH/api_app/bootstrap/cache/'*.php || true
+                echo 'Rollback complete - site is back on the previous version.'
+              else
+                echo 'No backup found; nothing to roll back.'
+              fi
+            "
+
+      - name: Done
+        run: echo "Deployed to $DEPLOY_PATH"
