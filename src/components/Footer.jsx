@@ -17,6 +17,20 @@ import BrandLogo from './BrandLogo'
 
 const waHref = `https://wa.me/${brand.whatsapp.replace(/[^0-9]/g, '')}`
 
+// Gmail's compose URL rather than `mailto:`. A mailto: link only opens something
+// if the visitor's OS/browser has a mail handler registered, and when there isn't
+// one the click is silently swallowed — nothing opens, no error, no feedback. That
+// is not a rare edge: Windows commonly maps mailto: straight back to the browser,
+// which then drops it unless a webmail handler was explicitly allowed. Our address
+// is a Gmail one and our customers are overwhelmingly Gmail/Android, so pointing
+// at Gmail directly means the click always lands somewhere.
+//
+// `view=cm&fs=1` opens a full compose window; `to` prefills the recipient. No `/u/0`
+// on purpose — that would pin the compose to Google account 0, whereas this lets
+// Gmail use whichever account the visitor is signed into (the From address is the
+// user's choice, never ours).
+const gmailHref = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(brand.email)}`
+
 export default function Footer() {
   // Categories MUST come from the admin API — they carry the real database ids
   // that /products?cat= filters on. The old bundled `categories` list used
@@ -110,7 +124,14 @@ export default function Footer() {
               </li>
               <li className="flex items-start gap-3">
                 <EnvelopeSimple size={18} weight="fill" className="mt-0.5 shrink-0 text-saffron-300" />
-                <a href={`mailto:${brand.email}`} className="break-words hover:text-white">{brand.email}</a>
+                <a
+                  href={gmailHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="break-words hover:text-white"
+                >
+                  {brand.email}
+                </a>
               </li>
               <li className="flex items-start gap-3">
                 <MapPin size={18} weight="fill" className="mt-0.5 shrink-0 text-saffron-300" />

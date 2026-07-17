@@ -16,6 +16,34 @@ export function unitLabelFor(u) {
   return m[String(u || '').toLowerCase()] || (u ? String(u) : 'Unit')
 }
 
+// Display order for a product's unit options: Carton first, everything else left
+// in the order the backend sent it.
+//
+// The backend builds unitOptions by intersecting the admin's saved unit_types
+// with a fixed list (ProductRepo::UNIT_TYPES = box, cotton, packet, …), and
+// array_intersect keeps the FIRST array's order — so Carton always arrives after
+// Box no matter how the admin ordered it. Carton is the headline wholesale unit,
+// so it should lead everywhere it is shown.
+//
+// This reorders the LIST only; it makes no pricing decision and picks no unit.
+// Callers that select by price (the cards' `preferLargestUnit`) are unaffected —
+// they scan every option regardless of order. Callers that default to the first
+// option (the detail page) now land on Carton, which is the intended default and
+// what the cards were already showing.
+//
+// Matching goes through unitLabelFor because the two unit vocabularies are not
+// interchangeable: unitOptions[].unit uses the DB key 'cotton', while a product's
+// primary p.unit uses 'carton'. A `=== 'cotton'` test would silently miss half
+// the cases.
+export function orderUnitOptions(options) {
+  const list = Array.isArray(options) ? options : []
+  if (list.length < 2) return list
+  const isCarton = (o) => unitLabelFor(o?.unit) === 'Carton'
+  const cartons = list.filter(isCarton)
+  if (!cartons.length) return list
+  return [...cartons, ...list.filter((o) => !isCarton(o))]
+}
+
 // Cart line identity = product id + unit type, so each unit of a product is a
 // distinct line (1 Carton and 1 Bundle of the same product are separate items).
 export function rowKey(id, unitKey) {

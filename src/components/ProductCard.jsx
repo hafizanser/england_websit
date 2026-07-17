@@ -1,13 +1,13 @@
-import { memo, useEffect, useState } from 'react'
+import { memo, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { CheckCircle, Package } from '@phosphor-icons/react'
-import { unitLabelFor } from '../lib/cartEngine'
+import { orderUnitOptions, unitLabelFor } from '../lib/cartEngine'
 import { spring } from '../lib/motion'
 import { packSummary } from '../lib/pack'
-import { PLACEHOLDER, onImgError } from '../lib/img'
 import EnquiryButton from './EnquiryButton'
 import MrpPerPiece from './MrpPerPiece'
+import ProductGallery from './ProductGallery'
 
 // Stock pill — AA-contrast, derived from total_stock_cotton (in cartons).
 function StockBadge({ stock }) {
@@ -72,12 +72,14 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true })
   const reduce = useReducedMotion()
 
   // All unit types available for this product (from the database), with the
-  // primary unit as a fallback when the product declares none.
-  const options = p.unitOptions && p.unitOptions.length
-    ? p.unitOptions
-    : [{ unit: p.unit, label: unitLabelFor(p.unit) }]
+  // primary unit as a fallback when the product declares none. Carton leads the
+  // row — display order only; the default below still picks by price.
+  const options = orderUnitOptions(
+    p.unitOptions && p.unitOptions.length ? p.unitOptions : [{ unit: p.unit, label: unitLabelFor(p.unit) }],
+  )
   // Default unit: on the full catalog prefer the largest selling unit (e.g.
   // Carton = highest per-unit price); elsewhere keep the product's primary unit.
+  // Unchanged by the reorder — it scans every option rather than trusting order.
   const [selUnit, setSelUnit] = useState(() =>
     preferLargestUnit && options.length
       ? options.reduce((a, b) => ((b.price || 0) > (a.price || 0) ? b : a), options[0]).unit
@@ -90,58 +92,16 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true })
   const pack = packSummary(conv)
   const stock = Number(p.stock) || 0
 
-  // Image gallery — all product images (primary first). Multiple images
-  // auto-slide and advance on hover; a single image gets a smooth zoom.
-  const gallery = (p.images && p.images.length ? p.images : [p.image]).filter(Boolean)
-  const slides = gallery.length ? gallery : [PLACEHOLDER]
-  const multi = slides.length > 1
-  const [imgIdx, setImgIdx] = useState(0)
-  useEffect(() => {
-    if (!multi || reduce) return undefined
-    const t = setInterval(() => setImgIdx((i) => (i + 1) % slides.length), 2800)
-    return () => clearInterval(t)
-  }, [multi, slides.length, reduce])
-
   // Image content shared by the linked (storefront) and non-linked media
   // wrappers, so the two branches can never visually drift.
   const mediaInner = (
-    <div className="relative aspect-square overflow-hidden bg-sand-100">
-      {multi ? (
-        slides.map((src, i) => (
-          <img
-            key={i}
-            src={src}
-            alt={p.name}
-            loading="lazy"
-            onError={onImgError}
-            className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${
-              i === imgIdx ? 'scale-100 opacity-100' : 'scale-[1.04] opacity-0'
-            }`}
-          />
-        ))
-      ) : (
-        <img
-          src={slides[0]}
-          alt={p.name}
-          loading="lazy"
-          onError={onImgError}
-          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-        />
-      )}
-
-      {multi && (
-        <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1">
-          {slides.map((_, i) => (
-            <span
-              key={i}
-              className={`h-1.5 rounded-full bg-white shadow-soft transition-all duration-300 ${
-                i === imgIdx ? 'w-4 opacity-100' : 'w-1.5 opacity-60'
-              }`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <ProductGallery
+      images={p.images && p.images.length ? p.images : [p.image]}
+      alt={p.name}
+      size="sm"
+      zoomSingle
+      frameClassName="aspect-square overflow-hidden bg-sand-100"
+    />
   )
 
   return (
@@ -159,18 +119,12 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true })
         <Link
           to={`/product/${p.id}`}
           aria-label={p.name}
-          onMouseEnter={() => multi && setImgIdx((i) => (i + 1) % slides.length)}
           className="relative block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
         >
           {mediaInner}
         </Link>
       ) : (
-        <div
-          onMouseEnter={() => multi && setImgIdx((i) => (i + 1) % slides.length)}
-          className="relative block"
-        >
-          {mediaInner}
-        </div>
+        <div className="relative block">{mediaInner}</div>
       )}
 
       <div className="flex flex-1 flex-col gap-2 p-3.5 sm:p-4">

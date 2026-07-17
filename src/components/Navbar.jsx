@@ -1,4 +1,4 @@
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { List, X, WhatsappLogo, CaretRight, MagnifyingGlass, User, SignOut } from '@phosphor-icons/react'
@@ -52,11 +52,24 @@ function ProfileButton() {
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
-  const [term, setTerm] = useState('')
   const navigate = useNavigate()
   const [, startTransition] = useTransition()
   const { pathname, search } = useLocation()
   const { isLoggedIn, customer, logout } = useCustomerAuth()
+
+  // The URL's ?q= is the single source of truth for the APPLIED search, and this
+  // field mirrors it (seeded from the URL so a deep link like /products?q=soap
+  // shows its term without an empty first paint).
+  //
+  // The mirroring is what lets code elsewhere clear this box: ProductsPage's
+  // "Filter saaf karein" drops ?q= from the URL and the field follows, with no
+  // shared context or cross-component wiring. Typing is never clobbered — the sync
+  // only fires when the APPLIED term changes, and typing doesn't touch the URL.
+  const appliedQ = new URLSearchParams(search).get('q') || ''
+  const [term, setTerm] = useState(appliedQ)
+  useEffect(() => {
+    setTerm(appliedQ)
+  }, [appliedQ])
 
   // Navigate from the mobile drawer without a UI freeze: close the drawer
   // immediately (urgent) and run the route change inside a transition so React
@@ -83,11 +96,16 @@ export default function Navbar() {
     return true
   }
 
+  // `scrollToGrid` asks ProductsPage to land on the filter bar + results rather
+  // than the banner — the same contract the footer's category links use. Searching
+  // is a "show me the goods" intent, so the results should be what you land on.
   const runSearch = (e) => {
     e.preventDefault()
     const q = term.trim()
     setOpen(false)
-    startTransition(() => navigate(q ? `/products?q=${encodeURIComponent(q)}` : '/products'))
+    startTransition(() =>
+      navigate(q ? `/products?q=${encodeURIComponent(q)}` : '/products', { state: { scrollToGrid: true } }),
+    )
   }
 
   // Lock background scroll while the mobile menu is open; the counted lock
@@ -129,8 +147,27 @@ export default function Navbar() {
     }
   }, [])
 
+  // Publish the header's live height as `--header-h` so sticky sub-bars (the
+  // products filter bar) can park flush beneath it and scroll code can target it.
+  // This can't be a constant: the marquee pads env(safe-area-inset-top) on notched
+  // phones and the bar's rows reflow with the viewport, so a hardcoded guess leaves
+  // either an overlap or a sliver of the page showing through under the header.
+  const headerRef = useRef(null)
+  useLayoutEffect(() => {
+    const el = headerRef.current
+    if (!el) return undefined
+    const publish = () => {
+      const h = el.getBoundingClientRect().height
+      document.documentElement.style.setProperty('--header-h', `${Math.round(h)}px`)
+    }
+    publish()
+    const ro = new ResizeObserver(publish)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   return (
-    <header className="sticky top-0 z-50">
+    <header ref={headerRef} className="sticky top-0 z-50">
       {/* Announcement marquee — Urdu (pads the notch/status-bar inset on phones) */}
       <div
         className="overflow-hidden border-b border-white/5 bg-brand-950 py-2 text-[13px] text-saffron-200/85"

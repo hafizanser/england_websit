@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
-  CaretLeft,
-  CaretRight,
   Check,
   Truck,
   ShieldCheck,
@@ -14,14 +12,14 @@ import {
 } from '@phosphor-icons/react'
 import { getProductById } from '../api/catalog'
 import { getOffers } from '../api/offers'
-import { PLACEHOLDER, onImgError } from '../lib/img'
 import { useAsync } from '../hooks/useAsync'
 import { ErrorState } from '../components/ui'
 import ProductReviews from '../components/ProductReviews'
 import RelatedProducts from '../components/RelatedProducts'
 import EnquiryButton from '../components/EnquiryButton'
 import MrpPerPiece from '../components/MrpPerPiece'
-import { unitLabelFor } from '../lib/cartEngine'
+import ProductGallery from '../components/ProductGallery'
+import { orderUnitOptions, unitLabelFor } from '../lib/cartEngine'
 
 // Split admin text (newline / bullet separated) into clean bullet points.
 function toBullets(text) {
@@ -49,87 +47,36 @@ function unitBullets(text) {
 }
 
 function Gallery({ images, name, overview = [] }) {
-  const [idx, setIdx] = useState(0)
-  const list = images && images.length ? images : [null]
-  const fallback = PLACEHOLDER
-  const go = (d) => setIdx((i) => (i + d + list.length) % list.length)
-
   return (
-    <div className="lg:sticky lg:top-24">
-      <div className="relative aspect-square overflow-hidden rounded-3xl border border-brand-100 bg-white shadow-soft">
-        <AnimatePresence mode="wait">
-          <motion.img
-            key={idx}
-            src={list[idx] || fallback}
-            alt={name}
-            onError={onImgError}
-            initial={{ opacity: 0, scale: 1.02 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="h-full w-full object-cover"
-          />
-        </AnimatePresence>
-
-        {/* Packaging badge — premium glass/dashed overlay pinned to the TOP-RIGHT
-            of the image (~16px inset), on BOTH desktop and mobile. Compact so it
-            never masks the product; the dark translucent glass + white text keeps
-            it readable on any photo, and the padding/text scale down a touch on
-            small screens. Values are dynamic; decorative → never blocks the image
-            controls. */}
-        {overview.length > 0 && (
-          <div className="pointer-events-none absolute right-4 top-4 z-10 max-w-[60%] rounded-xl border border-dashed border-white/60 bg-brand-950/45 px-2.5 py-1.5 text-white shadow-soft backdrop-blur-md sm:rounded-2xl sm:px-3 sm:py-2">
-            <ul className="space-y-0.5 sm:space-y-1">
-              {overview.map((b, i) => (
-                <li key={i} className="flex items-center gap-1.5 text-[10px] font-semibold leading-tight sm:text-xs">
-                  <span className="h-1 w-1 shrink-0 rounded-full bg-saffron-300 sm:h-1.5 sm:w-1.5" />
-                  <span className="whitespace-nowrap">{b}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {list.length > 1 && (
-          <>
-            <button
-              type="button"
-              aria-label="Pichli tasveer"
-              onClick={() => go(-1)}
-              className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-brand-800 shadow-soft backdrop-blur transition-all hover:bg-white active:scale-90"
-            >
-              <CaretLeft size={18} weight="bold" />
-            </button>
-            <button
-              type="button"
-              aria-label="Agli tasveer"
-              onClick={() => go(1)}
-              className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-brand-800 shadow-soft backdrop-blur transition-all hover:bg-white active:scale-90"
-            >
-              <CaretRight size={18} weight="bold" />
-            </button>
-          </>
-        )}
-      </div>
-
-      {list.length > 1 && (
-        <div className="no-scrollbar mt-3 flex gap-2.5 overflow-x-auto pb-1">
-          {list.map((src, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setIdx(i)}
-              aria-label={`Tasveer ${i + 1}`}
-              className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 bg-white transition-all sm:h-20 sm:w-20 ${
-                idx === i ? 'border-saffron-400 ring-2 ring-saffron-200' : 'border-brand-100 hover:border-brand-300'
-              }`}
-            >
-              <img src={src || fallback} alt={`${name} ${i + 1}`} onError={onImgError} className="h-full w-full object-cover" />
-            </button>
-          ))}
+    <ProductGallery
+      images={images}
+      alt={name}
+      size="lg"
+      arrows="always"
+      thumbnails
+      priority
+      className="lg:sticky lg:top-24"
+      frameClassName="aspect-square overflow-hidden rounded-3xl border border-brand-100 bg-white shadow-soft"
+    >
+      {/* Packaging badge — premium glass/dashed overlay pinned to the TOP-RIGHT
+          of the image (~16px inset), on BOTH desktop and mobile. Compact so it
+          never masks the product; the dark translucent glass + white text keeps
+          it readable on any photo, and the padding/text scale down a touch on
+          small screens. Values are dynamic; decorative → never blocks the image
+          controls. */}
+      {overview.length > 0 && (
+        <div className="pointer-events-none absolute right-4 top-4 z-20 max-w-[60%] rounded-xl border border-dashed border-white/60 bg-brand-950/45 px-2.5 py-1.5 text-white shadow-soft backdrop-blur-md sm:rounded-2xl sm:px-3 sm:py-2">
+          <ul className="space-y-0.5 sm:space-y-1">
+            {overview.map((b, i) => (
+              <li key={i} className="flex items-center gap-1.5 text-[10px] font-semibold leading-tight sm:text-xs">
+                <span className="h-1 w-1 shrink-0 rounded-full bg-saffron-300 sm:h-1.5 sm:w-1.5" />
+                <span className="whitespace-nowrap">{b}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
-    </div>
+    </ProductGallery>
   )
 }
 
@@ -153,10 +100,14 @@ export default function ProductDetailPage() {
   const { data: p, loading, error, reload } = useAsync(() => getProductById(id), [id])
   const { data: offers } = useAsync(() => getOffers(), [])
 
-  // Every available unit type for this product (Piece / Box / Carton …).
-  const options = p && p.unitOptions && p.unitOptions.length
-    ? p.unitOptions
-    : (p ? [{ unit: p.unit, label: unitLabelFor(p.unit) }] : [])
+  // Every available unit type for this product (Piece / Box / Carton …), Carton
+  // first. The reorder is display-only, but this page defaults to options[0] —
+  // so it now opens on Carton, matching what the card that linked here showed.
+  const options = orderUnitOptions(
+    p && p.unitOptions && p.unitOptions.length
+      ? p.unitOptions
+      : (p ? [{ unit: p.unit, label: unitLabelFor(p.unit) }] : []),
+  )
 
   // Active "buy X get Y free" offer for THIS product — shown as an info banner so
   // shoppers know the deal before enquiring on WhatsApp.

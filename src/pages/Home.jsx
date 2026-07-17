@@ -5,7 +5,7 @@ import { useAsync } from '../hooks/useAsync'
 import { getCategories, getTopSelling } from '../api/catalog'
 import { getFeaturedReviews } from '../api/reviews'
 import { deliveryCities } from '../components/CitiesDelivery'
-import { unitLabelFor } from '../lib/cartEngine'
+import { orderUnitOptions, unitLabelFor } from '../lib/cartEngine'
 import { enquiryHref } from '../lib/whatsapp'
 import MrpPerPiece from '../components/MrpPerPiece'
 import { imgSrc, onImgError } from '../lib/img'
@@ -86,9 +86,9 @@ const steps = [
 
 // ---- product card -----------------------------------------------------------
 function HomeProduct({ p }) {
-  const options = p.unitOptions && p.unitOptions.length
-    ? p.unitOptions
-    : [{ unit: p.unit, label: unitLabelFor(p.unit) }]
+  const options = orderUnitOptions(
+    p.unitOptions && p.unitOptions.length ? p.unitOptions : [{ unit: p.unit, label: unitLabelFor(p.unit) }],
+  )
   const [unit, setUnit] = useState(() => options.reduce((a, b) => (Number(b.price) > Number(a.price) ? b : a), options[0]).unit)
   const sel = options.find((o) => o.unit === unit) || options[0]
   const img = imgSrc(p.images && p.images[0], p.image)

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { Link, useSearchParams, useLocation } from 'react-router-dom'
 import { X, Package, Stack, SquaresFour, Truck, ArrowRight, WhatsappLogo, Tag } from '@phosphor-icons/react'
 import PageBanner from '../components/PageBanner'
@@ -8,7 +8,7 @@ import { ProductSkeleton, ErrorState, EmptyState } from '../components/ui'
 import { getProducts, getCategories } from '../api/catalog'
 import { useAsync } from '../hooks/useAsync'
 import { waLink } from '../lib/whatsapp'
-import { scrollBelowHeader } from '../lib/scroll'
+import { scrollSectionUnderHeader } from '../lib/scroll'
 
 export default function ProductsPage() {
   const [params, setParams] = useSearchParams()
@@ -55,26 +55,53 @@ export default function ProductsPage() {
     document.getElementById('offers')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  // Deep-links that ask for a category (e.g. the footer's category links) should
-  // land on the PRODUCT GRID, not the banner. We wait for the first load to finish
-  // so the grid has its real height, then scroll clear of BOTH sticky bars (header
-  // + category filter bar). scrollBelowHeader defers via rAF, so it lands after the
-  // global ScrollToTop reset that fires on route change. Runs once per navigation.
-  const gridRef = useRef(null)
-  const filterBarRef = useRef(null)
+  // Deep-links that ask for a category (the footer's category links, the category
+  // cards) should land on the FILTER BAR — its top edge flush under the header, so
+  // the banner above it is scrolled completely out of sight and the pills + the
+  // filtered grid are the first things you see.
+  //
+  // Deliberately NOT waiting for /products or /categories. Waiting looks like the
+  // obvious safe choice and is exactly what produced the bug it was meant to
+  // prevent: the page sat parked on the banner for the whole fetch, THEN scrolled.
+  // It also buys nothing, because the only thing between the top of the page and
+  // this target is the banner — static content, laid out on the first paint. The
+  // pills and the grid live BELOW the target line, so their arrival changes the
+  // bar's height and the grid's contents but never the bar's top edge, which is the
+  // number we scroll to. Late reflow above the target (the banner's product-count
+  // chip) is absorbed by scrollSectionUnderHeader, which re-derives its target every
+  // frame and holds it through a settle pass.
+  //
+  // These are LAYOUT effects, not passive ones, and that is the whole trick for the
+  // first click. Arriving from another route, this runs before the browser has
+  // painted, so the very first frame of the page is already at the filter bar —
+  // there is no moment at which the top or the banner is on screen to jump away
+  // from. A passive effect would paint the top first and then scroll, which is the
+  // glitch. Runs once per navigation.
+  const filterAnchorRef = useRef(null)
   const didScrollRef = useRef(false)
+  const arrivedRef = useRef(false)
   const wantsGrid = Boolean(location.state?.scrollToGrid)
 
-  useEffect(() => {
+  // Must also be a layout effect, and declared first: layout effects all run before
+  // any passive effect, so a passive reset here would clear the guard only AFTER
+  // the landing below had already skipped itself.
+  useLayoutEffect(() => {
     didScrollRef.current = false // a new navigation may request the scroll again
   }, [location.key])
 
-  useEffect(() => {
-    if (!wantsGrid || loading || didScrollRef.current || !gridRef.current) return
+  useLayoutEffect(() => {
+    if (!wantsGrid || didScrollRef.current || !filterAnchorRef.current) return
     didScrollRef.current = true
-    const gap = (filterBarRef.current?.offsetHeight || 0) + 12
-    scrollBelowHeader(gridRef.current, { smooth: true, gap })
-  }, [wantsGrid, loading, location.key])
+    // Landing from another route (this component just mounted — Layout keys its
+    // wrapper on pathname) means nothing is on screen yet, so place the page
+    // instantly: a glide would have to start somewhere, and the only place to start
+    // is the top, which is the jump we are removing. Changing category while
+    // already here is the opposite: the page IS on screen, so a glide reads as a
+    // deliberate move instead of a teleport.
+    const justArrived = !arrivedRef.current
+    arrivedRef.current = true
+    scrollSectionUnderHeader(filterAnchorRef.current, { smooth: !justArrived })
+  }, [wantsGrid, location.key])
 
   return (
     <>
@@ -101,9 +128,17 @@ export default function ProductsPage() {
         </Link>
       </PageBanner>
 
-      {/* sticky filter bar — offset includes the notch inset so it aligns under
-          the sticky header on phones with a safe-area top */}
-      <div ref={filterBarRef} className="sticky top-[calc(92px+env(safe-area-inset-top))] z-30 border-b border-brand-100 bg-sand-50/90 backdrop-blur-lg">
+      {/* Zero-height sentinel in normal flow, immediately above the sticky bar.
+          It is what the landing scroll aims at: the bar itself is unmeasurable
+          while pinned (both its rect AND its offsetTop report the pinned spot, so
+          scrolling toward it chases its own tail and overshoots). The sentinel
+          never moves, so it gives the bar's true resting position. */}
+      <div ref={filterAnchorRef} aria-hidden className="h-0" />
+
+      {/* sticky filter bar — parks flush under the header via the height the
+          navbar measures and publishes. Do NOT add env(safe-area-inset-top) here:
+          the marquee already pads the notch inset, so --header-h includes it. */}
+      <div className="sticky top-[var(--header-h)] z-30 border-b border-brand-100 bg-sand-50/90 backdrop-blur-lg">
         <div className="container-page py-4">
           {/* category pills — horizontal scroll, no wrap, no page overflow */}
           <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
@@ -116,7 +151,7 @@ export default function ProductsPage() {
       </div>
 
       {/* results */}
-      <section id="products-grid" ref={gridRef} className="container-page py-10 sm:py-14">
+      <section id="products-grid" className="container-page py-10 sm:py-14">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-brand-600" aria-live="polite">
             {loading ? (

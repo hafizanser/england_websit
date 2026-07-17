@@ -5,10 +5,21 @@
 @layer base {
   :root {
     color-scheme: light;
+    /* Fallback only — Navbar overwrites this with its real measured height on
+       mount (and on every resize). Sticky sub-bars offset by it, so it must be a
+       close guess to avoid a first-paint jump. */
+    --header-h: 104px;
   }
 
   html {
-    scroll-behavior: smooth;
+    /* NOTE: do NOT set `scroll-behavior: smooth` here. It silently animates EVERY
+       programmatic scroll, including the route-change reset in ScrollToTop — which
+       turned that reset into a ~545ms glide up to the banner that then raced the
+       products page's own landing scroll, so a footer category link visibly
+       scrolled to the banner, paused, then scrolled again to the filter bar.
+       Nothing needs the global rule: every smooth scroll in the app passes
+       `behavior: 'smooth'` explicitly at its call site, which is also the only way
+       to keep "animate this one" and "jump instantly" independently controllable. */
     -webkit-text-size-adjust: 100%;
     /* Clip stray horizontal overflow at the viewport so no phantom horizontal
        scrollbar appears on mobile. `body { overflow-x: hidden }` can't catch this
@@ -46,6 +57,25 @@
   label {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+  }
+
+  /* Product gallery indicator fill. Doubles as the gallery's auto-play clock —
+     ProductGallery advances the slide on this animation's `animationend`, so
+     pausing it (animation-play-state on hover) pauses auto-play exactly, with no
+     separate timer to keep in sync. Duration is set inline per gallery. */
+  @keyframes gallery-progress {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  .gallery-progress {
+    transform-origin: left center;
+    animation-name: gallery-progress;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
   }
 
   /* Momentum scrolling for horizontal rails / drawers on iOS */
