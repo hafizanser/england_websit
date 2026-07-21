@@ -52,6 +52,10 @@ function ProfileButton() {
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
+  // The top announcement marquee tucks away once the shopper scrolls past the
+  // Hero and slides back when the Hero returns to view. Pages without a Hero
+  // (everything but Home) keep the bar shown — see the effect below.
+  const [hideAnnouncement, setHideAnnouncement] = useState(false)
   const navigate = useNavigate()
   const [, startTransition] = useTransition()
   const { pathname, search } = useLocation()
@@ -83,17 +87,18 @@ export default function Navbar() {
     startTransition(() => navigate(to))
   }
 
-  // Active-state resolver. The two product entries share the /products path, so
-  // we disambiguate them by the `view` query param — only one is ever active.
-  const currentView = new URLSearchParams(search).get('view')
+  // Active-state resolver — derived purely from the current route (pathname), never
+  // from click state, so the highlight is correct after a refresh, on a direct/deep
+  // link, and on browser back/forward (all reflected in useLocation). Query params
+  // (?view=, ?cat=, ?q=) only filter WITHIN a section — they don't change which
+  // section you're in — so every /products route highlights Products, whichever way
+  // you arrived: the navbar link (/products?view=all), the Hero "Products Dekhein"
+  // CTA (/products), a footer category link (/products?cat=…), or a search
+  // (/products?q=…). The product detail page (/product/:id) counts as Products too.
   const isNavActive = (to) => {
-    const [path, qs] = to.split('?')
-    if (path !== pathname) return false
-    if (path === '/products') {
-      const linkView = new URLSearchParams(qs || '').get('view')
-      return (linkView || null) === (currentView || null)
-    }
-    return true
+    const path = to.split('?')[0]
+    if (path === '/products') return pathname === '/products' || pathname.startsWith('/product/')
+    return pathname === path
   }
 
   // `scrollToGrid` asks ProductsPage to land on the filter bar + results rather
@@ -166,22 +171,71 @@ export default function Navbar() {
     return () => ro.disconnect()
   }, [])
 
+  // Hide the announcement marquee once the Hero has scrolled out of view, and
+  // reveal it the moment any part of the Hero re-enters. Re-runs per route because
+  // the Hero only exists on Home and mounts/unmounts across navigations. On routes
+  // WITHOUT a Hero (Products, Offers, …) we fall back to raw scroll position with
+  // hysteresis so the bar still tucks away as the shopper scrolls in and returns
+  // near the top — same premium behaviour everywhere. The collapse itself is a
+  // pure CSS grid-rows transition (no JS animation, no layout jump), and the
+  // header's ResizeObserver above republishes --header-h smoothly as it animates
+  // so the sticky sub-bars follow without a snap.
+  useEffect(() => {
+    const hero = document.querySelector('[data-hero]')
+    if (hero) {
+      const io = new IntersectionObserver(
+        ([entry]) => setHideAnnouncement(!entry.isIntersecting),
+        { threshold: 0 },
+      )
+      io.observe(hero)
+      return () => io.disconnect()
+    }
+
+    // No Hero on this route — drive off scroll position. Two thresholds (not one)
+    // give hysteresis so the bar can't flicker while hovering the boundary.
+    const SHOW_AT = 48 // px — at/above this, bar is shown
+    const HIDE_AT = 140 // px — past this, bar is hidden
+    const onScroll = () => {
+      const y = window.scrollY
+      setHideAnnouncement((prev) => {
+        if (prev && y <= SHOW_AT) return false
+        if (!prev && y >= HIDE_AT) return true
+        return prev
+      })
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [pathname])
+
   return (
     <header ref={headerRef} className="sticky top-0 z-50">
-      {/* Announcement marquee — Urdu (pads the notch/status-bar inset on phones) */}
+      {/* Announcement marquee — Urdu (pads the notch/status-bar inset on phones).
+          Wrapped in a grid-rows collapser: 1fr → 0fr animates the height to zero
+          smoothly (no hardcoded height, no reflow jump) when hideAnnouncement is
+          set, and the inner min-h-0/overflow-hidden clips the notch padding away
+          with it. */}
       <div
-        className="overflow-hidden border-b border-white/5 bg-brand-950 py-2 text-[13px] text-saffron-200/85"
-        style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}
+        className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500 ease-in-out motion-reduce:transition-none"
+        style={{ gridTemplateRows: hideAnnouncement ? '0fr' : '1fr', opacity: hideAnnouncement ? 0 : 1 }}
+        aria-hidden={hideAnnouncement || undefined}
       >
-        <div className="flex w-max animate-marquee gap-12 whitespace-nowrap" dir="rtl">
-          {Array.from({ length: 2 }).map((_, dup) => (
-            <div key={dup} className="flex gap-12">
-              <span className="urdu">انگلینڈ — جس پر پورے پاکستان کا بھروسہ</span>
-              <span className="urdu">5,000 سے زائد کے آرڈر پر مفت ڈیلیوری</span>
-              <span className="urdu">اگلے دن دکان پر ڈیلیوری · 40 سے زائد شہروں میں</span>
-              <span className="urdu">اصل مال، تھوک ریٹ — واٹس ایپ پر آرڈر کریں</span>
+        <div className="min-h-0 overflow-hidden">
+          <div
+            className="overflow-hidden border-b border-white/5 bg-brand-950 py-2 text-[13px] text-saffron-200/85"
+            style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}
+          >
+            <div className="flex w-max animate-marquee gap-12 whitespace-nowrap" dir="rtl">
+              {Array.from({ length: 2 }).map((_, dup) => (
+                <div key={dup} className="flex gap-12">
+                  <span className="urdu">انگلینڈ — جس پر پورے پاکستان کا بھروسہ</span>
+                  <span className="urdu">5,000 سے زائد کے آرڈر پر مفت ڈیلیوری</span>
+                  <span className="urdu">اگلے دن دکان پر ڈیلیوری · 40 سے زائد شہروں میں</span>
+                  <span className="urdu">اصل مال، تھوک ریٹ — واٹس ایپ پر آرڈر کریں</span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
 

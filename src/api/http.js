@@ -74,7 +74,11 @@ async function request(path, { method = 'GET', body, auth = false, customerAuth 
       data = {}
     }
     if (!res.ok) {
-      const err = new Error(data.error || `HTTP ${res.status}`)
+      // Prefer the backend's own error text (validation etc.). When the body
+      // isn't our JSON envelope — e.g. an HTML 404/500 from the wrong backend or
+      // a missing route — fall back to a message that names the real cause so it
+      // is diagnosable instead of a bare "HTTP 404".
+      const err = new Error(data.error || httpFallbackMessage(res.status, path))
       err.status = res.status
       err.fields = data.fields || null
       throw err
@@ -88,7 +92,7 @@ async function request(path, { method = 'GET', body, auth = false, customerAuth 
     }
     if (e instanceof TypeError) {
       // network / CORS / backend down
-      const err = new Error('Backend se rabta nahi ho saka.')
+      const err = new Error(`Backend se rabta nahi ho saka (${API_BASE}). Server chal raha hai?`)
       err.code = 'NETWORK'
       throw err
     }
@@ -96,6 +100,17 @@ async function request(path, { method = 'GET', body, auth = false, customerAuth 
   } finally {
     clearTimeout(timer)
   }
+}
+
+// Human-readable fallback when the server returned a non-JSON error body.
+function httpFallbackMessage(status, path) {
+  if (status === 404) {
+    return `Endpoint "${path.split('?')[0]}" backend par nahi mila (404). ` +
+      `Ghalat backend/port to nahi chal raha? Expected API: ${API_BASE}`
+  }
+  if (status === 401 || status === 403) return 'Ijazat nahi (login zaroori ho sakta hai).'
+  if (status >= 500) return `Server error (${status}). Laravel log check karein.`
+  return `Request fail hui (HTTP ${status}).`
 }
 
 // Multipart/form-data request (for image uploads). The browser sets the

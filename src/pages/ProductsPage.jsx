@@ -188,12 +188,15 @@ export default function ProductsPage() {
           {loading && Array.from({ length: 8 }).map((_, i) => <ProductSkeleton key={i} />)}
 
           {!loading && error && (
-            <ErrorState message="Maal load nahi hua — dobara try karein." onRetry={reload} />
+            <ErrorState
+              message={error?.message || 'Maal load nahi hua — dobara try karein.'}
+              onRetry={reload}
+            />
           )}
 
           {!loading &&
             !error &&
-            data?.map((p) => <ProductCard key={p.id} p={p} preferLargestUnit />)}
+            data?.map((p) => <ProductCard key={p.id} p={p} preferLargestUnit showVideo />)}
 
           {!loading && !error && data?.length === 0 && (
             <EmptyState

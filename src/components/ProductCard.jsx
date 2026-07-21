@@ -5,9 +5,11 @@ import { CheckCircle, Package } from '@phosphor-icons/react'
 import { orderUnitOptions, unitLabelFor } from '../lib/cartEngine'
 import { spring } from '../lib/motion'
 import { packSummary } from '../lib/pack'
+import { productVideo } from '../lib/productMedia'
 import EnquiryButton from './EnquiryButton'
 import MrpPerPiece from './MrpPerPiece'
 import ProductGallery from './ProductGallery'
+import ProductVideoBadge from './ProductVideoBadge'
 
 // Stock pill — AA-contrast, derived from total_stock_cotton (in cartons).
 function StockBadge({ stock }) {
@@ -68,8 +70,13 @@ const CardEnquiry = memo(function CardEnquiry({ p, options, selected, onUnit }) 
   )
 })
 
-function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true }) {
+function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true, showVideo = false }) {
   const reduce = useReducedMotion()
+
+  // Preview clip for the corner play badge (null when the product has none — the
+  // badge then never renders). Resolved once per render; the modal inside the
+  // badge stays unmounted until clicked, so no video downloads on the grid.
+  const video = showVideo ? productVideo(p) : null
 
   // All unit types available for this product (from the database), with the
   // primary unit as a fallback when the product declares none. Carton leads the
@@ -114,18 +121,25 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true })
     >
       {/* Media — clean, edge-to-edge image (fixed aspect ratio → no CLS). Links to
           the product page on the storefront; callers can disable that (admin) so a
-          click never navigates away from an in-progress form. */}
-      {linkToProduct ? (
-        <Link
-          to={`/product/${p.id}`}
-          aria-label={p.name}
-          className="relative block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
-        >
-          {mediaInner}
-        </Link>
-      ) : (
-        <div className="relative block">{mediaInner}</div>
-      )}
+          click never navigates away from an in-progress form. The video badge (when
+          present) lives OUTSIDE the <Link> so it stays valid markup and its click
+          opens the modal instead of navigating. */}
+      <div className="relative">
+        {linkToProduct ? (
+          <Link
+            to={`/product/${p.id}`}
+            aria-label={p.name}
+            className="relative block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
+          >
+            {mediaInner}
+          </Link>
+        ) : (
+          <div className="relative block">{mediaInner}</div>
+        )}
+        {video && (
+          <ProductVideoBadge src={video.src} kind={video.kind} poster={video.poster || p.image} name={p.name} />
+        )}
+      </div>
 
       <div className="flex flex-1 flex-col gap-2 p-3.5 sm:p-4">
         <div className="flex items-center justify-between gap-2">

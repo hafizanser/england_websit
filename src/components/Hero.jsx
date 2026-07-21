@@ -27,7 +27,7 @@ export default function Hero() {
   }, [index])
 
   return (
-    <section id="top" className="relative">
+    <section id="top" data-hero className="relative">
       <div className="container-page pt-6 sm:pt-8">
         <div className="relative overflow-hidden rounded-4xl bg-brand-900 shadow-lift">
           {/* animated gradient backdrop */}

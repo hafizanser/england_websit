@@ -35,10 +35,17 @@ export default function Footer() {
   // Categories MUST come from the admin API — they carry the real database ids
   // that /products?cat= filters on. The old bundled `categories` list used
   // hardcoded slugs ('tissues'), which never match tbl_product.category_id
-  // (numeric), so every footer link returned 0 products. New admin categories
-  // now appear here automatically.
+  // (numeric), so every footer link returned 0 products.
+  //
+  // We show ALL categories the API returns (no hardcoded list, no fixed cap), so
+  // any category added in the Admin panel appears here automatically. The backend's
+  // storefront() query already excludes inactive categories (is_active = 0); we
+  // additionally drop empty ones (0 products) here — their /products?cat= link would
+  // land on an empty grid, making a footer shortcut to one a dead end. The list
+  // scrolls within its column (see the <ul> below) so a long catalogue never
+  // stretches the footer or breaks column alignment.
   const { data: cats } = useAsync(() => getCategories(), [])
-  const categoryList = (cats || []).slice(0, 5)
+  const categoryList = (cats || []).filter((c) => (c.items ?? 1) > 0)
 
   return (
     <footer className="bg-brand-950 text-[#c9b89f]">
@@ -95,7 +102,7 @@ export default function Footer() {
           {/* categories */}
           <div>
             <h5 className="text-[13px] font-bold uppercase tracking-[0.1em] text-white">Categories</h5>
-            <ul className="mt-4 space-y-2.5">
+            <ul className="no-scrollbar mt-4 max-h-72 space-y-2.5 overflow-y-auto pr-1">
               {categoryList.map((c) => (
                 <li key={c.id}>
                   {/* `state.scrollToGrid` tells ProductsPage to land on the product

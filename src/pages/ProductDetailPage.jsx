@@ -138,7 +138,7 @@ export default function ProductDetailPage() {
         to="/products"
         className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-brand-500 transition-colors hover:text-brand-800"
       >
-        <ArrowLeft size={16} weight="bold" /> Saare products
+        <ArrowLeft size={16} weight="bold" /> Back to Products
       </Link>
 
       {loading && <DetailSkeleton />}
@@ -342,12 +342,13 @@ export default function ProductDetailPage() {
             </div>
           )}
 
-          {/* Reviews & ratings */}
-          <ProductReviews productId={p.id} />
-
           {/* Related products — same category first, topped up with random picks
               from other categories. Reuses the Products-page card as-is. */}
           <RelatedProducts product={p} />
+
+          {/* Reviews & ratings — placed after Related Products so shoppers see
+              more of the catalog first, then social proof. */}
+          <ProductReviews productId={p.id} />
 
           {/* Sticky mobile enquiry bar — native app pattern, always in reach.
               Sits above the bottom nav and respects the home-bar safe area. */}
