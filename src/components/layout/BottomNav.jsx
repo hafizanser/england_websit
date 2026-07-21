@@ -82,23 +82,19 @@ export default function BottomNav() {
           <Item key={it.to} {...it} active={isActive(it.to, it.end)} onNav={onNav} reduce={reduce} />
         ))}
 
-        {/* center WhatsApp button — opens WhatsApp to place an order / ask for rates */}
+        {/* center WhatsApp — a flat tab, identical size/layout to Home / Shop /
+            Offers (no raised FAB). Green icon marks it as WhatsApp. */}
         <a
           href={waLink()}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Order on WhatsApp"
-          className="tap-target group relative flex flex-1 basis-0 flex-col items-center justify-center gap-1 py-2"
+          className="tap-target relative flex flex-1 basis-0 flex-col items-center justify-center gap-1 rounded-[18px] py-2 transition-transform duration-150 active:scale-95"
         >
-          {/* Icon-sized slot keeps this column's layout identical to the tabs, so the
-              "WhatsApp" label sits on the same line as Home / Shop / Offers. The FAB
-              itself is absolute — it lifts out of the bar without adding height. */}
-          <span className="relative block h-[22px] w-[22px]">
-            <span className="absolute bottom-0 left-1/2 grid h-[52px] w-[52px] -translate-x-1/2 place-items-center rounded-full bg-gradient-to-b from-[#2fdd72] to-[#1fbe5c] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_8px_18px_-6px_rgba(31,190,92,0.9)] ring-4 ring-sand-50 transition-transform duration-150 group-active:scale-95">
-              <WhatsappLogo size={25} weight="fill" />
-            </span>
+          <span className="relative z-10 flex flex-col items-center gap-1">
+            <WhatsappLogo size={22} weight="fill" className="text-[#1fbe5c]" />
+            <span className="text-[10px] font-semibold leading-none text-brand-400">WhatsApp</span>
           </span>
-          <span className="text-[10px] font-semibold leading-none text-brand-400">WhatsApp</span>
         </a>
 
         {rightItems.map((it) => (

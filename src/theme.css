@@ -436,8 +436,11 @@
 .eng .partner-toggle .lt p{color:var(--muted);font-size:14.5px;margin-top:4px}
 .eng .partner-toggle .chev{width:42px;height:42px;border-radius:50%;background:var(--cream-2);display:grid;place-items:center;color:var(--gold);transition:transform .3s;flex:0 0 auto}
 .eng .partner-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
+/* When open, the header flattens its bottom + drops its shadow so it merges
+   seamlessly into the panel below (no empty gap between them). */
+.eng .partner-toggle[aria-expanded="true"]{border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:none}
 .eng .partner-panel{overflow:hidden;max-height:0;transition:max-height .4s ease}
-.eng .partner-inner{background:#fff;border:1px solid var(--line);border-top:none;border-radius:0 0 var(--radius-lg) var(--radius-lg);padding:24px;margin-top:-16px;padding-top:34px}
+.eng .partner-inner{background:#fff;border:1px solid var(--line);border-top:none;border-radius:0 0 var(--radius-lg) var(--radius-lg);padding:24px}
 .eng .pstats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
 .eng .pstat{background:var(--cream-soft);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
 .eng .pstat .n{font-size:30px;font-weight:800;color:var(--gold)}

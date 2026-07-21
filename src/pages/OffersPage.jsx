@@ -326,19 +326,25 @@ export default function OffersPage() {
     ? {}
     : { variants: stagger(0.06), initial: 'hidden', animate: 'show' }
 
-  // When arriving via the homepage "View All Offers" button (/offers#offers-grid),
-  // smoothly scroll to the offers grid so the deal banners sit fully below the
-  // sticky navbar (the grid's scroll-mt-24 supplies the top offset).
+  // Scroll to whatever the hash points at:
+  //   • #<offer-slug>             → a "Deal dekhein" link from any offer card
+  //   • #offers-grid              → any deep link that targets the grid
+  // A plain /offers (no hash) opens at the top ("Saari Offers" header) via
+  // the app's ScrollToTop — e.g. the "View All Offers" button.
+  // Each DealCard renders id={offer.slug} with scroll-mt-28, and #offers-grid
+  // has scroll-mt-24, so the target lands fully below the sticky navbar.
+  // Depends on offersList so it re-runs once the async offers render (the slug
+  // element does not exist during the loading skeleton).
   const { hash } = useLocation()
   useEffect(() => {
-    if (hash !== '#offers-grid') return undefined
-    const el = document.getElementById('offers-grid')
+    if (!hash) return undefined
+    const el = document.getElementById(hash.slice(1))
     if (!el) return undefined
     const raf = requestAnimationFrame(() => {
       el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
     })
     return () => cancelAnimationFrame(raf)
-  }, [hash, reduce])
+  }, [hash, reduce, offersList])
 
   return (
     <>

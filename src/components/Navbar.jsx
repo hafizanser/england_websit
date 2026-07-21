@@ -113,6 +113,17 @@ export default function Navbar() {
     )
   }
 
+  // Clearing the box while viewing results resets to ALL products IN PLACE (drops
+  // ?q=, stays on /products). Without this, clearing left the old ?q= applied, or
+  // — via the browser's native search "×" + re-submit — bounced you off to Home.
+  const onSearchChange = (e) => {
+    const v = e.target.value
+    setTerm(v)
+    if (v === '' && appliedQ && pathname === '/products') {
+      startTransition(() => navigate('/products', { state: { scrollToGrid: true } }))
+    }
+  }
+
   // Lock background scroll while the mobile menu is open; the counted lock
   // guarantees scroll is restored no matter what else is locking (e.g. a video
   // reel), and never leaves the page stuck after the menu closes.
@@ -284,7 +295,7 @@ export default function Navbar() {
               <input
                 type="search"
                 value={term}
-                onChange={(e) => setTerm(e.target.value)}
+                onChange={onSearchChange}
                 placeholder="Maal Dhondein"
                 aria-label="Maal Dhondein"
                 className="w-full min-w-0 bg-transparent text-sm text-brand-800 outline-none placeholder:text-brand-400"
@@ -375,7 +386,7 @@ export default function Navbar() {
                 <input
                   type="search"
                   value={term}
-                  onChange={(e) => setTerm(e.target.value)}
+                  onChange={onSearchChange}
                   placeholder="Maal dhoondein"
                   aria-label="Maal dhoondein"
                   className="w-full bg-transparent text-sm text-brand-800 outline-none placeholder:text-brand-400"

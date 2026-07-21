@@ -177,6 +177,7 @@ export default function ProductDetailPage() {
                 {p.category && (
                   <Link
                     to={`/products?cat=${p.categoryId}`}
+                    state={{ scrollToGrid: true }}
                     className="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-600 transition-colors hover:bg-brand-100"
                   >
                     {p.category}

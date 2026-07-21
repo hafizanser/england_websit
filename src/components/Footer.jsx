@@ -68,7 +68,7 @@ export default function Footer() {
                 { icon: FacebookLogo, href: 'https://www.facebook.com/share/1HM1wq5ry3/?mibextid=wwXIfr', label: 'Facebook' },
                 { icon: InstagramLogo, href: 'https://www.instagram.com/englandwaly/', label: 'Instagram' },
                 { icon: TiktokLogo, href: 'https://www.tiktok.com/@englandofficial0?_r=1&_t=ZS-97TitChU7f8', label: 'TikTok' },
-                { icon: YoutubeLogo, href: 'https://youtube.com/@englandofficial-t4o?si=VOa0AqTJiZuDCTNX', label: 'YouTube' },
+                { icon: YoutubeLogo, href: 'https://www.youtube.com/@englandwaly', label: 'YouTube' },
               ].map(({ icon: Icon, href, label }) => (
                 <a
                   key={label}
