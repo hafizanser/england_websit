@@ -50,7 +50,7 @@ export default function Footer() {
   return (
     <footer className="bg-brand-950 text-[#c9b89f]">
       <div className="container-page py-14 sm:py-16">
-        <div className="grid gap-10 lg:grid-cols-[1.6fr_1fr_1fr_1.3fr]">
+        <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr_1.9fr_1.3fr]">
           {/* brand */}
           <div>
             <Link to="/" aria-label={brand.full} className="inline-flex items-center">
@@ -99,22 +99,25 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* categories */}
+          {/* categories — a responsive multi-column grid instead of one long
+              scrolling column, so this block's height stays close to the other
+              footer columns and never over-stretches the footer. Columns:
+              2 on mobile/tablet, 2 in the narrower lg slot, 3 from xl up. */}
           <div>
             <h5 className="text-[13px] font-bold uppercase tracking-[0.1em] text-white">Categories</h5>
-            <ul className="no-scrollbar mt-4 max-h-72 space-y-2.5 overflow-y-auto pr-1">
+            <ul className="mt-3 -ml-2 grid grid-cols-2 gap-x-2 gap-y-0.5 xl:grid-cols-3">
               {categoryList.map((c) => (
-                <li key={c.id}>
+                <li key={c.id} className="min-w-0">
                   {/* `state.scrollToGrid` tells ProductsPage to land on the product
                       grid instead of the banner (the global ScrollToTop resets to
                       the top on every route change). */}
                   <Link
                     to={`/products?cat=${c.id}`}
                     state={{ scrollToGrid: true }}
-                    className="group inline-flex items-center gap-1.5 text-[14.5px] text-[#bdab93] transition-colors hover:text-saffron-400"
+                    className="group flex items-start gap-1.5 rounded-lg px-2 py-1.5 text-[14px] leading-snug text-[#bdab93] transition-all duration-200 hover:bg-white/5 hover:text-saffron-400 active:scale-[0.98]"
                   >
-                    <CaretRight size={13} className="text-saffron-400 transition-transform group-hover:translate-x-0.5" />
-                    {c.name}
+                    <CaretRight size={13} weight="bold" className="mt-[3px] shrink-0 text-saffron-400/70 transition-transform group-hover:translate-x-0.5 group-hover:text-saffron-400" />
+                    <span className="min-w-0 break-words">{c.name}</span>
                   </Link>
                 </li>
               ))}

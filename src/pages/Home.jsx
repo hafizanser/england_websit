@@ -138,7 +138,8 @@ function Partner() {
   return (
     <section className="section partner" id="partner">
       <div className="wrap">
-        <button className="partner-toggle reveal in" aria-expanded={open} aria-controls="partnerPanel" onClick={() => setOpen((o) => !o)}>
+        <div className={`partner-card reveal in${open ? ' open' : ''}`}>
+        <button className="partner-toggle" aria-expanded={open} aria-controls="partnerPanel" onClick={() => setOpen((o) => !o)}>
           <div className="lt">
             <h3>Partner banna chahte ho? <span style={{ color: 'var(--gold)' }}>Chhoti dukaan, bara munafa</span></h3>
             <p>England ke saath asli maal seedha wholesale rate pe apni dukaan pe mangwaayein. Tap karke form kholein.</p>
@@ -161,6 +162,7 @@ function Partner() {
               <span className="t"><Check /> Kabhi bhi band kar sakte ho</span>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </section>

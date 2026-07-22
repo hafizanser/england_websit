@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
-import { Link, useSearchParams, useLocation } from 'react-router-dom'
+import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom'
 import { X, Package, Stack, SquaresFour, Truck, ArrowRight, WhatsappLogo, Tag } from '@phosphor-icons/react'
 import PageBanner from '../components/PageBanner'
 import OffersSection from '../components/OffersSection'
@@ -13,6 +13,7 @@ import { scrollSectionUnderHeader } from '../lib/scroll'
 export default function ProductsPage() {
   const [params, setParams] = useSearchParams()
   const location = useLocation()
+  const navigate = useNavigate()
   // Accept both ?cat= (internal convention) and ?category= (external/deep links).
   const cat = params.get('cat') || params.get('category') || 'all'
   // Search term comes straight from the URL (?q=) — the navbar search drives it,
@@ -42,6 +43,17 @@ export default function ProductsPage() {
   }
 
   const resetFilters = () => {
+    // If this view was opened by a search from another page and found nothing,
+    // send the user back where they came from — restoring that page's state and
+    // scroll via a real history pop (no reload). Clearing ?q also empties the
+    // navbar search box (it syncs to the URL's ?q).
+    const origin = location.state?.searchOrigin
+    if (qParam && origin && origin !== location.pathname + location.search) {
+      navigate(-1)
+      return
+    }
+    // Otherwise (direct/shared link, or a category-only empty state) clear the
+    // filters in place.
     const p = new URLSearchParams(params)
     p.delete('q')
     p.delete('cat')

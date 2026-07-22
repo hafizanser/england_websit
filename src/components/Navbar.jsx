@@ -109,7 +109,12 @@ export default function Navbar() {
     const q = term.trim()
     setOpen(false)
     startTransition(() =>
-      navigate(q ? `/products?q=${encodeURIComponent(q)}` : '/products', { state: { scrollToGrid: true } }),
+      // Record where the search began so the Products page can send the user
+      // back here (state restored) if nothing matches. Only stamped on an actual
+      // search — pushing a new entry keeps this origin as the previous step.
+      navigate(q ? `/products?q=${encodeURIComponent(q)}` : '/products', {
+        state: q ? { scrollToGrid: true, searchOrigin: pathname + search } : { scrollToGrid: true },
+      }),
     )
   }
 

@@ -429,18 +429,23 @@
 .eng .closer .trust .t{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:#e9f7ee}
 .eng .closer .trust .check{color:#74e0a0}
 
-/* partner (collapsible) */
+/* partner (collapsible) — header (toggle) + collapsible body live inside ONE
+   card that owns the border, radius, shadow and overflow-clip, so they read as
+   a single premium surface with no gap or double-border seam between them. */
 .eng .partner{background:var(--cream-2)}
-.eng .partner-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);padding:22px 24px;text-align:left;box-shadow:var(--shadow-sm)}
+.eng .partner-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;transition:box-shadow .3s ease,border-color .3s ease}
+.eng .partner-card:hover{border-color:var(--gold-soft)}
+.eng .partner-card.open{box-shadow:var(--shadow)}
+.eng .partner-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;background:transparent;border:none;border-radius:0;padding:22px 24px;text-align:left;transition:background .2s ease}
+.eng .partner-toggle:hover{background:var(--cream-soft)}
 .eng .partner-toggle .lt h3{font-size:20px;font-weight:800}
 .eng .partner-toggle .lt p{color:var(--muted);font-size:14.5px;margin-top:4px}
 .eng .partner-toggle .chev{width:42px;height:42px;border-radius:50%;background:var(--cream-2);display:grid;place-items:center;color:var(--gold);transition:transform .3s;flex:0 0 auto}
-.eng .partner-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
-/* When open, the header flattens its bottom + drops its shadow so it merges
-   seamlessly into the panel below (no empty gap between them). */
-.eng .partner-toggle[aria-expanded="true"]{border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:none}
+.eng .partner-card.open .chev{transform:rotate(180deg)}
 .eng .partner-panel{overflow:hidden;max-height:0;transition:max-height .4s ease}
-.eng .partner-inner{background:#fff;border:1px solid var(--line);border-top:none;border-radius:0 0 var(--radius-lg) var(--radius-lg);padding:24px}
+/* body sits on the same white surface as the header — only a subtle hairline
+   divider separates them, so they no longer look like two sections. */
+.eng .partner-inner{background:#fff;padding:24px;border-top:1px solid var(--line)}
 .eng .pstats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
 .eng .pstat{background:var(--cream-soft);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
 .eng .pstat .n{font-size:30px;font-weight:800;color:var(--gold)}
