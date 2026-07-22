@@ -106,7 +106,11 @@ export default function OffersSection() {
                       ))}
                     </div>
                   )}
-                  <Link className="offer-cta" to={o.slug ? `/offers#${o.slug}` : '/offers'}>
+                  <Link
+                    className="offer-cta"
+                    to={o.slug ? { pathname: '/offers', search: `?offer=${encodeURIComponent(o.slug)}` } : '/offers'}
+                    state={o.slug ? { scrollToOffer: true } : undefined}
+                  >
                     Deal dekhein
                     <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" /></svg>
                   </Link>

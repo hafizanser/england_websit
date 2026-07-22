@@ -123,6 +123,12 @@ export default {
         'spin-slow': {
           '100%': { transform: 'rotate(360deg)' },
         },
+        // Short attention blink when deep-linking to a specific offer card.
+        'offer-blink': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(199,160,91,0)' },
+          '12%, 38%, 62%': { boxShadow: '0 0 0 3px rgba(199,160,91,0.55), 0 18px 40px -22px rgba(58, 42, 28, 0.22)' },
+          '25%, 50%, 75%': { boxShadow: '0 0 0 0 rgba(199,160,91,0), 0 18px 40px -22px rgba(58, 42, 28, 0.22)' },
+        },
       },
       animation: {
         marquee: 'marquee 28s linear infinite',
@@ -137,6 +143,7 @@ export default {
         'glow-pulse': 'glow-pulse 3.5s ease-in-out infinite',
         'float-slow': 'float-slow 9s ease-in-out infinite',
         'spin-slow': 'spin-slow 18s linear infinite',
+        'offer-blink': 'offer-blink 1.8s ease-out 1',
       },
     },
   },

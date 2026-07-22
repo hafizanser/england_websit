@@ -11,7 +11,8 @@ function OfferCard({ offer }) {
   const big = offer.featured === 'lg'
   return (
     <MotionLink
-      to={offer.slug ? `/offers#${offer.slug}` : '/offers'}
+      to={offer.slug ? { pathname: '/offers', search: `?offer=${encodeURIComponent(offer.slug)}` } : '/offers'}
+      state={offer.slug ? { scrollToOffer: true } : undefined}
       variants={fadeUp}
       whileHover={{ y: -5 }}
       transition={{ type: 'spring', stiffness: 200, damping: 18 }}

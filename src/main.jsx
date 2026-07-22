@@ -9,6 +9,13 @@ import { CustomerAuthProvider } from './context/CustomerAuthContext'
 import './index.css'
 import './theme.css'
 
+// iOS Safari can still pinch-zoom past viewport maximum-scale in some cases;
+// blocking gesture* events keeps the storefront feeling like a native app.
+// Scroll / tap remain unaffected.
+;['gesturestart', 'gesturechange', 'gestureend'].forEach((type) => {
+  document.addEventListener(type, (e) => e.preventDefault(), { passive: false })
+})
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <HashRouter>

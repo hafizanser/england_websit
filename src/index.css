@@ -21,6 +21,9 @@
        `behavior: 'smooth'` explicitly at its call site, which is also the only way
        to keep "animate this one" and "jump instantly" independently controllable. */
     -webkit-text-size-adjust: 100%;
+    /* App-like mobile: allow pan/scroll, block pinch-zoom gestures where supported.
+       Paired with viewport maximum-scale=1 / user-scalable=no in index.html. */
+    touch-action: pan-x pan-y;
     /* Clip stray horizontal overflow at the viewport so no phantom horizontal
        scrollbar appears on mobile. `body { overflow-x: hidden }` can't catch this
        because position:fixed bars (the bottom nav / sticky cart bar) escape the
@@ -31,6 +34,7 @@
 
   body {
     @apply bg-sand-50 text-brand-950 antialiased;
+    touch-action: pan-x pan-y;
     /* NOTE: do NOT set overflow-x here. `overflow-x: hidden` on <body> computes
        overflow-y to `auto`, which turns <body> into its own scroll container.
        Since the body is exactly as tall as its content, it has nothing to scroll

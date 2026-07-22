@@ -1,6 +1,7 @@
-import { memo, useMemo, useState, useEffect } from 'react'
+import { memo, useMemo, useState, useRef, useLayoutEffect, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { scrollSectionUnderHeader } from '../lib/scroll'
 import {
   Tag,
   ArrowRight,
@@ -152,7 +153,7 @@ function CodeChip({ code, auto }) {
 
 // ---- One DealCard for featured AND active (Fixes A, B, C, E) ----------------
 // memo()'d + cart-free, so a cart change only re-renders the inner action button.
-const DealCard = memo(function DealCard({ offer, featured = false, motionSafe = true }) {
+const DealCard = memo(function DealCard({ offer, featured = false, motionSafe = true, highlighted = false }) {
   const meta = typeMeta[offer.type] || typeMeta.percent
   const Icon = meta.icon
   const linked = resolveProducts(offer)
@@ -164,7 +165,11 @@ const DealCard = memo(function DealCard({ offer, featured = false, motionSafe = 
       id={offer.slug}
       {...(motionSafe ? { variants: fadeUp } : {})}
       className={`group flex h-full scroll-mt-28 flex-col overflow-hidden rounded-3xl bg-white shadow-soft ${
-        featured ? 'border border-saffron-200 ring-1 ring-saffron-100' : 'border border-brand-100'
+        highlighted
+          ? 'animate-offer-blink border border-saffron-300 ring-2 ring-saffron-400'
+          : featured
+            ? 'border border-saffron-200 ring-1 ring-saffron-100'
+            : 'border border-brand-100'
       }`}
     >
       {/* Banner — full-colour image, fixed aspect ratio (no CLS, Fix C/M). Only a
@@ -326,25 +331,69 @@ export default function OffersPage() {
     ? {}
     : { variants: stagger(0.06), initial: 'hidden', animate: 'show' }
 
-  // Scroll to whatever the hash points at:
-  //   • #<offer-slug>             → a "Deal dekhein" link from any offer card
-  //   • #offers-grid / #deals     → any deep link that targets the grid
-  // A plain /offers (no hash) opens at the top ("Saari Offers" header) via
-  // the app's ScrollToTop — e.g. the "View All Offers" button.
-  // Each DealCard renders id={offer.slug} with scroll-mt-28, and #offers-grid
-  // has scroll-mt-24, so the target lands fully below the sticky navbar.
-  // Depends on offersList so it re-runs once the async offers render (the slug
-  // element does not exist during the loading skeleton).
-  const { hash } = useLocation()
+  // Deep-link from "Deal dekhein": `?offer=<slug>` (refresh + back/forward safe).
+  // In-app clicks also set `state.scrollToOffer` so ScrollToTop skips and this page
+  // owns the landing. No URL hash — HashRouter already uses the fragment.
+  //
+  // Why we hide the document until land:
+  //   • Scrolling to y=0 while offers load → Hero flash (previous bug).
+  //   • Leaving Home's scrollY → footer flash.
+  //   • The deal card does not exist until the async list renders, so we cannot
+  //     position before the first paint the way ProductsPage does for its filter bar.
+  // Hide the viewport, wait for the target, scroll ONCE (instant, header-offset),
+  // then reveal — the first visible frame is already on the offer.
+  const [params] = useSearchParams()
+  const { key: locationKey } = useLocation()
+  const offerTarget = (params.get('offer') || '').trim()
+  const [blinkId, setBlinkId] = useState(null)
+  const didScrollRef = useRef(false)
+
+  useLayoutEffect(() => {
+    didScrollRef.current = false
+  }, [locationKey])
+
+  useLayoutEffect(() => {
+    if (!offerTarget) return undefined
+
+    const root = document.documentElement
+    const reveal = () => {
+      root.style.visibility = ''
+    }
+
+    if (didScrollRef.current) return undefined
+
+    // Prefer the specific deal card; fall back to the grid once loading is done.
+    const el =
+      document.getElementById(offerTarget) ||
+      (!loading ? document.getElementById('offers-grid') : null)
+
+    if (!el) {
+      // Target not in the DOM yet — keep the viewport blank. Never scrollTo(0):
+      // that is the Hero flash.
+      root.style.visibility = 'hidden'
+      return reveal
+    }
+
+    didScrollRef.current = true
+    // Instant only: a smooth glide would have to start from Hero/top and would
+    // reintroduce the double-scroll. Settle pass still absorbs late image reflow.
+    const stop = scrollSectionUnderHeader(el, { smooth: false })
+    reveal()
+    if (!reduce && document.getElementById(offerTarget)) {
+      setBlinkId(offerTarget)
+    }
+    return () => {
+      stop()
+      reveal()
+    }
+  }, [offerTarget, locationKey, offersList, loading, reduce])
+
+  // Clear the blink class after the CSS animation finishes (not used for scroll timing).
   useEffect(() => {
-    if (!hash) return undefined
-    const el = document.getElementById(hash.slice(1))
-    if (!el) return undefined
-    const raf = requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
-    })
-    return () => cancelAnimationFrame(raf)
-  }, [hash, reduce, offersList])
+    if (!blinkId) return undefined
+    const t = window.setTimeout(() => setBlinkId(null), 2000)
+    return () => window.clearTimeout(t)
+  }, [blinkId])
 
   return (
     <>
@@ -441,7 +490,13 @@ export default function OffersPage() {
           {!loading && !error && offersList.length > 0 && (
             <motion.div {...containerMotion} id="offers-grid" className="mt-8 grid scroll-mt-24 gap-5 sm:grid-cols-2">
               {offersList.map((offer) => (
-                <DealCard key={offer.id} offer={offer} featured={Boolean(offer.featured)} motionSafe={!reduce} />
+                <DealCard
+                  key={offer.id}
+                  offer={offer}
+                  featured={Boolean(offer.featured)}
+                  motionSafe={!reduce}
+                  highlighted={blinkId === offer.slug}
+                />
               ))}
             </motion.div>
           )}
