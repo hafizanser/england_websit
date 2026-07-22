@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo } from 'react'
+import { memo, useMemo, useState, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
 import {
@@ -328,7 +328,7 @@ export default function OffersPage() {
 
   // Scroll to whatever the hash points at:
   //   • #<offer-slug>             → a "Deal dekhein" link from any offer card
-  //   • #offers-grid              → any deep link that targets the grid
+  //   • #offers-grid / #deals     → any deep link that targets the grid
   // A plain /offers (no hash) opens at the top ("Saari Offers" header) via
   // the app's ScrollToTop — e.g. the "View All Offers" button.
   // Each DealCard renders id={offer.slug} with scroll-mt-28, and #offers-grid
