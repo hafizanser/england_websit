@@ -266,8 +266,9 @@ export default function Navbar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setOpen(false)}
+              onTouchMove={(e) => e.preventDefault()}
               aria-hidden="true"
-              className="fixed inset-0 z-[95] bg-brand-950/50 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-[95] touch-none overscroll-none bg-brand-950/50 backdrop-blur-sm lg:hidden"
             />
           )}
         </AnimatePresence>
@@ -282,7 +283,9 @@ export default function Navbar() {
               role="dialog"
               aria-modal="true"
               aria-label="Menu"
-              className="fixed inset-y-0 right-0 z-[95] flex w-[84%] max-w-sm flex-col overscroll-contain bg-sand-50 shadow-lift lg:hidden"
+              className="fixed inset-y-0 right-0 z-[95] flex w-[84%] max-w-sm flex-col overscroll-contain bg-sand-50 shadow-lift touch-pan-y lg:hidden"
+              // Keep drawer gestures inside the panel — don't let them chain-scroll the page.
+              onTouchMove={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-brand-100 px-5 py-4">
                 <Logo onClick={() => setOpen(false)} />

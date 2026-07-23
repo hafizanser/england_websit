@@ -9,18 +9,39 @@
 // cleanup leaves the whole site unscrollable until reload. Counting + saving the
 // original inline value makes both failure modes impossible.
 //
+// Mobile Safari / Chrome ignore `overflow: hidden` on body for touch scrolling
+// (especially when the finger is on a fixed backdrop beside a drawer). Pinning
+// the body with `position: fixed` + restoring scrollY on unlock is the reliable
+// fix — the page stays visually frozen while only the open panel can scroll.
+//
 // Returns an idempotent `unlock` function — safe to call more than once and
 // ideal as a React effect cleanup: `useEffect(() => lockScroll(), [open])`.
 let lockCount = 0
-let savedOverflow = ''
+let saved = null
 
 export function lockScroll() {
   if (typeof document === 'undefined') return () => {}
   if (lockCount === 0) {
-    // Snapshot the current inline value so we restore exactly what was there
-    // (usually '' — which lets the stylesheet's overflow-x rule reapply).
-    savedOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const { body, documentElement: html } = document
+    saved = {
+      scrollY: window.scrollY || window.pageYOffset || 0,
+      bodyOverflow: body.style.overflow,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      htmlOverflow: html.style.overflow,
+      htmlOverscroll: html.style.overscrollBehavior,
+    }
+    html.style.overflow = 'hidden'
+    html.style.overscrollBehavior = 'none'
+    body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${saved.scrollY}px`
+    body.style.left = '0'
+    body.style.right = '0'
+    body.style.width = '100%'
   }
   lockCount += 1
 
@@ -29,8 +50,19 @@ export function lockScroll() {
     if (released) return // guard against double-invocation (e.g. StrictMode)
     released = true
     lockCount = Math.max(0, lockCount - 1)
-    if (lockCount === 0) {
-      document.body.style.overflow = savedOverflow
+    if (lockCount === 0 && saved) {
+      const { body, documentElement: html } = document
+      const y = saved.scrollY
+      body.style.overflow = saved.bodyOverflow
+      body.style.position = saved.bodyPosition
+      body.style.top = saved.bodyTop
+      body.style.left = saved.bodyLeft
+      body.style.right = saved.bodyRight
+      body.style.width = saved.bodyWidth
+      html.style.overflow = saved.htmlOverflow
+      html.style.overscrollBehavior = saved.htmlOverscroll
+      saved = null
+      window.scrollTo(0, y)
     }
   }
 }
