@@ -11,6 +11,7 @@ use App\Controllers\CartController;
 use App\Controllers\ReviewController;
 use App\Controllers\AuthController;
 use App\Controllers\HomepageVideoController;
+use App\Controllers\PdfController;
 use App\Controllers\Admin\ReviewController as AdminReviewController;
 use App\Controllers\Admin\HomepageVideoController as AdminHomepageVideoController;
 use App\Controllers\Admin\NotificationController as AdminNotificationController;
@@ -22,6 +23,7 @@ use App\Controllers\Admin\OfferController as AdminOfferController;
 use App\Controllers\Admin\BlogController as AdminBlogController;
 use App\Controllers\Admin\ReportController as AdminReportController;
 use App\Controllers\Admin\ProfitController as AdminProfitController;
+use App\Controllers\Admin\PdfDocumentController as AdminPdfDocumentController;
 
 return function (Router $r): void {
     // health / root
@@ -36,6 +38,9 @@ return function (Router $r): void {
     // ---- Homepage reel videos (public) ------------------------------------
     $r->get('/homepage-videos', [HomepageVideoController::class, 'index']);
     $r->get('/video', [HomepageVideoController::class, 'stream']);
+
+    // ---- PDF documents (public) ------------------------------------------
+    $r->get('/pdf', [PdfController::class, 'index']);
 
     // ---- Catalog (public) -------------------------------------------------
     $r->get('/products/top-selling', [CatalogController::class, 'topSelling']);
@@ -149,4 +154,12 @@ return function (Router $r): void {
     $r->post('/admin/blogs/{id}', [AdminBlogController::class, 'update']);
     $r->put('/admin/blogs/{id}', [AdminBlogController::class, 'update']);
     $r->delete('/admin/blogs/{id}', [AdminBlogController::class, 'destroy']);
+
+    // ---- Admin: PDF catalog ----------------------------------------------
+    $r->get('/admin/pdf-documents', [AdminPdfDocumentController::class, 'index']);
+    $r->post('/admin/pdf-documents', [AdminPdfDocumentController::class, 'store']);
+    $r->get('/admin/pdf-documents/{id}', [AdminPdfDocumentController::class, 'show']);
+    $r->post('/admin/pdf-documents/{id}', [AdminPdfDocumentController::class, 'update']);
+    $r->put('/admin/pdf-documents/{id}', [AdminPdfDocumentController::class, 'update']);
+    $r->delete('/admin/pdf-documents/{id}', [AdminPdfDocumentController::class, 'destroy']);
 };

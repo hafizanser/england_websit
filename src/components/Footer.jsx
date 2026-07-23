@@ -44,8 +44,8 @@ export default function Footer() {
   // land on an empty grid, making a footer shortcut to one a dead end. The list
   // scrolls within its column (see the <ul> below) so a long catalogue never
   // stretches the footer or breaks column alignment.
-  const { data: cats } = useAsync(() => getCategories(), [])
-  const categoryList = (cats || []).filter((c) => (c.items ?? 1) > 0)
+  const { data: cats, loading: catsLoading } = useAsync(() => getCategories(), [])
+  const categoryList = (!catsLoading && Array.isArray(cats) ? cats : []).filter((c) => (c.items ?? 1) > 0)
 
   return (
     <footer className="bg-brand-950 text-[#c9b89f]">
@@ -106,7 +106,12 @@ export default function Footer() {
           <div>
             <h5 className="text-[13px] font-bold uppercase tracking-[0.1em] text-white">Categories</h5>
             <ul className="mt-3 -ml-2 grid grid-cols-2 gap-x-2 gap-y-0.5 xl:grid-cols-3">
-              {categoryList.map((c) => (
+              {catsLoading && Array.from({ length: 12 }).map((_, i) => (
+                <li key={i} className="min-w-0 px-2 py-1.5">
+                  <div className="h-4 w-full rounded-full bg-white/10" aria-hidden="true" />
+                </li>
+              ))}
+              {!catsLoading && categoryList.map((c) => (
                 <li key={c.id} className="min-w-0">
                   {/* `state.scrollToGrid` tells ProductsPage to land on the product
                       grid instead of the banner (the global ScrollToTop resets to

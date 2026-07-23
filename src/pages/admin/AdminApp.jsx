@@ -18,6 +18,8 @@ import AdminProfitList from './AdminProfitList'
 import AdminProfitDetails from './AdminProfitDetails'
 import ProfitGuard from './ProfitGuard'
 import AdminReviews from './AdminReviews'
+import AdminPDFCatalog from './AdminPDFCatalog'
+import AdminPDFViewer from './AdminPDFViewer'
 
 function RequireAdmin({ children }) {
   const { user, loading } = useAdminAuth()
@@ -62,6 +64,8 @@ export default function AdminApp() {
           <Route path="offers" element={<AdminOffers />} />
           <Route path="blogs" element={<AdminBlogs />} />
           <Route path="videos" element={<AdminVideos />} />
+          <Route path="pdf-catalog" element={<AdminPDFCatalog />} />
+          <Route path="pdf-catalog/:id" element={<AdminPDFViewer />} />
           <Route path="reviews" element={<AdminReviews />} />
           {/* PIN-gated section — ProfitGuard requires the PIN on every entry and
               clears it on leave (memory-only, mounted while under /admin/profits). */}

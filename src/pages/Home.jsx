@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { brand } from '../data/site'
 import { useAsync } from '../hooks/useAsync'
-import { getCategories, getTopSelling } from '../api/catalog'
+import { getCategories } from '../api/catalog'
+import { http } from '../api/http'
 import { getFeaturedReviews } from '../api/reviews'
 import { deliveryCities } from '../components/CitiesDelivery'
 import { orderUnitOptions, unitLabelFor } from '../lib/cartEngine'
@@ -123,6 +124,40 @@ function HomeProduct({ p }) {
   )
 }
 
+function HomeProductSkeleton() {
+  return (
+    <article className="card">
+      <div className="media" aria-hidden="true">
+        <div className="relative h-full w-full overflow-hidden bg-sand-100">
+          <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+        </div>
+      </div>
+      <div className="body" aria-hidden="true">
+        <div className="h-3 w-20 rounded-full bg-sand-200" />
+        <div className="mt-2 h-4 w-5/6 rounded-full bg-sand-200" />
+        <div className="mt-3 h-8 w-full rounded-full bg-sand-100" />
+        <div className="mt-3 h-11 w-full rounded-full bg-sand-200" />
+      </div>
+    </article>
+  )
+}
+
+function HomeCategorySkeleton() {
+  return (
+    <div className="cat-card" aria-hidden="true">
+      <div className="media">
+        <div className="relative h-full w-full overflow-hidden bg-sand-100">
+          <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+        </div>
+      </div>
+      <div className="row">
+        <div className="h-4 w-2/3 rounded-full bg-sand-200" />
+        <div className="h-4 w-8 rounded-full bg-sand-200" />
+      </div>
+    </div>
+  )
+}
+
 // ---- partner (collapsible) --------------------------------------------------
 function Partner() {
   const [open, setOpen] = useState(false)
@@ -198,11 +233,11 @@ function displayStars(review, i) {
 
 export default function Home() {
   const cats = useAsync(() => getCategories(), [])
-  const products = useAsync(() => getTopSelling(), [])
+  const products = useAsync(async () => (await http.get('/products/top-selling')).data, [])
   const reviewsA = useAsync(() => getFeaturedReviews(12), [])
 
-  const catList = (cats.data || []).slice(0, 7)
-  const top = (products.data || []).filter((p) => p.active !== 0).slice(0, 4)
+  const catList = (!cats.loading && Array.isArray(cats.data) ? cats.data : []).slice(0, 7)
+  const top = (!products.loading && Array.isArray(products.data) ? products.data : []).filter((p) => p?.active !== 0).slice(0, 4)
   const reviews = (reviewsA.data || []).slice(0, 8).map((r, i) => ({ ...r, stars: displayStars(r, i), customer_name: REVIEW_NAMES[i % REVIEW_NAMES.length] }))
   const cityList = deliveryCities.slice(0, 11)
 
@@ -275,7 +310,8 @@ export default function Home() {
             <div className="right"><Link className="btn btn-outline" to="/products">Saara catalog</Link></div>
           </Reveal>
           <Reveal className="prod-grid">
-            {top.map((p) => <HomeProduct key={p.id} p={p} />)}
+            {products.loading && Array.from({ length: 4 }).map((_, i) => <HomeProductSkeleton key={i} />)}
+            {!products.loading && top.map((p) => (p ? <HomeProduct key={p.id} p={p} /> : null))}
           </Reveal>
         </div>
       </section>
@@ -290,13 +326,14 @@ export default function Home() {
             <p className="lead">Tissue se le kar agarbatti, razor, hair color aur soap tak — sab kuch ek hi catalog mein.</p>
           </Reveal>
           <Reveal className="cat-grid">
-            {catList.map((c) => (
+            {cats.loading && Array.from({ length: 8 }).map((_, i) => <HomeCategorySkeleton key={i} />)}
+            {!cats.loading && catList.map((c) => (
               <Link className="cat-card" key={c.id} to={`/products?cat=${c.id}`}>
                 <div className="media"><img src={imgSrc(c.image)} alt={c.name} loading="lazy" onError={onImgError} /></div>
                 <div className="row"><b>{c.name}</b><span className="arr"><Arrow /></span></div>
               </Link>
             ))}
-            <Link className="cat-card more" to="/products"><div className="n">30+</div><div>aur products dekhein</div><div className="ur">سب کچھ دیکھیں</div></Link>
+            {!cats.loading && <Link className="cat-card more" to="/products"><div className="n">30+</div><div>aur products dekhein</div><div className="ur">سب کچھ دیکھیں</div></Link>}
           </Reveal>
         </div>
       </section>

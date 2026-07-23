@@ -8,6 +8,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomepageVideoController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PdfController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Admin\BlogController as AdminBlogController;
 use App\Http\Controllers\Admin\HomepageVideoController as AdminHomepageVideoController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Admin\OfferController as AdminOfferController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\PdfDocumentController as AdminPdfDocumentController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProfitController as AdminProfitController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
@@ -28,6 +30,9 @@ Route::get('/api', [CatalogController::class, 'categories']);
 
 // ---- Shared images (public) ----------------------------------------------
 Route::get('/image', [ImageController::class, 'show']);
+
+// ---- PDF documents (public) ----------------------------------------------
+Route::get('/pdf', [PdfController::class, 'show']);
 
 // ---- Homepage reel videos (public) ---------------------------------------
 Route::get('/homepage-videos', [HomepageVideoController::class, 'index']);
@@ -149,4 +154,12 @@ Route::middleware('admin.auth')->group(function () {
     Route::post('/admin/blogs/{id}', [AdminBlogController::class, 'update']); // multipart updates
     Route::put('/admin/blogs/{id}', [AdminBlogController::class, 'update']);
     Route::delete('/admin/blogs/{id}', [AdminBlogController::class, 'destroy']);
+
+    // pdf documents
+    Route::get('/admin/pdf-documents', [AdminPdfDocumentController::class, 'index']);
+    Route::post('/admin/pdf-documents', [AdminPdfDocumentController::class, 'store']);
+    Route::get('/admin/pdf-documents/{id}', [AdminPdfDocumentController::class, 'show']);
+    Route::post('/admin/pdf-documents/{id}', [AdminPdfDocumentController::class, 'update']); // multipart updates
+    Route::put('/admin/pdf-documents/{id}', [AdminPdfDocumentController::class, 'update']);
+    Route::delete('/admin/pdf-documents/{id}', [AdminPdfDocumentController::class, 'destroy']);
 });

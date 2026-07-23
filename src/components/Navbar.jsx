@@ -225,7 +225,10 @@ export default function Navbar() {
   }, [pathname])
 
   return (
-    <header ref={headerRef} className="sticky top-0 z-50">
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-[90] isolate"
+    >
       {/* Announcement marquee — Urdu (pads the notch/status-bar inset on phones).
           Wrapped in a grid-rows collapser: 1fr → 0fr animates the height to zero
           smoothly (no hardcoded height, no reflow jump) when hideAnnouncement is
@@ -256,7 +259,7 @@ export default function Navbar() {
       </div>
 
       {/* Main bar */}
-      <div className="border-b border-brand-100 bg-sand-50/85 backdrop-blur-xl">
+      <div className="border-b border-brand-100 bg-sand-50">
         <nav className="container-page flex items-center gap-6 py-3.5">
           <Logo />
 
@@ -357,7 +360,7 @@ export default function Navbar() {
             exit={{ opacity: 0 }}
             onClick={() => setOpen(false)}
             aria-hidden="true"
-            className="fixed inset-0 z-50 touch-none bg-brand-950/50 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-[95] bg-brand-950/50 backdrop-blur-sm lg:hidden"
           />
         )}
       </AnimatePresence>
@@ -372,7 +375,7 @@ export default function Navbar() {
               role="dialog"
               aria-modal="true"
               aria-label="Menu"
-              className="fixed inset-y-0 right-0 z-50 flex w-[84%] max-w-sm flex-col overscroll-contain bg-sand-50 shadow-lift lg:hidden"
+              className="fixed inset-y-0 right-0 z-[95] flex w-[84%] max-w-sm flex-col overscroll-contain bg-sand-50 shadow-lift lg:hidden"
             >
               <div className="flex items-center justify-between border-b border-brand-100 px-5 py-4">
                 <Logo onClick={() => setOpen(false)} />

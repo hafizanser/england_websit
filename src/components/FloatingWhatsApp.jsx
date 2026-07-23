@@ -11,7 +11,7 @@ export default function FloatingWhatsApp() {
   const href = `https://wa.me/${brand.whatsapp.replace(/[^0-9]/g, '')}`
 
   return (
-    <div ref={constraintsRef} className="pointer-events-none fixed inset-0 z-40">
+    <div ref={constraintsRef} className="pointer-events-none fixed inset-0 z-40 hidden lg:block">
       <motion.a
         href={href}
         target="_blank"

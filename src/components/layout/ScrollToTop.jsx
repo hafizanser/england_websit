@@ -1,5 +1,5 @@
-import { useLayoutEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLayoutEffect, useRef } from 'react'
+import { useLocation, useNavigationType } from 'react-router-dom'
 
 // Reset scroll position on every route change.
 //
@@ -18,14 +18,59 @@ import { useLocation } from 'react-router-dom'
 // `behavior: 'instant'` is load-bearing, not decoration: the reset must never
 // animate, or it races the destination page's own scroll.
 export default function ScrollToTop() {
-  const { pathname, search, state } = useLocation()
+  const location = useLocation()
+  const navType = useNavigationType()
+
+  const { pathname, search, state, key } = location
   const offerDeepLink = pathname === '/offers' && new URLSearchParams(search).has('offer')
   const selfPositioning = Boolean(state?.scrollToGrid || state?.scrollToOffer || offerDeepLink)
 
+  const isFirstRef = useRef(true)
+  const routeKey = `${pathname}${search || ''}`
+  const saveKey = key || routeKey
+
+  const savePos = (k, y) => {
+    try {
+      sessionStorage.setItem(`scroll:${k}`, String(Math.max(0, Math.round(y || 0))))
+    } catch {
+      return
+    }
+  }
+
+  const readPos = (k) => {
+    try {
+      const raw = sessionStorage.getItem(`scroll:${k}`)
+      const n = Number(raw)
+      return Number.isFinite(n) ? n : null
+    } catch {
+      return null
+    }
+  }
+
   useLayoutEffect(() => {
-    if (selfPositioning) return
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  }, [pathname, search, selfPositioning])
+    return () => {
+      savePos(saveKey, window.scrollY)
+      savePos(routeKey, window.scrollY)
+    }
+  }, [saveKey, routeKey])
+
+  useLayoutEffect(() => {
+    if (selfPositioning) {
+      isFirstRef.current = false
+      return
+    }
+
+    const isFirst = isFirstRef.current
+    isFirstRef.current = false
+
+    if (!isFirst && navType === 'POP') {
+      const y = readPos(saveKey) ?? readPos(routeKey) ?? 0
+      window.scrollTo({ top: y, left: 0, behavior: 'auto' })
+      return
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [saveKey, routeKey, navType, selfPositioning])
 
   return null
 }

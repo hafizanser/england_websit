@@ -18,6 +18,7 @@ import {
   Storefront,
   Globe,
   Star,
+  FilePdf,
 } from '@phosphor-icons/react'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import { brand } from '../../data/site'
@@ -50,6 +51,7 @@ const sections = [
       { to: '/admin/offers', label: 'Offers', icon: Tag },
       { to: '/admin/blogs', label: 'Blog', icon: Article },
       { to: '/admin/videos', label: 'Homepage Videos', icon: VideoCamera },
+      { to: '/admin/pdf-catalog', label: 'PDF Catalog', icon: FilePdf },
     ],
   },
   {

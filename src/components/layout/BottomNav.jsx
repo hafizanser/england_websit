@@ -73,13 +73,16 @@ export default function BottomNav() {
       style={{
         // Room for the elevated WhatsApp FAB so it isn't clipped by the nav edge.
         paddingTop: 18,
-        paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
+        paddingBottom: 0,
         transform: 'translateZ(0)',
         WebkitBackfaceVisibility: 'hidden',
         backfaceVisibility: 'hidden',
       }}
     >
-      <div className="relative mx-auto flex max-w-md items-stretch gap-0.5 rounded-[26px] border border-white/70 bg-sand-50/85 p-1.5 shadow-[0_10px_34px_-10px_rgba(60,42,18,0.34),0_2px_8px_-3px_rgba(60,42,18,0.14)] backdrop-blur-2xl">
+      <div
+        className="relative mx-auto flex max-w-md items-stretch gap-0.5 rounded-[26px] border border-white/70 bg-sand-50/85 px-1.5 pt-1.5 shadow-[0_10px_34px_-10px_rgba(60,42,18,0.34),0_2px_8px_-3px_rgba(60,42,18,0.14)] backdrop-blur-2xl"
+        style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
+      >
         {leftItems.map((it) => (
           <Item key={it.to} {...it} active={isActive(it)} onNav={onNav} reduce={reduce} />
         ))}

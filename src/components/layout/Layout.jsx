@@ -13,8 +13,8 @@ export default function Layout() {
       <ScrollToTop />
       <Navbar />
       {/* extra bottom padding on mobile clears the floating bottom nav (~74px incl.
-          its 8px gap from the screen edge) + the home-bar inset */}
-      <main className="flex-1 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0">
+          its safe-area inset) + the home-bar inset */}
+      <main className="flex-1 pb-[calc(5.25rem+env(safe-area-inset-bottom))] md:pb-0">
         {/* keyed wrapper → subtle app-like page transition on each route (phones) */}
         <div key={pathname} className="app-page">
           <Outlet />

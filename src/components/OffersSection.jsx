@@ -57,7 +57,49 @@ function dealFacts(o) {
  */
 export default function OffersSection() {
   const offersA = useAsync(() => getOffers(), [])
-  const offers = (offersA.data || []).slice(0, 2)
+  const offers = (!offersA.loading && Array.isArray(offersA.data) ? offersA.data : []).slice(0, 2)
+  if (offersA.loading) {
+    return (
+      <section className="section offers" id="offers" aria-busy="true">
+        <div className="wrap">
+          <Reveal>
+            <span className="eyebrow">Offers</span>
+            <h2 className="title">Khaas offers, <span className="g">khaas dukaandaron ke liye</span></h2>
+            <div className="title-ur ur">خاص آفرز، خاص دکانداروں کے لیے</div>
+          </Reveal>
+          <Reveal className="offer-benefits">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <span key={i} className="ob" aria-hidden="true">
+                <span className="inline-block h-3 w-44 rounded-full bg-sand-200 align-middle" />
+              </span>
+            ))}
+          </Reveal>
+          <Reveal className="offer-grid">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <article className="offer" key={i} aria-hidden="true">
+                <div className="offer-media">
+                  <div className="relative h-full w-full overflow-hidden bg-sand-100">
+                    <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+                  </div>
+                </div>
+                <div className="offer-body">
+                  <div className="h-4 w-3/4 rounded-full bg-sand-200" />
+                  <div className="mt-3 h-3 w-full rounded-full bg-sand-100" />
+                  <div className="mt-2 h-3 w-5/6 rounded-full bg-sand-100" />
+                  <div className="mt-4 h-11 w-full rounded-full bg-sand-200" />
+                </div>
+              </article>
+            ))}
+          </Reveal>
+          <Reveal className="offers-all">
+            <span className="btn-offers-all" aria-hidden="true">
+              <span className="inline-block h-4 w-28 rounded-full bg-sand-200 align-middle" />
+            </span>
+          </Reveal>
+        </div>
+      </section>
+    )
+  }
   if (offers.length === 0) return null
 
   return (

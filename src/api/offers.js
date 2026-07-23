@@ -4,29 +4,15 @@ import { offers, promoCodes, products } from '../data/site'
 const clone = (v) => JSON.parse(JSON.stringify(v))
 
 export function getOffers() {
-  return withFallback(
-    async () => (await http.get('/offers')).data,
-    async () => clone(offers),
-  )
+  return http.get('/offers').then((r) => r.data)
 }
 
 export function getOfferBySlug(slug) {
-  return withFallback(
-    async () => (await http.get(`/offers/${slug}`)).data,
-    async () => clone(offers).find((o) => o.slug === slug) || null,
-  )
+  return http.get(`/offers/${slug}`).then((r) => r.data)
 }
 
 export function getFeaturedOffers() {
-  return withFallback(
-    async () => (await http.get('/offers/featured')).data,
-    async () => {
-      const all = clone(offers)
-      const hero = all.find((o) => o.featured === 'lg') || all[0]
-      const sides = all.filter((o) => o.featured === 'sm').slice(0, 2)
-      return { hero, sides }
-    },
-  )
+  return http.get('/offers/featured').then((r) => r.data)
 }
 
 // Local promo validation kept for snappy cart UX; checkout re-validates server-side.

@@ -208,7 +208,7 @@ export default function ProductsPage() {
 
           {!loading &&
             !error &&
-            data?.map((p) => <ProductCard key={p.id} p={p} preferLargestUnit showVideo />)}
+            data?.map((p) => <ProductCard key={p.id} p={p} preferLargestUnit showVideo={false} />)}
 
           {!loading && !error && data?.length === 0 && (
             <EmptyState

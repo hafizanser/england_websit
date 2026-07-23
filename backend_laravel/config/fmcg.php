@@ -28,6 +28,9 @@ return [
     // image uploads folder so a stray .mp4 never lands in an Apache-served dir.
     'videos_path' => env('FMCG_VIDEOS_PATH', base_path('uploads/videos')),
 
+    // PDF documents storage, streamed through GET /pdf route.
+    'pdfs_path' => env('FMCG_PDFS_PATH', base_path('uploads/pdfs')),
+
     // ffmpeg / ffprobe binaries used to optimise/compress uploaded (or
     // Drive-fetched) reels. Defaults to the PATH lookup; set an absolute path if
     // they aren't on PATH. If ffmpeg is unavailable the original file is stored
