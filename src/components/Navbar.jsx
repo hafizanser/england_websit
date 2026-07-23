@@ -157,12 +157,50 @@ export default function Navbar() {
     return lockScroll()
   }, [open])
 
+  // Soft keyboard: keep the PAGE + bottom chrome frozen, and only shrink/pin the
+  // drawer to the visual viewport (the area above the keypad). Without this, iOS
+  // scrolls the focused input into view and the background/bottom nav ride up
+  // with the keyboard. Android also needs interactive-widget=overlays-content
+  // (see index.html) so the layout viewport is not resized.
+  const [vvBox, setVvBox] = useState(null)
+  useEffect(() => {
+    if (!open) {
+      setVvBox(null)
+      document.body.classList.remove('eng-drawer-open')
+      return undefined
+    }
+    document.body.classList.add('eng-drawer-open')
+
+    const vv = window.visualViewport
+    const sync = () => {
+      // Cancel the browser's "scroll focused field into view" nudge while locked.
+      window.scrollTo(0, 0)
+      const top = vv ? vv.offsetTop : 0
+      const height = vv ? vv.height : window.innerHeight
+      setVvBox({ top, height })
+    }
+    sync()
+    vv?.addEventListener('resize', sync)
+    vv?.addEventListener('scroll', sync)
+    window.addEventListener('focusin', sync)
+    return () => {
+      document.body.classList.remove('eng-drawer-open')
+      vv?.removeEventListener('resize', sync)
+      vv?.removeEventListener('scroll', sync)
+      window.removeEventListener('focusin', sync)
+      setVvBox(null)
+    }
+  }, [open])
+
   // After the drawer opens from the search icon, focus the field so the iOS
   // keyboard is ready. Slight delay lets the slide animation start first.
+  // preventScroll stops the browser from shifting the locked background up.
   useEffect(() => {
     if (!open || !focusSearchOnOpen.current) return undefined
     focusSearchOnOpen.current = false
-    const t = window.setTimeout(() => searchInputRef.current?.focus(), 80)
+    const t = window.setTimeout(() => {
+      searchInputRef.current?.focus({ preventScroll: true })
+    }, 80)
     return () => window.clearTimeout(t)
   }, [open])
 
@@ -283,7 +321,14 @@ export default function Navbar() {
               role="dialog"
               aria-modal="true"
               aria-label="Menu"
-              className="fixed inset-y-0 right-0 z-[95] flex w-[84%] max-w-sm flex-col overscroll-contain bg-sand-50 shadow-lift touch-pan-y lg:hidden"
+              className="fixed right-0 z-[95] flex w-[84%] max-w-sm flex-col overscroll-contain bg-sand-50 shadow-lift touch-pan-y lg:hidden"
+              style={{
+                // Pin to the visual viewport so only this panel shrinks above the
+                // keypad — background + bottom nav stay put underneath.
+                top: vvBox ? vvBox.top : 0,
+                height: vvBox ? vvBox.height : '100%',
+                bottom: 'auto',
+              }}
               // Keep drawer gestures inside the panel — don't let them chain-scroll the page.
               onTouchMove={(e) => e.stopPropagation()}
             >
@@ -313,6 +358,10 @@ export default function Navbar() {
                   type="search"
                   value={term}
                   onChange={onSearchChange}
+                  onFocus={() => {
+                    // Stop the browser from lifting the locked background when the keypad opens.
+                    window.scrollTo(0, 0)
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') runSearch(e)
                   }}

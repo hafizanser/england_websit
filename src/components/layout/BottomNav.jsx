@@ -69,6 +69,7 @@ export default function BottomNav() {
 
   return (
     <nav
+      data-bottom-nav
       className="fixed inset-x-0 bottom-0 z-40 px-3 md:hidden"
       style={{
         // Room for the elevated WhatsApp FAB so it isn't clipped by the nav edge.

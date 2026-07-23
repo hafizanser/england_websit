@@ -338,6 +338,14 @@ body.vs-focus .app-page {
   transform: none !important;
 }
 
+/* While the mobile search/menu drawer is open, freeze the bottom chrome so the
+   soft keyboard only affects the drawer (pinned to the visual viewport). Without
+   this, Android/iOS can lift the bottom nav with the keypad. */
+body.eng-drawer-open [data-bottom-nav] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Custom scrollbar for the page */
 ::-webkit-scrollbar {
   width: 11px;
