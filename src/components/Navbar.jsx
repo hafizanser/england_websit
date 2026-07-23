@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { List, X, WhatsappLogo, CaretRight, MagnifyingGlass, User, SignOut } from '@phosphor-icons/react'
@@ -60,6 +61,10 @@ export default function Navbar() {
   const [, startTransition] = useTransition()
   const { pathname, search } = useLocation()
   const { isLoggedIn, customer, logout } = useCustomerAuth()
+  const searchInputRef = useRef(null)
+  // When the magnifying-glass opens the drawer, focus the search field after the
+  // slide-in starts. Hamburger opens leave focus alone so the menu is for browsing.
+  const focusSearchOnOpen = useRef(false)
 
   // The URL's ?q= is the single source of truth for the APPLIED search, and this
   // field mirrors it (seeded from the URL so a deep link like /products?q=soap
@@ -104,9 +109,19 @@ export default function Navbar() {
   // `scrollToGrid` asks ProductsPage to land on the filter bar + results rather
   // than the banner — the same contract the footer's category links use. Searching
   // is a "show me the goods" intent, so the results should be what you land on.
+  //
+  // Close the drawer BEFORE navigating. On iOS Safari the soft-keyboard "Search"
+  // key is flaky with single-field forms that have no submit button; we also wire
+  // an explicit submit control + Enter keydown so the panel always hides.
   const runSearch = (e) => {
-    e.preventDefault()
+    e?.preventDefault?.()
     const q = term.trim()
+    // Dismiss the iOS keyboard first — leaving focus in the drawer while it exits
+    // can leave the panel visually stuck until the next paint on some WebKits.
+    if (typeof document !== 'undefined') {
+      const active = document.activeElement
+      if (active && typeof active.blur === 'function') active.blur()
+    }
     setOpen(false)
     startTransition(() =>
       // Record where the search began so the Products page can send the user
@@ -116,6 +131,11 @@ export default function Navbar() {
         state: q ? { scrollToGrid: true, searchOrigin: pathname + search } : { scrollToGrid: true },
       }),
     )
+  }
+
+  const openDrawer = ({ focusSearch = false } = {}) => {
+    focusSearchOnOpen.current = focusSearch
+    setOpen(true)
   }
 
   // Clearing the box while viewing results resets to ALL products IN PLACE (drops
@@ -135,6 +155,15 @@ export default function Navbar() {
   useEffect(() => {
     if (!open) return undefined
     return lockScroll()
+  }, [open])
+
+  // After the drawer opens from the search icon, focus the field so the iOS
+  // keyboard is ready. Slight delay lets the slide animation start first.
+  useEffect(() => {
+    if (!open || !focusSearchOnOpen.current) return undefined
+    focusSearchOnOpen.current = false
+    const t = window.setTimeout(() => searchInputRef.current?.focus(), 80)
+    return () => window.clearTimeout(t)
   }, [open])
 
   // Auto-close on ANY route change — link taps close instantly via closeAndGo, but
@@ -224,10 +253,148 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [pathname])
 
+  // Portalled outside the sticky header so translateZ(0) on <header> cannot turn
+  // these fixed layers into header-relative containing blocks on iOS Safari.
+  const drawer = typeof document !== 'undefined'
+    ? createPortal(
+      <>
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              key="nav-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setOpen(false)}
+              aria-hidden="true"
+              className="fixed inset-0 z-[95] bg-brand-950/50 backdrop-blur-sm lg:hidden"
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {open && (
+            <motion.aside
+              key="nav-drawer"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={spring}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu"
+              className="fixed inset-y-0 right-0 z-[95] flex w-[84%] max-w-sm flex-col overscroll-contain bg-sand-50 shadow-lift lg:hidden"
+            >
+              <div className="flex items-center justify-between border-b border-brand-100 px-5 py-4">
+                <Logo onClick={() => setOpen(false)} />
+                <button
+                  type="button"
+                  aria-label="Band karein"
+                  onClick={() => setOpen(false)}
+                  className="grid h-10 w-10 place-items-center rounded-xl border border-brand-200 bg-white text-brand-800"
+                >
+                  <X size={20} weight="bold" />
+                </button>
+              </div>
+
+              <form
+                onSubmit={runSearch}
+                action="/products"
+                role="search"
+                className="mx-3 mt-4 flex items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-3"
+              >
+                <button type="submit" aria-label="Search" className="shrink-0 text-brand-400">
+                  <MagnifyingGlass size={18} weight="bold" />
+                </button>
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  value={term}
+                  onChange={onSearchChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') runSearch(e)
+                  }}
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  placeholder="Maal dhoondein"
+                  aria-label="Maal dhoondein"
+                  className="w-full bg-transparent text-sm text-brand-800 outline-none placeholder:text-brand-400"
+                />
+              </form>
+
+              <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-3 py-4">
+                {navLinks.map((link) => {
+                  const active = isNavActive(link.to)
+                  return (
+                    <Link
+                      key={link.label}
+                      to={link.to}
+                      onClick={closeAndGo(link.to)}
+                      className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-base font-semibold transition-colors ${
+                        active ? 'bg-white text-saffron-700 shadow-soft' : 'text-brand-900 hover:bg-white'
+                      }`}
+                    >
+                      <span className="flex items-center gap-3">
+                        {link.label}
+                        <span className="urdu text-sm text-brand-400" dir="rtl">{link.urdu}</span>
+                      </span>
+                      <CaretRight size={16} className="text-brand-300" />
+                    </Link>
+                  )
+                })}
+              </nav>
+
+              {isLoggedIn && (
+                <div className="border-t border-brand-100 px-3 py-3">
+                  <div className="px-2 pb-1">
+                    <p className="truncate text-sm font-bold text-brand-900">{customer?.name || 'Mera account'}</p>
+                    <p className="truncate text-xs text-brand-400">{customer?.phone}</p>
+                  </div>
+                  <Link to="/profile" onClick={closeAndGo('/profile')} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
+                    <User size={18} weight="bold" /> My Profile
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={async () => { setOpen(false); await logout(); navigate('/') }}
+                    className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-saffron-700 hover:bg-white"
+                  >
+                    <SignOut size={18} weight="bold" /> Logout
+                  </button>
+                </div>
+              )}
+
+              <div className="border-t border-brand-100 p-4">
+                <a
+                  href={waHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex min-h-[52px] items-center justify-center gap-2.5 rounded-full bg-[#25D366] px-5 text-base font-bold text-white shadow-md ring-1 ring-inset ring-white/25 transition-all duration-200 hover:bg-[#20bd5a] hover:shadow-lg active:scale-[0.98]"
+                >
+                  <WhatsappLogo size={20} weight="fill" className="shrink-0" /> <span className="whitespace-nowrap">Order on WhatsApp</span>
+                </a>
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
+      </>,
+      document.body,
+    )
+    : null
+
   return (
+    <>
     <header
       ref={headerRef}
-      className="sticky top-0 z-[90] isolate"
+      className="sticky top-0 z-[90] isolate bg-sand-50"
+      style={{
+        // Promote the sticky header onto its own compositor layer (same trick as
+        // BottomNav). Without this, iOS Safari sometimes paints scrolling page
+        // content ABOVE the sticky chrome — especially with the marquee transform
+        // running inside the header. Opaque bg on the sticky element itself (not
+        // only on children) closes any see-through gaps during scroll.
+        transform: 'translateZ(0)',
+        WebkitBackfaceVisibility: 'hidden',
+        backfaceVisibility: 'hidden',
+      }}
     >
       {/* Announcement marquee — Urdu (pads the notch/status-bar inset on phones).
           Wrapped in a grid-rows collapser: 1fr → 0fr animates the height to zero
@@ -244,7 +411,13 @@ export default function Navbar() {
             className="overflow-hidden border-b border-white/5 bg-brand-950 py-2 text-[13px] text-saffron-200/85"
             style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}
           >
-            <div className="flex w-max animate-marquee gap-12 whitespace-nowrap" dir="rtl">
+            <div
+              className="flex w-max animate-marquee gap-12 whitespace-nowrap"
+              dir="rtl"
+              // Pause the transform animation while collapsed so a hidden marquee
+              // can't keep fighting iOS sticky compositing during scroll.
+              style={{ animationPlayState: hideAnnouncement ? 'paused' : 'running' }}
+            >
               {Array.from({ length: 2 }).map((_, dup) => (
                 <div key={dup} className="flex gap-12">
                   <span className="urdu">انگلینڈ — جس پر پورے پاکستان کا بھروسہ</span>
@@ -297,13 +470,21 @@ export default function Navbar() {
             <form
               onSubmit={runSearch}
               role="search"
+              action="/products"
               className="hidden min-w-0 flex-1 items-center gap-2.5 rounded-full border border-brand-100 bg-white px-4 py-2.5 transition-colors focus-within:border-saffron-400 hover:border-brand-200 sm:flex lg:mx-1 lg:max-w-2xl"
             >
-              <MagnifyingGlass size={16} weight="bold" className="shrink-0 text-brand-400" />
+              <button type="submit" aria-label="Search" className="shrink-0 text-brand-400 transition-colors hover:text-brand-700">
+                <MagnifyingGlass size={16} weight="bold" />
+              </button>
               <input
                 type="search"
                 value={term}
                 onChange={onSearchChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') runSearch(e)
+                }}
+                enterKeyHint="search"
+                autoComplete="off"
                 placeholder="Maal Dhondein"
                 aria-label="Maal Dhondein"
                 className="w-full min-w-0 bg-transparent text-sm text-brand-800 outline-none placeholder:text-brand-400"
@@ -314,7 +495,7 @@ export default function Navbar() {
             <button
               type="button"
               aria-label="Maal dhoondein"
-              onClick={() => setOpen(true)}
+              onClick={() => openDrawer({ focusSearch: true })}
               className="grid h-11 w-11 place-items-center rounded-full border border-brand-200 bg-white text-brand-800 transition-all active:scale-95 sm:hidden"
             >
               <MagnifyingGlass size={19} weight="bold" />
@@ -337,7 +518,7 @@ export default function Navbar() {
             <button
               type="button"
               aria-label="Menu kholein"
-              onClick={() => setOpen(true)}
+              onClick={() => openDrawer()}
               className="grid h-11 w-11 place-items-center rounded-xl border border-brand-200 bg-white text-brand-800 transition-all active:scale-95 lg:hidden"
             >
               <List size={20} weight="bold" />
@@ -345,117 +526,8 @@ export default function Navbar() {
           </div>
         </nav>
       </div>
-
-      {/* Mobile drawer — the backdrop and the panel each live in their own
-          AnimatePresence with a single *keyed* child. A bare Fragment holding both
-          motion elements made framer-motion's exit tracking unreliable (the panel
-          would snap/glitch on close); two single-child presences fix that while
-          keeping the exact same fade + spring-slide visuals. */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            key="nav-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setOpen(false)}
-            aria-hidden="true"
-            className="fixed inset-0 z-[95] bg-brand-950/50 backdrop-blur-sm lg:hidden"
-          />
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {open && (
-            <motion.aside
-              key="nav-drawer"
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={spring}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Menu"
-              className="fixed inset-y-0 right-0 z-[95] flex w-[84%] max-w-sm flex-col overscroll-contain bg-sand-50 shadow-lift lg:hidden"
-            >
-              <div className="flex items-center justify-between border-b border-brand-100 px-5 py-4">
-                <Logo onClick={() => setOpen(false)} />
-                <button
-                  type="button"
-                  aria-label="Band karein"
-                  onClick={() => setOpen(false)}
-                  className="grid h-10 w-10 place-items-center rounded-xl border border-brand-200 bg-white text-brand-800"
-                >
-                  <X size={20} weight="bold" />
-                </button>
-              </div>
-
-              <form onSubmit={runSearch} className="mx-3 mt-4 flex items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-3">
-                <MagnifyingGlass size={18} weight="bold" className="shrink-0 text-brand-400" />
-                <input
-                  type="search"
-                  value={term}
-                  onChange={onSearchChange}
-                  placeholder="Maal dhoondein"
-                  aria-label="Maal dhoondein"
-                  className="w-full bg-transparent text-sm text-brand-800 outline-none placeholder:text-brand-400"
-                />
-              </form>
-
-              <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-3 py-4">
-                {navLinks.map((link) => {
-                  const active = isNavActive(link.to)
-                  return (
-                    <Link
-                      key={link.label}
-                      to={link.to}
-                      onClick={closeAndGo(link.to)}
-                      className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-base font-semibold transition-colors ${
-                        active ? 'bg-white text-saffron-700 shadow-soft' : 'text-brand-900 hover:bg-white'
-                      }`}
-                    >
-                      <span className="flex items-center gap-3">
-                        {link.label}
-                        <span className="urdu text-sm text-brand-400" dir="rtl">{link.urdu}</span>
-                      </span>
-                      <CaretRight size={16} className="text-brand-300" />
-                    </Link>
-                  )
-                })}
-              </nav>
-
-              {/* account links — signed-out users reach Login via the Account tab / cart */}
-              {isLoggedIn && (
-                <div className="border-t border-brand-100 px-3 py-3">
-                  <div className="px-2 pb-1">
-                    <p className="truncate text-sm font-bold text-brand-900">{customer?.name || 'Mera account'}</p>
-                    <p className="truncate text-xs text-brand-400">{customer?.phone}</p>
-                  </div>
-                  <Link to="/profile" onClick={closeAndGo('/profile')} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-brand-900 hover:bg-white">
-                    <User size={18} weight="bold" /> My Profile
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={async () => { setOpen(false); await logout(); navigate('/') }}
-                    className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-saffron-700 hover:bg-white"
-                  >
-                    <SignOut size={18} weight="bold" /> Logout
-                  </button>
-                </div>
-              )}
-
-              <div className="border-t border-brand-100 p-4">
-                <a
-                  href={waHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex min-h-[52px] items-center justify-center gap-2.5 rounded-full bg-[#25D366] px-5 text-base font-bold text-white shadow-md ring-1 ring-inset ring-white/25 transition-all duration-200 hover:bg-[#20bd5a] hover:shadow-lg active:scale-[0.98]"
-                >
-                  <WhatsappLogo size={20} weight="fill" className="shrink-0" /> <span className="whitespace-nowrap">Order on WhatsApp</span>
-                </a>
-              </div>
-            </motion.aside>
-        )}
-      </AnimatePresence>
     </header>
+    {drawer}
+    </>
   )
 }

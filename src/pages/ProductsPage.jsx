@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom'
 import { X, Package, Stack, SquaresFour, Truck, ArrowRight, WhatsappLogo, Tag } from '@phosphor-icons/react'
 import PageBanner from '../components/PageBanner'
@@ -59,6 +59,24 @@ export default function ProductsPage() {
     p.delete('cat')
     setParams(p, { replace: true })
   }
+
+  // Empty search (e.g. "lotyn") from the navbar: bounce back automatically so the
+  // mobile search drawer / origin page is restored instead of parking on an empty
+  // results view. Manual "Filter saaf karein" still covers the same path for
+  // deep-links without searchOrigin, and for category-only empties.
+  const bouncedEmptySearch = useRef(false)
+  useEffect(() => {
+    bouncedEmptySearch.current = false
+  }, [qParam, location.key])
+  useEffect(() => {
+    if (loading || error) return
+    if (!qParam || data == null || data.length > 0) return
+    const origin = location.state?.searchOrigin
+    if (!origin || origin === location.pathname + location.search) return
+    if (bouncedEmptySearch.current) return
+    bouncedEmptySearch.current = true
+    navigate(-1)
+  }, [loading, error, data, qParam, location.state, location.pathname, location.search, navigate])
 
   const activeCat = categoryList.find((c) => String(c.id) === String(cat))
 
