@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader'
 import BrandLogo from '../components/BrandLogo'
 import { useCustomerAuth } from '../context/CustomerAuthContext'
 import { useNotify } from '../context/NotifyContext'
+import { useScrollRestoring } from '../hooks/useScrollRestoring'
 import { scrollBelowHeader } from '../lib/scroll'
 
 const inputCls =
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const { phoneLogin } = useCustomerAuth()
   const { success } = useNotify()
   const navigate = useNavigate()
+  const restoringScroll = useScrollRestoring()
   const [form, setForm] = useState({ phone: '', name: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -21,10 +23,12 @@ export default function LoginPage() {
   const formSectionRef = useRef(null)
 
   // On arrival (e.g. via the navbar Profile icon), bring the login form fully
-  // into view below the sticky header — no manual scrolling needed.
+  // into view below the sticky header — no manual scrolling needed. Skipped on a
+  // Back, where ScrollToTop is restoring the shopper's own position.
   useEffect(() => {
+    if (restoringScroll) return
     scrollBelowHeader(formSectionRef.current)
-  }, [])
+  }, [restoringScroll])
 
   // Phone field accepts digits only, capped at 11.
   const onPhone = (e) => {

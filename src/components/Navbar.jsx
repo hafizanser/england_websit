@@ -6,6 +6,8 @@ import { List, X, WhatsappLogo, CaretRight, MagnifyingGlass, User, SignOut } fro
 import { brand, navLinks } from '../data/site'
 import { useCart } from '../context/CartContext'
 import { useCustomerAuth } from '../context/CustomerAuthContext'
+import { useProductSearch } from '../hooks/useProductSearch'
+import { imgSrc, onImgError } from '../lib/img'
 import { spring } from '../lib/motion'
 import { lockScroll } from '../lib/scroll'
 
@@ -80,6 +82,16 @@ export default function Navbar() {
     setTerm(appliedQ)
   }, [appliedQ])
 
+  // Live results INSIDE the drawer, updated on every keystroke. The catalogue is
+  // fetched once (while the drawer is open) and filtered in memory, so there is
+  // no request — and therefore no lag, no re-render storm and no navigation —
+  // between one letter and the next. Submitting still opens the full results
+  // page; this just means the shopper usually doesn't have to.
+  const { results, total, loading: searchLoading, error: searchError } = useProductSearch(term, {
+    enabled: open,
+  })
+  const showResults = open && term.trim().length > 0
+
   // Navigate from the mobile drawer without a UI freeze: close the drawer
   // immediately (urgent) and run the route change inside a transition so React
   // yields to the browser — the drawer-close + page-in animations stay smooth
@@ -141,12 +153,27 @@ export default function Navbar() {
   // Clearing the box while viewing results resets to ALL products IN PLACE (drops
   // ?q=, stays on /products). Without this, clearing left the old ?q= applied, or
   // — via the browser's native search "×" + re-submit — bounced you off to Home.
+  //
+  // Never while the drawer is open, though: that navigation changes the URL, and
+  // the route watcher below closes the drawer on any URL change — so backspacing
+  // to an empty box used to slam the panel shut mid-edit. In the drawer an empty
+  // box simply drops back to the menu links.
   const onSearchChange = (e) => {
     const v = e.target.value
     setTerm(v)
-    if (v === '' && appliedQ && pathname === '/products') {
+    if (!open && v === '' && appliedQ && pathname === '/products') {
       startTransition(() => navigate('/products', { state: { scrollToGrid: true } }))
     }
+  }
+
+  // Tapping a live result goes straight to that product — the search box keeps
+  // its text so backing out lands on the same result list.
+  const openResult = (id) => (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return
+    e.preventDefault()
+    if (typeof document !== 'undefined') document.activeElement?.blur?.()
+    setOpen(false)
+    startTransition(() => navigate(`/product/${id}`))
   }
 
   // Lock background scroll while the mobile menu is open; the counted lock
@@ -173,21 +200,24 @@ export default function Navbar() {
 
     const vv = window.visualViewport
     const sync = () => {
-      // Cancel the browser's "scroll focused field into view" nudge while locked.
-      window.scrollTo(0, 0)
-      const top = vv ? vv.offsetTop : 0
-      const height = vv ? vv.height : window.innerHeight
-      setVvBox({ top, height })
+      const top = Math.round(vv ? vv.offsetTop : 0)
+      const height = Math.round(vv ? vv.height : window.innerHeight)
+      // Bail when nothing actually moved. Android fires `resize` on every
+      // keystroke as the keyboard's suggestion strip appears and disappears; a
+      // blind setState there re-lays out the drawer under the shopper's finger
+      // on every letter, which is what made the search field visibly hop. Also
+      // note there is deliberately NO window.scrollTo(0, 0) here any more — the
+      // body is already pinned by lockScroll(), so it could only ever fight the
+      // page's saved position, never help it.
+      setVvBox((prev) => (prev && prev.top === top && prev.height === height ? prev : { top, height }))
     }
     sync()
     vv?.addEventListener('resize', sync)
     vv?.addEventListener('scroll', sync)
-    window.addEventListener('focusin', sync)
     return () => {
       document.body.classList.remove('eng-drawer-open')
       vv?.removeEventListener('resize', sync)
       vv?.removeEventListener('scroll', sync)
-      window.removeEventListener('focusin', sync)
       setVvBox(null)
     }
   }, [open])
@@ -332,7 +362,7 @@ export default function Navbar() {
               // Keep drawer gestures inside the panel — don't let them chain-scroll the page.
               onTouchMove={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-brand-100 px-5 py-4">
+              <div className="flex shrink-0 items-center justify-between border-b border-brand-100 px-5 py-4">
                 <Logo onClick={() => setOpen(false)} />
                 <button
                   type="button"
@@ -344,11 +374,15 @@ export default function Navbar() {
                 </button>
               </div>
 
+              {/* `shrink-0` is what keeps the field where the shopper put it. It
+                  sits OUTSIDE the scrolling area below, so a growing result list
+                  can never push it, and a flex parent can never squeeze it — the
+                  box stays under the finger for the whole of a long query. */}
               <form
                 onSubmit={runSearch}
                 action="/products"
                 role="search"
-                className="mx-3 mt-4 flex items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-3"
+                className="mx-3 mt-4 flex shrink-0 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-3"
               >
                 <button type="submit" aria-label="Search" className="shrink-0 text-brand-400">
                   <MagnifyingGlass size={18} weight="bold" />
@@ -358,10 +392,6 @@ export default function Navbar() {
                   type="search"
                   value={term}
                   onChange={onSearchChange}
-                  onFocus={() => {
-                    // Stop the browser from lifting the locked background when the keypad opens.
-                    window.scrollTo(0, 0)
-                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') runSearch(e)
                   }}
@@ -369,34 +399,115 @@ export default function Navbar() {
                   autoComplete="off"
                   placeholder="Maal dhoondein"
                   aria-label="Maal dhoondein"
-                  className="w-full bg-transparent text-sm text-brand-800 outline-none placeholder:text-brand-400"
+                  // WebKit draws its OWN clear "×" inside type=search. Suppressed
+                  // here because the button below is the one that works on every
+                  // platform (Chrome/Android draws nothing), and two × side by
+                  // side reads as a glitch.
+                  className="w-full bg-transparent text-sm text-brand-800 outline-none placeholder:text-brand-400 [&::-webkit-search-cancel-button]:appearance-none"
                 />
+                {term && (
+                  <button
+                    type="button"
+                    aria-label="Search saaf karein"
+                    onClick={() => {
+                      setTerm('')
+                      searchInputRef.current?.focus({ preventScroll: true })
+                    }}
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-100 text-brand-500"
+                  >
+                    <X size={12} weight="bold" />
+                  </button>
+                )}
               </form>
 
-              <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-3 py-4">
-                {navLinks.map((link) => {
-                  const active = isNavActive(link.to)
-                  return (
-                    <Link
-                      key={link.label}
-                      to={link.to}
-                      onClick={closeAndGo(link.to)}
-                      className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-base font-semibold transition-colors ${
-                        active ? 'bg-white text-saffron-700 shadow-soft' : 'text-brand-900 hover:bg-white'
-                      }`}
-                    >
-                      <span className="flex items-center gap-3">
-                        {link.label}
-                        <span className="urdu text-sm text-brand-400" dir="rtl">{link.urdu}</span>
-                      </span>
-                      <CaretRight size={16} className="text-brand-300" />
-                    </Link>
-                  )
-                })}
-              </nav>
+              {showResults ? (
+                <div
+                  className="flex flex-1 flex-col overflow-y-auto overscroll-contain px-3 py-3"
+                  aria-live="polite"
+                >
+                  {searchLoading && (
+                    <p className="px-2 py-3 text-sm text-brand-400">Dhoond rahe hain...</p>
+                  )}
 
-              {isLoggedIn && (
-                <div className="border-t border-brand-100 px-3 py-3">
+                  {!searchLoading && searchError && (
+                    <p className="px-2 py-3 text-sm text-brand-500">
+                      Search abhi kaam nahi kar raha — Enter dabayein to poori list khulegi.
+                    </p>
+                  )}
+
+                  {!searchLoading && !searchError && results.length === 0 && (
+                    <p className="px-2 py-3 text-sm text-brand-500">
+                      "<span className="font-semibold text-brand-800">{term.trim()}</span>" ka koi
+                      maal nahi mila.
+                    </p>
+                  )}
+
+                  {results.map((p) => (
+                    <Link
+                      key={p.id}
+                      to={`/product/${p.id}`}
+                      onClick={openResult(p.id)}
+                      className="flex items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors hover:bg-white"
+                    >
+                      <img
+                        src={imgSrc(p.image, p.images?.[0])}
+                        onError={onImgError}
+                        alt=""
+                        loading="lazy"
+                        className="h-11 w-11 shrink-0 rounded-xl border border-brand-100 bg-white object-cover"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-brand-900">
+                          {p.name}
+                        </span>
+                        {p.category && (
+                          <span className="block truncate text-xs text-brand-400">{p.category}</span>
+                        )}
+                      </span>
+                      <CaretRight size={15} className="shrink-0 text-brand-300" />
+                    </Link>
+                  ))}
+
+                  {total > results.length && (
+                    <button
+                      type="button"
+                      onClick={runSearch}
+                      className="mt-1 rounded-2xl px-2 py-3 text-left text-sm font-bold text-saffron-700"
+                    >
+                      Saare {total} results dekhein
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-3 py-4">
+                  {navLinks.map((link) => {
+                    const active = isNavActive(link.to)
+                    return (
+                      <Link
+                        key={link.label}
+                        to={link.to}
+                        onClick={closeAndGo(link.to)}
+                        className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-base font-semibold transition-colors ${
+                          active ? 'bg-white text-saffron-700 shadow-soft' : 'text-brand-900 hover:bg-white'
+                        }`}
+                      >
+                        <span className="flex items-center gap-3">
+                          {link.label}
+                          <span className="urdu text-sm text-brand-400" dir="rtl">{link.urdu}</span>
+                        </span>
+                        <CaretRight size={16} className="text-brand-300" />
+                      </Link>
+                    )
+                  })}
+                </nav>
+              )}
+
+              {/* Account + WhatsApp blocks step aside while results are showing.
+                  With the keypad up the drawer is only a few hundred px tall, and
+                  these two would otherwise take most of it — leaving the results
+                  list a sliver to scroll in. */}
+              {isLoggedIn && !showResults && (
+                <div className="shrink-0 border-t border-brand-100 px-3 py-3">
                   <div className="px-2 pb-1">
                     <p className="truncate text-sm font-bold text-brand-900">{customer?.name || 'Mera account'}</p>
                     <p className="truncate text-xs text-brand-400">{customer?.phone}</p>
@@ -414,7 +525,7 @@ export default function Navbar() {
                 </div>
               )}
 
-              <div className="border-t border-brand-100 p-4">
+              <div className={`shrink-0 border-t border-brand-100 p-4 ${showResults ? 'hidden' : ''}`}>
                 <a
                   href={waHref}
                   target="_blank"

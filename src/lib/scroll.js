@@ -1,3 +1,5 @@
+import { recordScroll, pauseScrollTracking } from './scrollRestore'
+
 // Reference-counted body scroll lock. Multiple owners (the mobile menu, an
 // expanded video reel, drawers, modals, popups) can lock concurrently, and
 // scrolling is only ever restored once EVERY owner has released its lock.
@@ -18,13 +20,28 @@
 // ideal as a React effect cleanup: `useEffect(() => lockScroll(), [open])`.
 let lockCount = 0
 let saved = null
+let resumeTracking = null
 
 export function lockScroll() {
   if (typeof document === 'undefined') return () => {}
   if (lockCount === 0) {
     const { body, documentElement: html } = document
+    const scrollY = window.scrollY || window.pageYOffset || 0
+
+    // Pin the real position for the history entry BEFORE the body is frozen, and
+    // stop the scroll-position tracker until it is thawed again.
+    //
+    // `position: fixed` collapses the document to viewport height, so the browser
+    // clamps the scroll to 0 and fires an ordinary scroll event for it. Without
+    // this, merely opening the mobile menu would record 0 as "where the shopper
+    // was", and Back — or "Filter saaf karein" returning them to where they
+    // searched from — would land at the top of the page instead of the section
+    // they left. `force` is what makes the pin outlive the pause it installs.
+    recordScroll(scrollY, { force: true })
+    resumeTracking = pauseScrollTracking()
+
     saved = {
-      scrollY: window.scrollY || window.pageYOffset || 0,
+      scrollY,
       bodyOverflow: body.style.overflow,
       bodyPosition: body.style.position,
       bodyTop: body.style.top,
@@ -63,6 +80,10 @@ export function lockScroll() {
       html.style.overscrollBehavior = saved.htmlOverscroll
       saved = null
       window.scrollTo(0, y)
+      // Only now — the document is back to full height and sitting at `y`, so
+      // the next scroll event reports a real position rather than the clamp.
+      resumeTracking?.()
+      resumeTracking = null
     }
   }
 }

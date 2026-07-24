@@ -1,6 +1,7 @@
 import { memo, useMemo, useState, useRef, useLayoutEffect, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { useScrollRestoring } from '../hooks/useScrollRestoring'
 import { scrollSectionUnderHeader } from '../lib/scroll'
 import {
   Tag,
@@ -344,7 +345,13 @@ export default function OffersPage() {
   // then reveal — the first visible frame is already on the offer.
   const [params] = useSearchParams()
   const { key: locationKey } = useLocation()
-  const offerTarget = (params.get('offer') || '').trim()
+  const restoringScroll = useScrollRestoring()
+  // On a Back the ?offer= is still in the URL, but the shopper has already been
+  // here and scrolled — ScrollToTop is restoring that position, so this page must
+  // not blank the document and re-run its land-on-offer scroll over the top of
+  // it. A fresh arrival (deep link, shared URL) has nothing to restore and still
+  // owns the landing.
+  const offerTarget = restoringScroll ? '' : (params.get('offer') || '').trim()
   const [blinkId, setBlinkId] = useState(null)
   const didScrollRef = useRef(false)
 

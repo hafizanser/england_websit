@@ -179,25 +179,114 @@ export function mrpPieceLabel(value) {
   return `Rs. ${Math.round(v).toLocaleString('en-PK')}`
 }
 
-// A single, unambiguous pack-size summary line, e.g.
-//   "1 Carton = 36 Box · 1 Box = 24 Pcs"   (carton/box product)
-//   "1 Bundle = 80 Pcs"                      (bundle product)
-//   "1 Packet = 8 Pcs"                       (packet product)
-// Returns '' when there is no usable conversion data.
-export function packSummary(conv = {}) {
-  const c = conv || {}
-  const parts = []
-  const boxesPerCarton = Number(c.boxesPerCarton) || 0
-  const piecesPerBox = Number(c.piecesPerBox) || 0
-  const piecesPerPacket = Number(c.piecesPerPacket) || 0
-  const piecesPerBundle = Number(c.piecesPerBundle) || 0
+// Order in which a product's SECONDARY sub-unit is resolved — the unit that
+// `boxesPerCarton` ("units per main unit") actually counts inside one Carton.
+// Mirrors the dashboard's own resolution (AdminProducts → secondaryUnitKey) so
+// the storefront line and the admin field can never name it differently.
+const SECONDARY_ORDER = ['Box', 'Bundle', 'Packet', 'Dozen', 'Piece']
 
-  if (boxesPerCarton > 0) parts.push(`1 Carton = ${boxesPerCarton} Box`)
-  if (piecesPerBox > 0) parts.push(`1 Box = ${piecesPerBox} Pcs`)
-  if (piecesPerBundle > 0) parts.push(`1 Bundle = ${piecesPerBundle} Pcs`)
-  if (!parts.length && piecesPerPacket > 0) parts.push(`1 Packet = ${piecesPerPacket} Pcs`)
+// The unit LABELS a product actually sells, taken from its unitOptions (each
+// `{ unit, label, ... }`) or a bare list of unit keys. Deduped, DB keys resolved
+// through unitLabelFor so 'cotton' and 'carton' both land on "Carton".
+function availableUnitLabels(options = []) {
+  const out = []
+  for (const o of options || []) {
+    if (!o) continue
+    const label = unitLabelFor(typeof o === 'object' ? o.unit : o)
+    if (label && !out.includes(label)) out.push(label)
+  }
+  return out
+}
+
+// A single, unambiguous pack-size summary line describing ONLY the units the
+// product is actually sold in, e.g.
+//   "1 Carton = 36 Box · 1 Box = 24 Pcs"      (carton/box product)
+//   "1 Carton = 6 Bundle · 1 Bundle = 80 Pcs" (carton/bundle product)
+//   "1 Packet = 8 Pcs"                        (packet-only product)
+//
+// `options` is the product's unitOptions (or unit-key list). It is what keeps the
+// line honest: `boxesPerCarton` is a COUNT, not a unit — it says how many of the
+// product's secondary sub-unit fit in a carton, and that sub-unit is a Bundle or a
+// Packet just as often as a Box. Naming it "Box" unconditionally (the old
+// behaviour) invented a unit the product doesn't sell. Likewise a conversion figure
+// left over in the row for a unit the product no longer offers is skipped rather
+// than printed.
+//
+// Passing no options keeps the legacy behaviour (describe whatever the conversions
+// define) so callers without a unit list don't lose their line.
+// Returns '' when there is no usable conversion data.
+export function packSummary(conv = {}, options = []) {
+  const c = conv || {}
+  const boxesPerCarton = Number(c.boxesPerCarton) || 0
+  const pieces = {
+    Box: Number(c.piecesPerBox) || 0,
+    Bundle: Number(c.piecesPerBundle) || 0,
+    Packet: Number(c.piecesPerPacket) || 0,
+    Dozen: Number(c.piecesPerDozen) || 0,
+  }
+
+  const units = availableUnitLabels(options)
+  // No unit list → legacy mode: go by the conversion data alone. Dozen is the one
+  // exclusion there, because the API hard-codes piecesPerDozen = 12 on EVERY
+  // product, whether or not it is sold by the dozen.
+  const sells = (label) => (units.length ? units.includes(label) : label !== 'Dozen')
+
+  const parts = []
+
+  // 1 Carton = N <secondary unit> — only when the product really sells cartons.
+  const secondary = SECONDARY_ORDER.find((u) => sells(u))
+  if (sells('Carton') && boxesPerCarton > 0) {
+    if (secondary && secondary !== 'Piece') parts.push(`1 Carton = ${boxesPerCarton} ${secondary}`)
+    // A carton of loose pieces (or of an unnamed sub-unit whose piece count we do
+    // know) is still describable — in pieces, the one denominator always valid.
+    else if (secondary === 'Piece') parts.push(`1 Carton = ${boxesPerCarton} Pcs`)
+    else if (pieces.Box > 0) parts.push(`1 Carton = ${boxesPerCarton * pieces.Box} Pcs`)
+  }
+
+  // 1 <sub-unit> = N Pcs, for every sub-unit the product sells that has real
+  // piece data. "1 Piece = 1 Pcs" is never useful, so Piece is skipped here.
+  for (const u of SECONDARY_ORDER) {
+    if (u === 'Piece' || !sells(u) || pieces[u] <= 0) continue
+    parts.push(`1 ${u} = ${pieces[u]} Pcs`)
+  }
 
   return parts.join(' · ')
+}
+
+// ---------------------------------------------------------------------------
+// Retailer profit margin — what a dukaandaar makes reselling at MRP.
+// ---------------------------------------------------------------------------
+
+// The product's LARGEST selling unit: the highest-priced option (a Carton costs
+// more than a Box costs more than a Piece, so price — not the label — is the
+// reliable test, and it keeps working for products with no carton at all).
+// Options priced at 0 aren't sellable, so they're ignored. Returns null when the
+// product has no priced option.
+export function largestUnitOption(options = []) {
+  const list = (options || []).filter((o) => o && (Number(o.price) || 0) > 0)
+  if (!list.length) return null
+  return list.reduce((a, b) => ((Number(b.price) || 0) > (Number(a.price) || 0) ? b : a), list[0])
+}
+
+// Profit margin for ONE unit option, as a percentage of MRP:
+//   (MRP − wholesale) / MRP × 100
+// Same formula the dashboard prints beside every MRP field (AdminProducts →
+// mrpRow), so the storefront and the admin can never disagree.
+//
+// Returns null when it can't be derived — no wholesale price, no MRP, or an MRP
+// that isn't above the wholesale price. That last case matters: the API collapses
+// `retail` onto `price` whenever mrp <= price (see ProductRepo::toStorefront), so
+// a missing MRP would otherwise render as a confident, meaningless "0%".
+export function unitProfitMargin(option) {
+  const price = Number(option?.price) || 0
+  const mrp = Number(option?.retail) || 0
+  if (price <= 0 || mrp <= price) return null
+  return ((mrp - price) / mrp) * 100
+}
+
+// "38%" — rounded margin label. '' when there is nothing to show.
+export function marginLabel(pct) {
+  return pct == null || !Number.isFinite(pct) ? '' : `${Math.round(pct)}%`
 }
 
 // ---------------------------------------------------------------------------

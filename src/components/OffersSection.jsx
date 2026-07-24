@@ -6,6 +6,7 @@ import { money, unitLabelFor } from '../lib/cartEngine'
 import { imgSrc, onImgError } from '../lib/img'
 import { dealUrdu } from '../lib/offerUrdu'
 import { Reveal, Check } from './Reveal'
+import { ErrorState } from './ui'
 import MrpPerPiece from './MrpPerPiece'
 
 // ---- offer helpers (mirror the /offers "Featured Deals" cards) --------------
@@ -95,6 +96,24 @@ export default function OffersSection() {
             <span className="btn-offers-all" aria-hidden="true">
               <span className="inline-block h-4 w-28 rounded-full bg-sand-200 align-middle" />
             </span>
+          </Reveal>
+        </div>
+      </section>
+    )
+  }
+  // A failed request is NOT the same as "no live offers" — show an honest,
+  // retryable error instead of silently dropping the whole banner section.
+  if (offersA.error) {
+    return (
+      <section className="section offers" id="offers">
+        <div className="wrap">
+          <Reveal>
+            <span className="eyebrow">Offers</span>
+            <h2 className="title">Khaas offers, <span className="g">khaas dukaandaron ke liye</span></h2>
+            <div className="title-ur ur">خاص آفرز، خاص دکانداروں کے لیے</div>
+          </Reveal>
+          <Reveal className="offer-grid">
+            <ErrorState message="Offers load nahi huye." onRetry={offersA.reload} />
           </Reveal>
         </div>
       </section>

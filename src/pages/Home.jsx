@@ -13,6 +13,7 @@ import { imgSrc, onImgError } from '../lib/img'
 import VideoReviews from '../components/VideoReviews'
 import OffersSection from '../components/OffersSection'
 import { Reveal, Check } from '../components/Reveal'
+import { ErrorState, EmptyState } from '../components/ui'
 
 // Single WhatsApp number (mirrors the brand contact).
 const waHref = (t) =>
@@ -236,8 +237,11 @@ export default function Home() {
   const products = useAsync(async () => (await http.get('/products/top-selling')).data, [])
   const reviewsA = useAsync(() => getFeaturedReviews(12), [])
 
-  const catList = (!cats.loading && Array.isArray(cats.data) ? cats.data : []).slice(0, 7)
-  const top = (!products.loading && Array.isArray(products.data) ? products.data : []).filter((p) => p?.active !== 0).slice(0, 4)
+  const catList = (Array.isArray(cats.data) ? cats.data : []).slice(0, 7)
+  const top = (Array.isArray(products.data) ? products.data : []).filter((p) => p?.active !== 0).slice(0, 4)
+  // Each section is exactly one of: loading (skeletons) · error (retry) · empty · data.
+  const catsReady = !cats.loading && !cats.error
+  const topReady = !products.loading && !products.error
   const reviews = (reviewsA.data || []).slice(0, 8).map((r, i) => ({ ...r, stars: displayStars(r, i), customer_name: REVIEW_NAMES[i % REVIEW_NAMES.length] }))
   const cityList = deliveryCities.slice(0, 11)
 
@@ -311,7 +315,13 @@ export default function Home() {
           </Reveal>
           <Reveal className="prod-grid">
             {products.loading && Array.from({ length: 4 }).map((_, i) => <HomeProductSkeleton key={i} />)}
-            {!products.loading && top.map((p) => (p ? <HomeProduct key={p.id} p={p} /> : null))}
+            {!products.loading && products.error && (
+              <ErrorState message="Top selling products load nahi huye." onRetry={products.reload} />
+            )}
+            {topReady && top.length === 0 && (
+              <EmptyState title="Abhi koi product nahi" text="Naya stock aate hi yahan nazar aayega." />
+            )}
+            {topReady && top.map((p) => (p ? <HomeProduct key={p.id} p={p} /> : null))}
           </Reveal>
         </div>
       </section>
@@ -327,13 +337,19 @@ export default function Home() {
           </Reveal>
           <Reveal className="cat-grid">
             {cats.loading && Array.from({ length: 8 }).map((_, i) => <HomeCategorySkeleton key={i} />)}
-            {!cats.loading && catList.map((c) => (
+            {!cats.loading && cats.error && (
+              <ErrorState message="Categories load nahi huin." onRetry={cats.reload} />
+            )}
+            {catsReady && catList.length === 0 && (
+              <EmptyState title="Abhi koi category nahi" text="Categories add hote hi yahan nazar aayengi." />
+            )}
+            {catsReady && catList.map((c) => (
               <Link className="cat-card" key={c.id} to={`/products?cat=${c.id}`}>
                 <div className="media"><img src={imgSrc(c.image)} alt={c.name} loading="lazy" onError={onImgError} /></div>
                 <div className="row"><b>{c.name}</b><span className="arr"><Arrow /></span></div>
               </Link>
             ))}
-            {!cats.loading && <Link className="cat-card more" to="/products"><div className="n">30+</div><div>aur products dekhein</div><div className="ur">سب کچھ دیکھیں</div></Link>}
+            {catsReady && catList.length > 0 && <Link className="cat-card more" to="/products"><div className="n">30+</div><div>aur products dekhein</div><div className="ur">سب کچھ دیکھیں</div></Link>}
           </Reveal>
         </div>
       </section>

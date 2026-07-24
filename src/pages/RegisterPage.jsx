@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader'
 import BrandLogo from '../components/BrandLogo'
 import { useCustomerAuth } from '../context/CustomerAuthContext'
 import { useNotify } from '../context/NotifyContext'
+import { useScrollRestoring } from '../hooks/useScrollRestoring'
 import { scrollBelowHeader } from '../lib/scroll'
 
 const inputCls =
@@ -24,6 +25,7 @@ export default function RegisterPage() {
   const { phoneLogin } = useCustomerAuth()
   const { success } = useNotify()
   const navigate = useNavigate()
+  const restoringScroll = useScrollRestoring()
   const [form, setForm] = useState({ name: '', phone: '', email: '', city: '', address: '' })
   const [errors, setErrors] = useState({})
   const [serverError, setServerError] = useState('')
@@ -33,9 +35,12 @@ export default function RegisterPage() {
 
   // On arrival (e.g. via the "naya account" link on the Login page), bring the
   // register form fully into view below the sticky header — no manual scrolling.
+  // Skipped on a Back: returning here means the shopper already has a position on
+  // this page, and ScrollToTop is busy restoring it.
   useEffect(() => {
+    if (restoringScroll) return
     scrollBelowHeader(formCardRef.current)
-  }, [])
+  }, [restoringScroll])
 
   const update = (k) => (e) => {
     setForm((f) => ({ ...f, [k]: e.target.value }))

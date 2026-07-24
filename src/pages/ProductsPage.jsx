@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom'
 import { X, Package, Stack, SquaresFour, Truck, ArrowRight, WhatsappLogo, Tag } from '@phosphor-icons/react'
 import PageBanner from '../components/PageBanner'
@@ -7,6 +7,7 @@ import ProductCard from '../components/ProductCard'
 import { ProductSkeleton, ErrorState, EmptyState } from '../components/ui'
 import { getProducts, getCategories } from '../api/catalog'
 import { useAsync } from '../hooks/useAsync'
+import { useScrollRestoring } from '../hooks/useScrollRestoring'
 import { waLink } from '../lib/whatsapp'
 import { scrollSectionUnderHeader } from '../lib/scroll'
 
@@ -14,6 +15,7 @@ export default function ProductsPage() {
   const [params, setParams] = useSearchParams()
   const location = useLocation()
   const navigate = useNavigate()
+  const restoringScroll = useScrollRestoring()
   // Accept both ?cat= (internal convention) and ?category= (external/deep links).
   const cat = params.get('cat') || params.get('category') || 'all'
   // Search term comes straight from the URL (?q=) — the navbar search drives it,
@@ -29,54 +31,52 @@ export default function ProductsPage() {
   const { data: cats } = useAsync(() => getCategories(), [])
   const categoryList = cats || []
 
+  // Where the search that opened this view was launched from. `setParams` starts
+  // a fresh navigation and drops `location.state`, so every in-place filter change
+  // has to carry this forward explicitly — otherwise tapping one category pill on
+  // an empty search silently loses the way home and "Filter saaf karein" degrades
+  // to clearing in place.
+  const searchOrigin = location.state?.searchOrigin
+  const keepOrigin = { replace: true, state: searchOrigin ? { searchOrigin } : undefined }
+
   const setCat = (next) => {
     const p = new URLSearchParams(params)
     if (next === 'all') p.delete('cat')
     else p.set('cat', next)
-    setParams(p, { replace: true })
+    setParams(p, keepOrigin)
   }
 
   const clearSearch = () => {
     const p = new URLSearchParams(params)
     p.delete('q')
-    setParams(p, { replace: true })
+    setParams(p, keepOrigin)
   }
 
   const resetFilters = () => {
-    // If this view was opened by a search from another page and found nothing,
-    // send the user back where they came from — restoring that page's state and
-    // scroll via a real history pop (no reload). Clearing ?q also empties the
-    // navbar search box (it syncs to the URL's ?q).
-    const origin = location.state?.searchOrigin
-    if (qParam && origin && origin !== location.pathname + location.search) {
+    // Opened by a search from somewhere else? Then "clear the filter" means "put
+    // me back where I was", not "show me all products". Going back through
+    // history (rather than navigating to the origin URL) is what makes that
+    // exact: a real pop restores the origin entry, and ScrollToTop restores the
+    // scroll position saved for it — the same section, not the top of the page.
+    if (qParam && searchOrigin && searchOrigin !== location.pathname + location.search) {
       navigate(-1)
       return
     }
-    // Otherwise (direct/shared link, or a category-only empty state) clear the
-    // filters in place.
+    // Otherwise (direct/shared link, or a category-only empty state) there is no
+    // origin to return to — clear the filters in place.
     const p = new URLSearchParams(params)
     p.delete('q')
     p.delete('cat')
     setParams(p, { replace: true })
   }
 
-  // Empty search (e.g. "lotyn") from the navbar: bounce back automatically so the
-  // mobile search drawer / origin page is restored instead of parking on an empty
-  // results view. Manual "Filter saaf karein" still covers the same path for
-  // deep-links without searchOrigin, and for category-only empties.
-  const bouncedEmptySearch = useRef(false)
-  useEffect(() => {
-    bouncedEmptySearch.current = false
-  }, [qParam, location.key])
-  useEffect(() => {
-    if (loading || error) return
-    if (!qParam || data == null || data.length > 0) return
-    const origin = location.state?.searchOrigin
-    if (!origin || origin === location.pathname + location.search) return
-    if (bouncedEmptySearch.current) return
-    bouncedEmptySearch.current = true
-    navigate(-1)
-  }, [loading, error, data, qParam, location.state, location.pathname, location.search, navigate])
+  // A search that matches nothing STAYS HERE and shows the empty state, with
+  // "Filter saaf karein" as the way back. An earlier version bounced the shopper
+  // to the previous page automatically the moment a search came back empty, which
+  // made pressing Enter look like it had done nothing at all — the drawer closed,
+  // the screen flicked, and they were back where they started with no explanation
+  // and no results page. Leaving them on the empty state is the honest answer:
+  // the search ran, here is what it found, here is the button to undo it.
 
   const activeCat = categoryList.find((c) => String(c.id) === String(cat))
 
@@ -110,7 +110,11 @@ export default function ProductsPage() {
   const filterAnchorRef = useRef(null)
   const didScrollRef = useRef(false)
   const arrivedRef = useRef(false)
-  const wantsGrid = Boolean(location.state?.scrollToGrid)
+  // NOT while a Back is being restored. `state.scrollToGrid` lives ON the history
+  // entry, so it is still set when the shopper returns here from a product — but
+  // by then they have their own position further down the grid, which ScrollToTop
+  // is putting back. Landing on the filter bar again would undo exactly that.
+  const wantsGrid = Boolean(location.state?.scrollToGrid) && !restoringScroll
 
   // Must also be a layout effect, and declared first: layout effects all run before
   // any passive effect, so a passive reset here would clear the guard only AFTER
@@ -226,13 +230,22 @@ export default function ProductsPage() {
 
           {!loading &&
             !error &&
-            data?.map((p) => <ProductCard key={p.id} p={p} preferLargestUnit showVideo={false} />)}
+            data?.map((p) => <ProductCard key={p.id} p={p} preferLargestUnit showMargin showVideo={false} />)}
 
+          {/* A search that found nothing and a category that is simply empty are
+              different situations and must not share one message — "is category
+              mein maal nahi" in answer to a typed search reads as if the search
+              never ran. The action row is identical either way, so "Filter saaf
+              karein" is always on screen as the way out. */}
           {!loading && !error && data?.length === 0 && (
             <EmptyState
               icon={Package}
-              title="Is category mein abhi maal nahi"
-              text="Doosri category dekhein ya WhatsApp pe poochein."
+              title={qParam ? `"${qParam}" ka koi maal nahi mila` : 'Is category mein abhi maal nahi'}
+              text={
+                qParam
+                  ? 'Spelling check karein, ya doosra naam likh kar dhoondein — warna WhatsApp pe poochein.'
+                  : 'Doosri category dekhein ya WhatsApp pe poochein.'
+              }
               action={
                 <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
                   <button
@@ -244,7 +257,9 @@ export default function ProductsPage() {
                   </button>
                   <a
                     href={waLink(
-                      `Assalam o alaikum! ${activeCat ? activeCat.name + ' ' : ''}stock ke baare mein maloomat chahiye.`,
+                      qParam
+                        ? `Assalam o alaikum! "${qParam}" ke baare mein maloomat chahiye.`
+                        : `Assalam o alaikum! ${activeCat ? activeCat.name + ' ' : ''}stock ke baare mein maloomat chahiye.`,
                     )}
                     target="_blank"
                     rel="noopener noreferrer"

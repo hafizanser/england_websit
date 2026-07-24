@@ -617,6 +617,11 @@
   background:linear-gradient(115deg, transparent 35%, rgba(255,255,255,.09) 50%, transparent 65%);
   transform:translateX(-120%); transition:transform .95s cubic-bezier(.23,1,.32,1); pointer-events:none; z-index:3; }
 .eng .video-card:hover .video-poster-shimmer{ transform:translateX(120%); }
+/* Play control — shown on EVERY reel thumbnail (idle, hovered or playing), with a
+   gentle "breathing" pulse so it always reads as tap-me. The button's own
+   `transform` is left alone so hover-grow / press-shrink keep working; the
+   animation lives on the glow, the two ripple rings and the icon instead, which
+   is also why the rings are separate pseudo-elements (staggered → double ripple). */
 .eng .video-play-btn{
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
   width:54px; height:54px; border-radius:50%; padding:0;
@@ -624,17 +629,22 @@
   display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,.18); cursor:pointer;
   backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); -webkit-tap-highlight-color:transparent;
   transition:transform .4s cubic-bezier(.34,1.56,.64,1), box-shadow .4s ease, opacity .35s ease, background .3s ease;
-  z-index:5; opacity:.95; box-shadow:0 14px 28px -10px rgba(212,169,58,.6); }
-.eng .video-play-btn::before{
-  content:''; position:absolute; inset:-8px; border-radius:50%;
-  border:1px solid rgba(212,169,58,.4); animation:vsVideoPulse 2.4s ease-out infinite; }
+  z-index:5; opacity:.95; box-shadow:0 14px 28px -10px rgba(212,169,58,.6);
+  animation:vsPlayBreathe 2.8s ease-in-out infinite; }
+.eng .video-play-btn::before,
+.eng .video-play-btn::after{
+  content:''; position:absolute; inset:-8px; border-radius:50%; pointer-events:none;
+  border:1px solid rgba(212,169,58,.4); animation:vsVideoPulse 2.8s ease-out infinite; }
+/* second ring, half a cycle behind → a continuous, unhurried ripple */
+.eng .video-play-btn::after{ border-color:rgba(212,169,58,.26); animation-delay:1.4s; }
+.eng .video-play-btn svg{ animation:vsPlayIconPulse 2.8s ease-in-out infinite; }
 .eng .video-card:hover .video-play-btn{ transform:translate(-50%,-50%) scale(1.08); }
 .eng .video-play-btn:active{ transform:translate(-50%,-50%) scale(.94); }
-/* on the reel that's actually playing, keep the frame clear — reveal Pause on hover */
-.eng .video-card.is-playing .video-play-btn{ opacity:0; pointer-events:none; }
-.eng .video-card.is-playing .video-play-btn::before{ animation:none; }
-.eng .video-card.is-playing:hover .video-play-btn{ opacity:1; pointer-events:auto; background:rgba(14,17,22,.6); color:var(--white); border-color:rgba(255,255,255,.28); }
 @keyframes vsVideoPulse{ 0%{transform:scale(1);opacity:.7} 100%{transform:scale(1.6);opacity:0} }
+@keyframes vsPlayBreathe{
+  0%,100%{ opacity:.9;  box-shadow:0 14px 28px -10px rgba(212,169,58,.55); }
+  50%    { opacity:1;   box-shadow:0 16px 34px -8px rgba(212,169,58,.9); } }
+@keyframes vsPlayIconPulse{ 0%,100%{ transform:scale(1) } 50%{ transform:scale(1.1) } }
 .eng .video-poster-caption{ position:absolute; left:0; right:0; bottom:0; padding:22px 24px 24px; color:var(--white); z-index:4; }
 .eng .video-poster-caption .small{
   font-family:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -664,13 +674,12 @@
   box-shadow:0 8px 20px -8px rgba(212,169,58,.7); }
 .eng .video-sound-btn.is-on:hover{ background:var(--gold); border-color:var(--gold); }
 
-/* Desktop (real hover): the play + sound controls show ONLY while the cursor is
-   over the card, and hide the instant it leaves. Touch devices are unaffected
-   (their controls live in the focus view, which auto-hides them). */
+/* Desktop (real hover): the SOUND toggle shows ONLY while the cursor is over the
+   card, and hides the instant it leaves. The play icon is deliberately excluded —
+   it stays on every thumbnail, pulsing, on desktop and touch alike. Touch devices
+   are unaffected (their controls live in the focus view, which auto-hides them). */
 @media (hover:hover) and (pointer:fine){
-  .eng .video-card .video-play-btn,
   .eng .video-card .video-sound-btn{ opacity:0; pointer-events:none; }
-  .eng .video-card:hover .video-play-btn,
   .eng .video-card:hover .video-sound-btn{ opacity:1; pointer-events:auto; }
 }
 
@@ -710,6 +719,11 @@
 }
 @media (prefers-reduced-motion: reduce){
   .eng .video-track{ animation:none; }
+  /* Play icon stays fully visible, it just stops breathing. */
+  .eng .video-play-btn,
+  .eng .video-play-btn svg{ animation:none; }
+  .eng .video-play-btn::before,
+  .eng .video-play-btn::after{ animation:none; opacity:.5; }
 }
 
 /* ============================================================================
@@ -776,7 +790,7 @@ body.vs-focus .video-strip{ -webkit-mask-image:none; mask-image:none; }
 
 /* Full view: hide the Play overlay COMPLETELY; show ONLY the Sound (Mute/Unmute)
    button, pinned at the top of the player and always visible. The high-specificity
-   selectors beat the .is-playing / @media(hover) hide rules above. */
+   selectors beat the @media(hover) hide rule above. */
 .eng .video-card.is-expanded .video-play-btn{ display:none; }
 /* Focus view: Sound sits on the FAR right, with the Close (✕) button immediately
    to its left — both on the same line (top:14px), equally spaced. */

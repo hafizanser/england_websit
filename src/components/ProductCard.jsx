@@ -1,10 +1,10 @@
 import { memo, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { CheckCircle, Package } from '@phosphor-icons/react'
+import { CheckCircle, Package, TrendUp } from '@phosphor-icons/react'
 import { orderUnitOptions, unitLabelFor } from '../lib/cartEngine'
 import { spring } from '../lib/motion'
-import { packSummary } from '../lib/pack'
+import { packSummary, largestUnitOption, unitProfitMargin, marginLabel } from '../lib/pack'
 import { productVideo } from '../lib/productMedia'
 import EnquiryButton from './EnquiryButton'
 import MrpPerPiece from './MrpPerPiece'
@@ -70,7 +70,7 @@ const CardEnquiry = memo(function CardEnquiry({ p, options, selected, onUnit }) 
   )
 })
 
-function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true, showVideo = false }) {
+function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true, showVideo = false, showMargin = false }) {
   const reduce = useReducedMotion()
 
   // Preview clip for the corner play badge (null when the product has none — the
@@ -95,9 +95,17 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true, s
   const selected = options.find((o) => o.unit === selUnit) || options[0]
 
   // Derived pack info (consistent across every card via the shared helper).
+  // `options` is passed so the line names ONLY the units this product is really
+  // sold in — a Carton/Bundle product never claims a Box it doesn't have.
   const conv = p.conversions || {}
-  const pack = packSummary(conv)
+  const pack = packSummary(conv, options)
   const stock = Number(p.stock) || 0
+
+  // Profit margin on the LARGEST selling unit (usually the Carton) — the headline
+  // wholesale unit, so it's the figure a dukaandaar actually buys on. Derived from
+  // that unit's own MRP vs its wholesale price; hidden when either is missing.
+  const marginUnit = showMargin ? largestUnitOption(options) : null
+  const margin = marginUnit ? unitProfitMargin(marginUnit) : null
 
   // Image content shared by the linked (storefront) and non-linked media
   // wrappers, so the two branches can never visually drift.
@@ -172,6 +180,21 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true, s
 
         {/* MRP per piece — the only price shown (selling prices are hidden). */}
         <MrpPerPiece product={p} />
+
+        {/* Profit margin on the largest selling unit — computed, never hardcoded.
+            Wraps to a second line rather than overflowing the narrow 2-column
+            mobile card; each half stays unbroken so it never splits mid-phrase. */}
+        {margin != null && (
+          <span className="inline-flex w-fit max-w-full flex-wrap items-center gap-x-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-bold leading-relaxed text-green-800">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+              <TrendUp size={11} weight="bold" className="shrink-0" />
+              {marginLabel(margin)} profit margin
+            </span>
+            <span className="whitespace-nowrap font-semibold text-green-700/90">
+              per {marginUnit.label || unitLabelFor(marginUnit.unit)}
+            </span>
+          </span>
+        )}
 
         {/* MOQ — minimum order for the selected unit */}
         <span className="w-fit rounded-full bg-sand-100 px-2 py-0.5 text-[10px] font-bold text-brand-700">

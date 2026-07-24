@@ -48,10 +48,14 @@ export const setCustomerToken = (token) => {
   }
 }
 
-async function request(path, { method = 'GET', body, auth = false, customerAuth = false, timeout = 9000 } = {}) {
+async function request(path, { method = 'GET', body, auth = false, customerAuth = false, timeout = 15000 } = {}) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeout)
-  const headers = { 'Content-Type': 'application/json' }
+  // Content-Type only matters when we actually send a JSON body. Setting it on a
+  // body-less GET makes the request non-"simple", so the browser fires a CORS
+  // preflight OPTIONS before EVERY read — doubling the round-trips a cold
+  // homepage needs and pushing slow/serialised backends past the timeout.
+  const headers = body !== undefined ? { 'Content-Type': 'application/json' } : {}
   if (auth) {
     const token = getAdminToken()
     if (token) headers.Authorization = `Bearer ${token}`
@@ -155,8 +159,28 @@ async function requestForm(path, formData, { method = 'POST', auth = true, timeo
   }
 }
 
+// ---- in-flight GET de-duplication ------------------------------------------
+// A cold homepage mounts several components that read the SAME endpoint at the
+// same moment (/categories from Home + Footer, /offers from OffersSection +
+// CartContext), and React StrictMode invokes every effect twice in dev — so one
+// load used to fire each read 2-4 times. Concurrent callers now share a single
+// network request. The entry is dropped the moment it settles, so nothing is
+// cached and a later read always hits the server again (no stale data).
+const inFlightGets = new Map()
+
+function dedupedGet(path, opts = {}) {
+  const key = `${opts.auth ? 'a' : ''}${opts.customerAuth ? 'c' : ''}|${path}`
+  const pending = inFlightGets.get(key)
+  if (pending) return pending
+  const p = request(path, { ...opts, method: 'GET' }).finally(() => {
+    if (inFlightGets.get(key) === p) inFlightGets.delete(key)
+  })
+  inFlightGets.set(key, p)
+  return p
+}
+
 export const http = {
-  get: (p, opts) => request(p, { ...opts, method: 'GET' }),
+  get: (p, opts) => dedupedGet(p, opts),
   post: (p, body, opts) => request(p, { ...opts, method: 'POST', body }),
   put: (p, body, opts) => request(p, { ...opts, method: 'PUT', body }),
   patch: (p, body, opts) => request(p, { ...opts, method: 'PATCH', body }),
