@@ -33,7 +33,9 @@ export async function getPdf(id) {
 export async function savePdf(pdf) {
   const fd = toFormData(pdf)
   const path = pdf.id ? `/admin/pdf-documents/${pdf.id}` : '/admin/pdf-documents'
-  return (await http.postForm(path, fd, { auth: true })).document
+  // PDFs are multi-MB uploads — give them a long timeout (like video uploads),
+  // otherwise the default 20s aborts mid-upload on normal connections.
+  return (await http.postForm(path, fd, { auth: true, timeout: 300000 })).document
 }
 
 export async function deletePdf(id) {
