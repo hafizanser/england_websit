@@ -355,8 +355,13 @@ export default function ProductDetailPage() {
               Sits above the bottom nav and respects the home-bar safe area. */}
           {selected && (
             <div
+              data-fixed-chrome
               className="fixed inset-x-0 z-30 px-3 md:hidden"
-              style={{ bottom: 'calc(3.75rem + env(safe-area-inset-bottom))' }}
+              // --sab is the frozen, measured home-bar inset (lib/viewport.js).
+              // With raw env() this bar sat 34px higher or lower depending on
+              // whether Safari's toolbar happened to be collapsed, so it drifted
+              // over the bottom nav mid-scroll instead of resting above it.
+              style={{ bottom: 'calc(3.75rem + var(--sab))' }}
             >
               <div className="flex items-center gap-3 rounded-2xl bg-white p-2 pl-4 shadow-lift ring-1 ring-brand-100">
                 <div className="min-w-0 flex-1">

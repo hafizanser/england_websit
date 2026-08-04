@@ -547,6 +547,7 @@ export default function Navbar() {
     <>
     <header
       ref={headerRef}
+      data-sticky-chrome
       className="sticky top-0 z-[90] isolate bg-sand-50"
       style={{
         // Promote the sticky header onto its own compositor layer (same trick as
@@ -572,7 +573,12 @@ export default function Navbar() {
         <div className="min-h-0 overflow-hidden">
           <div
             className="overflow-hidden border-b border-white/5 bg-brand-950 py-2 text-[13px] text-saffron-200/85"
-            style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}
+            // --sat is the frozen, measured top inset (lib/viewport.js) rather
+            // than raw env(): iOS re-reports the inset as the toolbar collapses,
+            // which changed the header's height mid-scroll — and --header-h is
+            // republished from that height, so every sticky sub-bar on the site
+            // shifted with it. Android's inset is a constant 0.
+            style={{ paddingTop: 'max(0.5rem, var(--sat))' }}
           >
             <div
               className="flex w-max animate-marquee gap-12 whitespace-nowrap"

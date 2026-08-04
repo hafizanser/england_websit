@@ -1,0 +1,253 @@
+/* ===========================================================================
+   iOS / Safari parity layer
+   ---------------------------------------------------------------------------
+   Everything here exists to make the phone layout render IDENTICALLY on iOS
+   Safari and Android Chrome. Two hard rules for anything added to this file:
+
+     1. Desktop must be untouched. Layout-affecting rules are gated on either
+        `@media (hover: none) and (pointer: coarse)` (any touch device, both
+        platforms — so the two stay in step) or `@supports (-webkit-touch-callout: none)`
+        (iOS/iPadOS WebKit ONLY — macOS Safari does not support that property,
+        so desktop Safari never matches).
+     2. Prefer normalising BOTH platforms to the same value over special-casing
+        iOS. A rule that only fires on iOS can drift from Android again the next
+        time the Android side changes.
+
+   Loaded LAST (after index.css and theme.css) so it can correct both.
+   =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   1. Safe-area insets as stable custom properties
+   ---------------------------------------------------------------------------
+   These are the FIRST-PAINT fallbacks. lib/viewport.js overwrites them with
+   measured, frozen px values on <html>'s inline style (which outranks :root),
+   because raw env(safe-area-inset-bottom) is dynamic on iOS — 0px with the
+   toolbar expanded, ~34px once it collapses — and anything sized from it
+   therefore resizes mid-scroll. Android reports 0px throughout, which is why
+   the two platforms diverged. See lib/viewport.js for the full rationale.
+
+   Use var(--sab) / var(--sat) everywhere instead of env() directly.
+   --------------------------------------------------------------------------- */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+/* ---------------------------------------------------------------------------
+   2. Viewport height that does not breathe with the iOS toolbar
+   ---------------------------------------------------------------------------
+   `100dvh` is the DYNAMIC viewport unit: on iOS it grows and shrinks by the
+   ~90px of browser chrome every time the toolbar collapses or re-expands, so an
+   app shell sized from it reflows on nearly every scroll direction change —
+   which Android's Chrome does far less aggressively. `100svh` is the SMALL
+   viewport (chrome always visible): it never changes, so the shell is laid out
+   once. The 100vh line is the pre-Safari-15.4 fallback.
+   --------------------------------------------------------------------------- */
+.min-h-app {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+/* ---------------------------------------------------------------------------
+   3. Horizontal overflow clipping on pre-16 Safari
+   ---------------------------------------------------------------------------
+   index.css clips stray horizontal overflow with `html { overflow-x: clip }` —
+   deliberately `clip` and not `hidden`, so no scroll container is created (see
+   the long note there). But `overflow: clip` only landed in Safari 16 / iOS 16.
+   On anything older the declaration is INVALID and simply dropped, so nothing
+   clips: the document ends up wider than the viewport, the page can be panned
+   sideways, and every `vw`-based clamp() (hero headline, section titles, video
+   cards) resolves against a viewport that no longer matches the visible area —
+   i.e. the whole page reads at a different scale than on Android.
+
+   `overflow-x: hidden` on <html> propagates to the viewport, so the page still
+   scrolls vertically as normal. Only browsers without `clip` support ever see
+   it, so modern iOS keeps the better behaviour.
+   --------------------------------------------------------------------------- */
+@supports not (overflow: clip) {
+  html {
+    overflow-x: hidden;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   4. Text metrics
+   ---------------------------------------------------------------------------
+   `text-size-adjust` is the standard twin of the -webkit- property index.css
+   already sets; without it, iOS's text autosizer can inflate body copy inside
+   wide blocks, which rewraps headings and silently changes every downstream
+   height. Explicit kerning/ligature settings stop WebKit and Blink picking
+   different defaults per font — differing advance widths are exactly what makes
+   a line wrap on one platform and not the other.
+   --------------------------------------------------------------------------- */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-kerning: normal;
+  font-variant-ligatures: common-ligatures;
+}
+
+/* ---------------------------------------------------------------------------
+   5. Form controls on touch devices
+   ---------------------------------------------------------------------------
+   (a) THE AUTO-ZOOM. iOS zooms the whole page in when a focused field's font is
+       under 16px, and it has ignored `user-scalable=no` since iOS 10 — so the
+       viewport meta in index.html does not prevent it. Once zoomed, the visual
+       viewport is narrower than the layout viewport and the entire page looks
+       shifted and oversized versus Android. The drawer search field (text-sm =
+       14px) triggered this on every search.
+
+       `max(16px, 1em)` raises anything under 16px to 16px on touch devices
+       while leaving deliberately larger fields alone, and applies to BOTH
+       platforms so the two render at the same size.
+
+   (b) NATIVE CHROME. iOS paints its own inset shadow and forced corner radius
+       on text fields, and turns `type="search"` into a native searchfield whose
+       height cannot be set. Android draws none of that. `appearance: none`
+       removes it so both platforms show the app's own styling.
+
+       `<select>` is deliberately excluded — `appearance: none` there would strip
+       the native dropdown arrow on every platform, including desktop.
+
+   (c) DISABLED / PLACEHOLDER. iOS fades disabled controls and placeholders;
+       Chrome does not. Pinning the fill colour and opacity re-aligns them.
+   --------------------------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
+
+input[type='text'],
+input[type='search'],
+input[type='tel'],
+input[type='email'],
+input[type='number'],
+input[type='password'],
+input[type='url'],
+textarea {
+  -webkit-appearance: none;
+  appearance: none;
+  /* iOS otherwise paints the background out under the border edge. */
+  background-clip: padding-box;
+}
+
+input[type='search']::-webkit-search-decoration,
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-results-button,
+input[type='search']::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 1;
+  -webkit-text-fill-color: currentColor;
+}
+
+::placeholder {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   6. Horizontal rails
+   ---------------------------------------------------------------------------
+   Swiping a horizontal scroller past its edge chains to the page on Android but
+   arms the BACK-SWIPE navigation gesture on iOS, so the category pills, unit
+   pills and video filmstrip behaved differently (and could navigate away).
+   Containing the chain makes them behave the same.
+
+   `-webkit-overflow-scrolling: touch` is deliberately NOT set here: index.css
+   used to apply it to every scroller, but it has been a no-op since iOS 13
+   (momentum is the default) while still forcing each scroller onto its own
+   compositing layer — which is what clipped shadows and blurred text inside
+   these rails on iOS. It has been removed from index.css.
+   --------------------------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+  .no-scrollbar,
+  .overflow-x-auto {
+    overscroll-behavior-x: contain;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   7. Fixed / sticky chrome compositing
+   ---------------------------------------------------------------------------
+   iOS Safari repositions position:fixed layers only at the END of a momentum
+   scroll unless they are promoted to their own compositor layer — which is what
+   makes bottom bars appear to float mid-page while a flick is still
+   decelerating. Promoting them pins them per-frame, as Android already does.
+
+   Deliberately NOT applied to [data-sticky-chrome] (the site header, the
+   products filter bar): a transform establishes a backdrop root, so promoting an
+   element that carries `backdrop-filter` leaves its blur with nothing to
+   sample. The header opts in explicitly with its own inline transform because
+   it has no blur to lose; the filter bar is left alone.
+   --------------------------------------------------------------------------- */
+[data-bottom-nav],
+[data-fixed-chrome] {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+   8. iOS-only corrections
+   ---------------------------------------------------------------------------
+   `-webkit-touch-callout` exists on iOS/iPadOS WebKit and nowhere else — not
+   even macOS Safari — so this block cannot reach any desktop browser.
+   --------------------------------------------------------------------------- */
+@supports (-webkit-touch-callout: none) {
+  /* Tailwind's preflight sets `-webkit-appearance: button` on buttons. On Blink
+     that is inert; on WebKit it re-enables native button metrics, which centres
+     label text differently and can override the element's own border-radius —
+     so the same button is a slightly different height and shape on iOS. */
+  button,
+  [type='button'],
+  [type='reset'],
+  [type='submit'] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Long-pressing nav chrome pops the iOS share/copy callout, which reads as a
+     stuck UI mid-tap. Content links and product images are left alone so
+     "Save image" and "Copy link" still work where a shopper expects them. */
+  [data-bottom-nav] a,
+  [data-bottom-nav] button,
+  header button,
+  header a {
+    -webkit-touch-callout: none;
+  }
+
+  /* WebKit shrinks a flex item whose height comes only from `aspect-ratio`,
+     because it resolves the ratio after flexing rather than before. Product,
+     category and offer media boxes are exactly that shape (a ratio-sized item
+     in a column-flex card), so on iOS their images came out shorter than on
+     Android and every card below them sat at a different height. Opting the
+     media boxes out of flexing restores the ratio as the sole height source. */
+  .eng .card .media,
+  .eng .cat-card .media,
+  .eng .offer-media {
+    flex: 0 0 auto;
+  }
+
+  /* iOS renders a 1px seam between a rounded, overflow-clipped parent and a
+     child that fills it (product/offer/category card imagery). Clipping on the
+     padding box closes it. */
+  .eng .card,
+  .eng .cat-card,
+  .eng .offer {
+    background-clip: padding-box;
+  }
+}

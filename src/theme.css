@@ -21,7 +21,17 @@
                     header and body content share one consistent desktop width */
   font-family:'Outfit',system-ui,sans-serif;
   background:var(--cream); color:var(--ink); line-height:1.5;
-  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  /* `clip`, not `hidden`. `overflow-x:hidden` computes overflow-y to `auto`,
+     which turns the whole homepage into its own SCROLL CONTAINER. On iOS that
+     nested scroller intercepts the touch, rubber-bands independently of the
+     page, and — because a scroll container is the reference for descendants —
+     retargets `position:sticky` away from the viewport. Android's Chrome is far
+     more forgiving of the same markup, which is why the two drifted apart.
+     `clip` clips the stray horizontal overflow WITHOUT creating a scroller.
+     Same reasoning as `html { overflow-x: clip }` in index.css; the pre-Safari-16
+     fallback for both lives in ios.css. */
+  overflow-x:clip;
 }
 .eng *{box-sizing:border-box}
 .eng img{max-width:100%;display:block}

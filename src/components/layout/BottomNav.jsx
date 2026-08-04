@@ -74,15 +74,27 @@ export default function BottomNav() {
       style={{
         // Room for the elevated WhatsApp FAB so it isn't clipped by the nav edge.
         paddingTop: 18,
-        paddingBottom: 0,
+        // Home-indicator clearance lives OUT here, as an offset of the whole bar,
+        // rather than as inner padding on the pill below. Padding the pill made
+        // it ~34px taller on iOS than on Android (where the inset is always 0),
+        // so the same nav read as two different components. As an outer offset
+        // the pill keeps identical geometry on both platforms and simply floats
+        // higher on a notched iPhone, which is the only difference the hardware
+        // actually requires. `--sab` is the frozen, measured inset (see
+        // lib/viewport.js) — raw env() flips 0px ⇄ 34px as Safari's toolbar
+        // collapses, which resized this bar mid-scroll.
+        paddingBottom: 'var(--sab)',
         transform: 'translateZ(0)',
         WebkitBackfaceVisibility: 'hidden',
         backfaceVisibility: 'hidden',
       }}
     >
       <div
-        className="relative mx-auto flex max-w-md items-stretch gap-0.5 rounded-[26px] border border-white/70 bg-sand-50/85 px-1.5 pt-1.5 shadow-[0_10px_34px_-10px_rgba(60,42,18,0.34),0_2px_8px_-3px_rgba(60,42,18,0.14)] backdrop-blur-2xl"
-        style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
+        // bg is near-opaque on purpose: `transform: translateZ(0)` on the <nav>
+        // above establishes a backdrop root, so the blur has nothing behind it
+        // to sample — WebKit and Blink resolve that case differently. At 92% the
+        // surface looks the same whether or not the blur resolves.
+        className="relative mx-auto flex max-w-md items-stretch gap-0.5 rounded-[26px] border border-white/70 bg-sand-50/[0.92] px-1.5 pb-1.5 pt-1.5 shadow-[0_10px_34px_-10px_rgba(60,42,18,0.34),0_2px_8px_-3px_rgba(60,42,18,0.14)] backdrop-blur-2xl"
       >
         {leftItems.map((it) => (
           <Item key={it.to} {...it} active={isActive(it)} onNav={onNav} reduce={reduce} />

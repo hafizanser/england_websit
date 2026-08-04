@@ -47,7 +47,13 @@
     /* Native-app feel on touch devices: no grey tap flash, no overscroll glow */
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
-    text-rendering: optimizeLegibility;
+    /* NOTE: `text-rendering: optimizeLegibility` used to sit here. It asks the
+       engine to prioritise kerning + ligatures, and WebKit and Blink honour that
+       request with DIFFERENT advance widths for the same font — so identical
+       copy wrapped at a different word on iOS than on Android, and every block
+       below it landed at a different height. Font smoothing is already handled
+       by `antialiased` above; ios.css pins kerning/ligatures explicitly so both
+       engines agree instead of each picking its own default. */
   }
 
   /* Kill the 300ms tap delay + grey flash on every interactive control so taps
@@ -82,12 +88,12 @@
     animation-fill-mode: forwards;
   }
 
-  /* Momentum scrolling for horizontal rails / drawers on iOS */
-  .no-scrollbar,
-  .overflow-y-auto,
-  .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
-  }
+  /* NOTE: `-webkit-overflow-scrolling: touch` used to be applied to every
+     scroller here. It has been a no-op since iOS 13 (momentum scrolling is the
+     default) but STILL forces each scroller onto its own compositing layer,
+     which on iOS clipped the cards' shadows at the rail edge and left text
+     inside the rails softly blurred — neither of which happens on Android.
+     Removed; ios.css contains the containment rule these rails actually need. */
 
   /* Headings use the expressive display grotesque, tightly tracked */
   h1,
@@ -297,9 +303,12 @@
    affects layout) gated to phones, so the desktop experience is untouched.
    =========================================================================== */
 @layer utilities {
-  /* Safe-area helpers for notched devices */
-  .pt-safe { padding-top: env(safe-area-inset-top); }
-  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  /* Safe-area helpers for notched devices. These read the STABLE, measured
+     insets published by lib/viewport.js rather than env() directly — iOS
+     changes env(safe-area-inset-bottom) from 0px to ~34px the moment its
+     toolbar collapses, so env() would resize these mid-scroll. See ios.css. */
+  .pt-safe { padding-top: var(--sat); }
+  .pb-safe { padding-bottom: var(--sab); }
 
   /* App-like surfaces / touch targets — opt-in classes */
   .app-card { @apply rounded-3xl border border-brand-100 bg-white shadow-soft; }

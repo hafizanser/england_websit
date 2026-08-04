@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { Plus, PencilSimple, Trash, Package, MagnifyingGlass, CircleNotch, Eye, X, Star } from '@phosphor-icons/react'
 import { adminListProducts, saveProduct, deleteProduct, adminListCategories } from '../../api/admin'
 import { totalSmallUnits, unitsPerMainUnit, mrpPerPiece, mrpPieceLabel } from '../../lib/pack'
+import { onImgError } from '../../lib/img'
 import { useNotify } from '../../context/NotifyContext'
 import Modal, { field, fieldLabel } from '../../components/admin/Modal'
 import './AdminProducts.css'
@@ -370,7 +371,7 @@ export default function AdminProducts() {
                         <div className="pf-product-cell">
                           <div className="pf-product-img">
                             {p.product_image_url ? (
-                              <img src={p.product_image_url} alt="" onError={(e) => { e.currentTarget.src = '/placeholder.svg' }} />
+                              <img src={p.product_image_url} alt="" onError={onImgError} />
                             ) : (
                               <Package size={18} />
                             )}
