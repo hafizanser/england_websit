@@ -157,11 +157,16 @@ values to that URL.)
 - **`src/api/http.js`** — the API base now reads `VITE_API_BASE` from the env
   (was a hardcoded wrong URL, which broke ALL data loading: featured products,
   products, categories, images). This is the core fix.
-- **Image fallbacks** — `src/lib/img.js` + a bundled
-  `public/england-placeholder.png` (the branded England watermark); every
-  product/category/offer/cart image now has an `onError` fallback, so a missing
-  file shows the England placeholder instead of a broken-image icon or blank
-  space (no more external `picsum.photos` dependency on real-data images).
+- **Image fallbacks** — `src/lib/img.js` + `src/assets/england-placeholder.png`
+  (the branded England plaque); every product/category/offer/cart image now has
+  an `onError` fallback, so a missing file shows the England placeholder instead
+  of a broken-image icon or blank space (no more external `picsum.photos`
+  dependency on real-data images). The artwork is **imported**, not read from
+  `public/` — Vite content-hashes it and rewrites the URL for this build's
+  `base: './'`, so it resolves from a sub-folder deploy too, and a missing file
+  becomes a build error rather than a 404 on every card. While a real photo is
+  still downloading, the same artwork is painted behind it by the
+  `img-placeholder-bg` class (`src/index.css`).
 - `backend_laravel/config/cors.php` — now **fails closed** in production (no `*`
   wildcard fallback if `CORS_ALLOWED_ORIGINS` is blank).
 - Backend hardening — review-status enum whitelist (`ReviewRepo`), image-only

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Plus, PencilSimple, Trash, SquaresFour, CircleNotch } from '@phosphor-icons/react'
+import { onImgError } from '../../lib/img'
 import { adminListCategories, saveCategory, deleteCategory } from '../../api/admin'
 import { useNotify } from '../../context/NotifyContext'
 import { AdminTitle, Loader, Card, EmptyState, Btn } from '../../components/admin/ui'
@@ -72,7 +73,7 @@ export default function AdminCategories() {
             <Card key={c.id} hover className="flex items-center justify-between p-5">
               <div className="flex min-w-0 items-center gap-3">
                 {c.image_url ? (
-                  <img src={c.image_url} alt="" className="h-12 w-12 shrink-0 rounded-xl border border-brand-100 object-cover" />
+                  <img src={c.image_url} alt="" onError={onImgError} className="img-placeholder-bg h-12 w-12 shrink-0 rounded-xl border border-brand-100 object-cover" />
                 ) : (
                   <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-sand-100 text-brand-300"><SquaresFour size={20} /></span>
                 )}
@@ -122,7 +123,7 @@ export default function AdminCategories() {
                 {(editing.imageFile || editing.image_url) && (
                   <img
                     src={editing.imageFile ? URL.createObjectURL(editing.imageFile) : editing.image_url}
-                    alt="" className="h-16 w-16 rounded-xl border border-brand-100 object-cover"
+                    alt="" onError={onImgError} className="img-placeholder-bg h-16 w-16 rounded-xl border border-brand-100 object-cover"
                   />
                 )}
                 <input ref={imgInput} type="file" accept="image/*" className="hidden" onChange={(e) => set({ imageFile: e.target.files?.[0] || null })} />

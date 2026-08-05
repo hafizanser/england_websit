@@ -136,6 +136,29 @@
     text-wrap: balance;
   }
 
+  /* Branded fallback painted BEHIND an <img>, so the England plaque fills the
+     frame while the real photo is still downloading and there is never a blank
+     box, a flash of empty cream, or the browser's broken-image icon. The photo
+     covers it the moment it decodes; if it never arrives, lib/img.js swaps the
+     src to this same artwork and the two line up pixel-for-pixel (identical
+     source, identical cover/centre geometry) so the swap is invisible.
+
+     This belongs on the <img>, NOT on its frame: the product gallery crossfades
+     stacked images, and mid-fade two semi-transparent layers let up to ~25% of
+     whatever sits beneath them show through — on the frame, that would ghost the
+     plaque over every slide change. On the element it is covered by that
+     element's own content, so it can only ever appear when there is no photo.
+
+     `background-color` matches the artwork's own field, so a frame with a
+     different aspect ratio than 1:1 shows no seam at the edges. */
+  .img-placeholder-bg {
+    background-color: #f4f0e8; /* PLACEHOLDER_BG in lib/img.js */
+    background-image: url('./assets/england-placeholder.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
   /* hide scrollbar on horizontal scroll rails */
   .no-scrollbar::-webkit-scrollbar {
     display: none;

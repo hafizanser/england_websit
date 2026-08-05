@@ -19,6 +19,7 @@ import { useAsync } from '../hooks/useAsync'
 import { fadeUp, stagger } from '../lib/motion'
 import { brand } from '../data/site'
 import { waLink } from '../lib/whatsapp'
+import { onImgError } from '../lib/img'
 
 const MotionLink = motion(Link)
 
@@ -81,7 +82,9 @@ function CategoryCard({ cat, active, reduce }) {
           src={cat.image}
           alt={cat.name}
           loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+          decoding="async"
+          onError={onImgError}
+          className="img-placeholder-bg h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
         />
       ) : (
         <Fallback name={cat.name} />

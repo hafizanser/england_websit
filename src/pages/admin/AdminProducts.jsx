@@ -371,7 +371,7 @@ export default function AdminProducts() {
                         <div className="pf-product-cell">
                           <div className="pf-product-img">
                             {p.product_image_url ? (
-                              <img src={p.product_image_url} alt="" onError={onImgError} />
+                              <img src={p.product_image_url} alt="" onError={onImgError} className="img-placeholder-bg" />
                             ) : (
                               <Package size={18} />
                             )}
@@ -567,7 +567,7 @@ export default function AdminProducts() {
                   {(editing.productImage || editing.product_image_url) && (
                     <img
                       src={editing.productImage ? URL.createObjectURL(editing.productImage) : editing.product_image_url}
-                      alt="" className="h-16 w-16 rounded-xl border border-brand-100 object-cover"
+                      alt="" onError={onImgError} className="img-placeholder-bg h-16 w-16 rounded-xl border border-brand-100 object-cover"
                     />
                   )}
                   <input ref={imgInput} type="file" accept="image/*" className="hidden" onChange={(e) => set({ productImage: e.target.files?.[0] || null })} />
@@ -579,7 +579,7 @@ export default function AdminProducts() {
                 <div className="flex flex-wrap gap-2">
                   {(editing.existing_gallery || []).map((g) => (
                     <div key={g.name} className="relative">
-                      <img src={g.url} alt="" className="h-14 w-14 rounded-lg border border-brand-100 object-cover" />
+                      <img src={g.url} alt="" onError={onImgError} className="img-placeholder-bg h-14 w-14 rounded-lg border border-brand-100 object-cover" />
                       <button type="button" aria-label="Remove" onClick={() => set({ existing_gallery: editing.existing_gallery.filter((x) => x.name !== g.name) })}
                         className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-saffron-600 text-white"><X size={11} weight="bold" /></button>
                     </div>
@@ -615,7 +615,7 @@ export default function AdminProducts() {
           <div className="space-y-5">
             <div className="flex items-start gap-4">
               {viewing.product_image_url ? (
-                <img src={viewing.product_image_url} alt="" className="h-24 w-24 rounded-2xl border border-brand-100 object-cover" />
+                <img src={viewing.product_image_url} alt="" onError={onImgError} className="img-placeholder-bg h-24 w-24 rounded-2xl border border-brand-100 object-cover" />
               ) : (
                 <span className="grid h-24 w-24 place-items-center rounded-2xl bg-sand-100 text-brand-300"><Package size={28} /></span>
               )}
@@ -652,7 +652,7 @@ export default function AdminProducts() {
 
             {(viewing.multiple_images_urls || []).length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {viewing.multiple_images_urls.map((u, i) => <img key={i} src={u} alt="" className="h-16 w-16 rounded-lg border border-brand-100 object-cover" />)}
+                {viewing.multiple_images_urls.map((u, i) => <img key={i} src={u} alt="" onError={onImgError} className="img-placeholder-bg h-16 w-16 rounded-lg border border-brand-100 object-cover" />)}
               </div>
             )}
 

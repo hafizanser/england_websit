@@ -3,6 +3,7 @@ import { LockKey, CircleNotch, TrendUp, WarningCircle, Package } from '@phosphor
 import { getProfitBreakdown } from '../../api/admin'
 import { useNotify } from '../../context/NotifyContext'
 import { money } from '../../lib/cartEngine'
+import { onImgError } from '../../lib/img'
 import { AdminTitle, Loader, Card } from '../../components/admin/ui'
 
 export default function AdminProfit() {
@@ -118,7 +119,7 @@ export default function AdminProfit() {
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       {p.product_image_url ? (
-                        <img src={p.product_image_url} alt="" className="h-9 w-9 shrink-0 rounded-lg border border-brand-100 object-cover" />
+                        <img src={p.product_image_url} alt="" onError={onImgError} className="img-placeholder-bg h-9 w-9 shrink-0 rounded-lg border border-brand-100 object-cover" />
                       ) : (
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-sand-100 text-brand-300"><Package size={16} /></span>
                       )}

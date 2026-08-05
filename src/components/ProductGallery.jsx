@@ -96,8 +96,9 @@ export default function ProductGallery({
               src={src}
               alt={alt}
               loading={priority && i === 0 ? 'eager' : 'lazy'}
+              decoding="async"
               onError={onImgError}
-              className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${
+              className={`img-placeholder-bg absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${
                 i === idx ? 'scale-100 opacity-100' : 'scale-[1.04] opacity-0'
               }`}
             />
@@ -107,8 +108,9 @@ export default function ProductGallery({
             src={list[0]}
             alt={alt}
             loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
             onError={onImgError}
-            className={`h-full w-full object-cover transition-transform duration-700 ease-out ${
+            className={`img-placeholder-bg h-full w-full object-cover transition-transform duration-700 ease-out ${
               zoomSingle ? 'group-hover/gal:scale-110' : ''
             }`}
           />
@@ -193,7 +195,7 @@ export default function ProductGallery({
                 idx === i ? 'border-saffron-400 ring-2 ring-saffron-200' : 'border-brand-100 hover:border-brand-300'
               }`}
             >
-              <img src={src} alt={`${alt} ${i + 1}`} onError={onImgError} loading="lazy" className="h-full w-full object-cover" />
+              <img src={src} alt={`${alt} ${i + 1}`} onError={onImgError} loading="lazy" className="img-placeholder-bg h-full w-full object-cover" />
             </button>
           ))}
         </div>
