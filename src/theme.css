@@ -557,18 +557,31 @@
 
 /* carousel shell — holds the horizontal strip plus the < / > nav buttons */
 .eng .video-carousel{ position:relative; margin-top:8px; }
-/* single-row filmstrip — FIXED: no auto-scroll and no free user swipe/drag/wheel
-   scrolling (overflow:hidden). The row only moves when the < / > arrows drive it
-   programmatically (scrollBy still works on a hidden-overflow scroll container).
-   Reels are rendered once (no duplicates). */
+/* single-row filmstrip — AUTO-SCROLLS right→left on its own; see VideoReviews.jsx.
+   It is a real horizontal scroll container: the rAF loop drives scrollLeft, and the
+   same overflow lets the visitor swipe / wheel it themselves (the loop parks while
+   they do, then resumes). `scroll-behavior` MUST stay `auto` — `smooth` would make
+   the browser animate every per-frame write and the row would fight itself instead
+   of gliding. `-webkit-overflow-scrolling:touch` is deliberately NOT set: it has
+   been a no-op since iOS 13 and still forces a compositing layer that clips these
+   cards' shadows (see the note in ios.css). `touch-action` keeps vertical page
+   scrolling working over the strip on iOS/Android while horizontal swipes stay
+   with the row. */
 .eng .video-strip{
   padding:12px 2px;
-  overflow-x:hidden; overflow-y:hidden; scrollbar-width:none;
+  overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
   overscroll-behavior-x:contain;
+  scroll-behavior:auto;
+  scroll-snap-type:none;
+  touch-action:pan-x pan-y;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);
   mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent); }
 .eng .video-strip::-webkit-scrollbar{ display:none; }
-/* the track holds each unique reel exactly once (no duplicates) */
+/* The track holds the reel list repeated end-to-end (>= 2 copies; the count is
+   decided in JS from the strip width) so the loop wraps by exactly one copy and
+   the frame after the wrap is identical to the frame before it — no visible seam.
+   width:max-content keeps every card at its natural size instead of letting flex
+   squeeze the row to fit, which is what would break the wrap maths. */
 .eng .video-track{
   display:flex; gap:18px; width:max-content; }
 .eng .video-strip .video-card{ flex:0 0 200px; width:200px; cursor:pointer; }

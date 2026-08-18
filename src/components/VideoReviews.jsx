@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { lockScroll } from '../lib/scroll'
 import { getHomepageVideos } from '../api/catalog'
 
@@ -16,8 +16,23 @@ import { getHomepageVideos } from '../api/catalog'
  * reel pinned by the brief, then 2 from Folder A, 2 from Folder B, repeating.
  *
  * Behaviour:
- *   - reels sit in a single-row horizontal carousel; the < / > arrows are the ONLY
- *     way it moves (smooth scrollBy by ~two cards) — there is NO auto-scroll
+ *   - the strip AUTO-SCROLLS right→left continuously, on its own, with no user
+ *     input. The reel list is rendered end-to-end N times (>= 2, see `copies`)
+ *     and the loop wraps by exactly one copy's width — the frame after the wrap
+ *     is pixel-identical to the frame before it, so there is no visible reset.
+ *   - the motion is driven by a rAF loop writing `strip.scrollLeft` from a float
+ *     accumulator (never `+=`, which would compound the browser's per-write
+ *     rounding until the strip crawled or stalled outright). No transform is
+ *     used: a transformed ancestor would become the containing block for the
+ *     focus view's `position:fixed` card and both break and clip it.
+ *   - it parks — and re-syncs the accumulator from the real scroll position —
+ *     while a card is hovered, while a reel is focused, while the section is off
+ *     screen, and for a moment after any arrow / swipe / wheel input (extended
+ *     until the user's momentum fling has actually settled), so JS and the
+ *     browser's own scrolling never fight each other. That is what makes it
+ *     behave identically on iOS and Android.
+ *   - the < / > arrows nudge by ~two cards and hop a whole copy first when that
+ *     would run off either end, so they are infinite in both directions too.
  *   - reels autoplay MUTED; only ONE reel plays at a time (desktop AND mobile) —
  *     when another reel starts, the previous one is paused
  *   - idle: the first visible (left-most) reel autoplays; desktop hover plays the
@@ -56,10 +71,23 @@ const toCard = (v, idx) => ({
   poster: v.poster_url || '',
 })
 
+const SPEED = 26 // px / second — slow, premium glide (lower = slower)
+const MIN_COPIES = 2 // one copy on screen + one to wrap into = seamless minimum
+const HOLD_AFTER_NUDGE = 1100 // ms the auto-scroll parks after an arrow press
+const HOLD_AFTER_INPUT = 1600 // ms it parks after a swipe / wheel
+const HOLD_WHILE_MOVING = 400 // ms it keeps parking while a fling decelerates
+
+const now = () => (typeof performance !== 'undefined' ? performance.now() : 0)
+
 export default function VideoReviews() {
   // Reels + order from the dashboard; starts on the shipped fallback so the
   // first paint is never empty, then swaps to the saved order once it loads.
   const [cards, setCards] = useState(FALLBACK_CARDS)
+  // How many times the reel list is repeated end-to-end inside the track. Two is
+  // the seamless minimum; measure() raises it when one copy is too narrow to
+  // cover the strip (few reels / wide screen), which would otherwise let
+  // scrollLeft clamp at its maximum and stall the loop.
+  const [copies, setCopies] = useState(MIN_COPIES)
   const sectionRef = useRef(null)
   const stripRef = useRef(null)
   const trackRef = useRef(null)
@@ -70,6 +98,12 @@ export default function VideoReviews() {
   const canHoverRef = useRef(false) // device actually supports hovering
   const unmutedRef = useRef(-1) // the single reel the user un-muted, -1 when all muted
   const userPausedRef = useRef(false) // user hit Pause — idle autoplay stands down
+  // ---- auto-scroll state ----------------------------------------------------
+  const posRef = useRef(0) // float scroll offset driving the loop (px)
+  const periodRef = useRef(0) // width of ONE copy incl. its trailing gap (px)
+  const hoverPauseRef = useRef(false) // auto-scroll parked while hovering a card
+  const resumeAtRef = useRef(0) // performance.now() until which it stays parked
+  const onScreenRef = useRef(true) // section is in the viewport (else: don't animate)
 
   const [dead, setDead] = useState(() => new Set()) // reel indices whose file failed to load
   const [seen, setSeen] = useState(false)
@@ -117,6 +151,21 @@ export default function VideoReviews() {
   // Focus-view controls auto-hide ~1.5s after they're revealed (mobile reels feel).
   const [controlsOn, setControlsOn] = useState(false)
   const ctrlTimerRef = useRef(0)
+
+  // The rendered track is the reel list repeated `copies` times, end to end. Card
+  // index `i` maps back to reel `i % cards.length`, so every copy of a reel
+  // shares its dead-file state while staying an independent <video> node —
+  // whichever copy is on screen plays on its own, exactly like the original.
+  const reelCount = cards.length
+  const total = reelCount * copies
+  const reelOf = useCallback((i) => (reelCount ? i % reelCount : 0), [reelCount])
+
+  // Drop refs for cards that no longer exist, so measure()/pickLead() never read
+  // a detached node left behind by a shorter list.
+  useEffect(() => {
+    cardRefs.current.length = total
+    videoRefs.current.length = total
+  }, [total])
 
   // Is card i currently within the visible strip viewport? (horizontal carousel →
   // off-strip cards are clipped by overflow, so only the horizontal span matters)
@@ -203,6 +252,8 @@ export default function VideoReviews() {
       expandedRef.current = -1
       setExpanded(-1)
       setClosing(false)
+      // Let the reel settle back into the row before the glide picks up again.
+      resumeAtRef.current = now() + HOLD_AFTER_NUDGE
     }, 280)
   }, [])
 
@@ -248,6 +299,11 @@ export default function VideoReviews() {
           setCards(mapped)
           setDead(new Set())
           setReady(new Set())
+          // New list → new geometry. Restart the loop from a known offset so the
+          // first wrap is measured against the row that's actually rendered.
+          setCopies(MIN_COPIES)
+          posRef.current = 0
+          if (stripRef.current) stripRef.current.scrollLeft = 0
         }
       })
       .catch(() => {})
@@ -274,6 +330,126 @@ export default function VideoReviews() {
     io.observe(el)
     return () => io.disconnect()
   }, [])
+
+  // Keep animating ONLY while the strip is on screen. Scrolling a filmstrip the
+  // visitor can't see burns real battery on a phone for nothing.
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined
+    const io = new IntersectionObserver(
+      ([e]) => { onScreenRef.current = e.isIntersecting },
+      { rootMargin: '120px 0px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  // ---- Seamless-loop geometry ----------------------------------------------
+  // The loop period is the exact distance between a card and its counterpart one
+  // copy later — measured from the DOM, so it stays correct whatever the card
+  // width, the flex gap or the active breakpoint happens to be, and whichever
+  // reels have been dropped as dead (every copy drops the same ones, so the
+  // copies stay identical). Cached in a ref: the rAF loop must never read layout.
+  const measure = useCallback(() => {
+    const strip = stripRef.current
+    if (!strip || !reelCount) { periodRef.current = 0; return }
+    let period = 0
+    for (let j = 0; j < reelCount; j += 1) {
+      const a = cardRefs.current[j]
+      const b = cardRefs.current[j + reelCount]
+      if (a && b) { period = b.offsetLeft - a.offsetLeft; break }
+    }
+    periodRef.current = period > 0 ? period : 0
+    if (period <= 0) return
+    const card = cardRefs.current.find(Boolean)
+    const cardW = card ? card.offsetWidth : 200
+    // scrollLeft can only reach `scrollWidth - clientWidth`. For the wrap point
+    // to be reachable — and for an arrow nudge past it to still have track left
+    // — the repeats must cover the strip plus one whole period plus that nudge.
+    // Without this, a short reel list on a wide screen clamps and the row stalls.
+    const need = Math.max(
+      MIN_COPIES,
+      1 + Math.ceil((strip.clientWidth + cardW * 2 + 48) / period),
+    )
+    setCopies((c) => (c === need ? c : need))
+  }, [reelCount])
+
+  // Re-measure after every render that can change the row's geometry, and on any
+  // resize / orientation change (rotating a phone re-runs the width clamps).
+  useLayoutEffect(() => { measure() }, [measure, copies, cards, dead, seen])
+  useEffect(() => {
+    const strip = stripRef.current
+    if (!strip) return undefined
+    let raf = 0
+    const schedule = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => measure())
+    }
+    window.addEventListener('resize', schedule)
+    window.addEventListener('orientationchange', schedule)
+    let ro
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(schedule)
+      ro.observe(strip)
+      if (trackRef.current) ro.observe(trackRef.current)
+    }
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', schedule)
+      window.removeEventListener('orientationchange', schedule)
+      ro?.disconnect()
+    }
+  }, [measure])
+
+  // ---- The auto-scroll loop -------------------------------------------------
+  // Advances a FLOAT accumulator and assigns it to scrollLeft (never `+=`: the
+  // browser rounds what it stores, and re-reading that rounded value every frame
+  // compounds the error until a 26 px/s glide crawls or stops outright — which is
+  // exactly how this row ends up looking stuck). Wrapping by one period lands on
+  // a pixel-identical frame, so the reset is invisible.
+  useEffect(() => {
+    if (!seen) return undefined
+    const strip = stripRef.current
+    if (!strip) return undefined
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)')
+    let raf = 0
+    let last = null
+    const step = (t) => {
+      raf = requestAnimationFrame(step)
+      if (last == null) last = t
+      const dt = Math.min((t - last) / 1000, 0.05) // clamp after tab-switch stalls
+      last = t
+      const period = periodRef.current
+      if (period <= 0) return
+      const blocked = reduce.matches
+        || hoverPauseRef.current
+        || expandedRef.current !== -1
+        || !onScreenRef.current
+        || t < resumeAtRef.current
+      if (blocked) {
+        // Hand control back to the browser: follow where IT put the strip, and
+        // keep holding while a momentum fling is still decelerating, so we never
+        // yank a scroll that is still moving (the iOS / Android jank case).
+        const at = strip.scrollLeft
+        if (Math.abs(at - posRef.current) > 0.5) {
+          resumeAtRef.current = Math.max(resumeAtRef.current, t + HOLD_WHILE_MOVING)
+        }
+        posRef.current = at
+        return
+      }
+      let pos = posRef.current + SPEED * dt
+      // Normalise into [0, period): a fling may have left us whole copies away.
+      while (pos >= period) pos -= period
+      while (pos < 0) pos += period
+      posRef.current = pos
+      strip.scrollLeft = pos
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [seen])
+
+  // Keep auto-scroll parked while a card is hovered (desktop).
+  useEffect(() => { hoverPauseRef.current = hover !== null }, [hover])
 
   // Find the left-most visible card (the "first visible" reel) for idle autoplay.
   const pickLead = useCallback(() => {
@@ -362,15 +538,34 @@ export default function VideoReviews() {
     clearTimeout(ctrlTimerRef.current)
   }, [])
 
-  // < / > navigation — the ONLY way the carousel moves (no auto-scroll). Smoothly
-  // scrolls the strip by ~two cards in the chosen direction.
+  // < / > navigation — nudge the strip by ~two cards and park the auto-scroll
+  // briefly. Before moving we fold the current offset back into [0, period) (and
+  // one period further right when heading left), which is invisible because the
+  // copies are identical — that is what makes the arrows infinite in BOTH
+  // directions instead of dead-ending against the track's edges.
   const nudge = (dir) => {
     const strip = stripRef.current
     if (!strip) return
+    resumeAtRef.current = now() + HOLD_AFTER_NUDGE
+    const period = periodRef.current
     const card = cardRefs.current.find(Boolean)
-    const cardW = (card?.offsetWidth || 200) + 18 // card width + track gap
-    strip.scrollBy({ left: dir * cardW * 2, behavior: 'smooth' })
+    const gap = parseFloat(getComputedStyle(trackRef.current || strip).columnGap) || 18
+    const cardW = (card?.offsetWidth || 200) + gap
+    let delta = dir * cardW * 2
+    if (period > 0) {
+      if (Math.abs(delta) > period * 0.9) delta = Math.sign(delta) * period * 0.9
+      let at = strip.scrollLeft % period
+      if (at < 0) at += period
+      if (dir < 0) at += period // leave a whole copy of runway to the left
+      strip.scrollLeft = at
+      posRef.current = at
+    }
+    strip.scrollBy({ left: delta, behavior: 'smooth' })
   }
+
+  // The user is driving (swipe / wheel / drag) — stand down so we never fight
+  // them. The loop extends this hold on its own until the scroll has settled.
+  const holdScroll = () => { resumeAtRef.current = now() + HOLD_AFTER_INPUT }
 
   return (
     <section ref={sectionRef} className={`video-section reveal${seen ? ' in' : ''}${expanded !== -1 ? ' is-focusing' : ''}`}>
@@ -399,11 +594,22 @@ export default function VideoReviews() {
             className="video-strip"
             ref={stripRef}
             onMouseLeave={() => setHover(null)}
+            onPointerDown={holdScroll}
+            onTouchStart={holdScroll}
+            onTouchMove={holdScroll}
+            onWheel={holdScroll}
           >
             <div className="video-track" ref={trackRef} aria-hidden={!seen}>
-              {cards.map((r, i) => {
-                const reelIdx = i // reels map 1:1 to cards (no doubling)
-                if (dead.has(reelIdx)) return null // file failed → drop this card (no gap)
+              {Array.from({ length: total }, (_, i) => {
+                const reelIdx = reelOf(i)
+                const r = cards[reelIdx]
+                if (!r || dead.has(reelIdx)) return null // file failed → drop this card (no gap)
+                // Copies 2..N exist only so the loop can wrap seamlessly; they
+                // repeat what the first copy already announced, so they are
+                // hidden from assistive tech and taken out of the tab order.
+                // Their buttons still work on click — whichever copy happens to
+                // be on screen is the real one as far as a pointer is concerned.
+                const isClone = i >= reelCount
                 const isPlaying = i === activeIndex && !paused
                 const isExpandedCard = i === expanded
                 return (
@@ -413,7 +619,8 @@ export default function VideoReviews() {
                     className={`video-card${i === activeIndex ? ' is-active' : ''}${isPlaying ? ' is-playing' : ''}${isExpandedCard ? ' is-expanded' : ''}${isExpandedCard && closing ? ' is-closing' : ''}${isExpandedCard && controlsOn ? ' is-controls' : ''}`}
                     onMouseEnter={() => { if (canHoverRef.current) setHover(i) }}
                     onClick={() => handleTap(i)}
-                    aria-label={`Customer reel ${i + 1}`}
+                    aria-hidden={isClone || undefined}
+                    aria-label={isClone ? undefined : `Customer reel ${reelIdx + 1}`}
                   >
                     <video
                       ref={(el) => {
@@ -454,6 +661,7 @@ export default function VideoReviews() {
                       onClick={(e) => togglePlay(e, i)}
                       aria-label="Play reel"
                       title="Play"
+                      tabIndex={isClone ? -1 : undefined}
                     >
                       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
                         <path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" />
@@ -467,6 +675,7 @@ export default function VideoReviews() {
                       aria-pressed={unmuted === i}
                       aria-label={unmuted === i ? 'Mute reel' : 'Unmute reel'}
                       title={unmuted === i ? 'Mute' : 'Unmute'}
+                      tabIndex={isClone ? -1 : undefined}
                     >
                       {unmuted === i ? (
                         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
