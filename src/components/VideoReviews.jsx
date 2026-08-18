@@ -16,23 +16,27 @@ import { getHomepageVideos } from '../api/catalog'
  * reel pinned by the brief, then 2 from Folder A, 2 from Folder B, repeating.
  *
  * Behaviour:
- *   - the strip AUTO-SCROLLS right→left continuously, on its own, with no user
- *     input. The reel list is rendered end-to-end N times (>= 2, see `copies`)
- *     and the loop wraps by exactly one copy's width — the frame after the wrap
- *     is pixel-identical to the frame before it, so there is no visible reset.
+ *   - the strip is a CONTINUOUS MARQUEE: it glides right→left forever, on its
+ *     own, with no user input. The reel list is rendered end-to-end N times
+ *     (>= 2, see `copies`) and the loop wraps by exactly one copy's width — the
+ *     frame after the wrap is pixel-identical to the frame before it, so there is
+ *     no jump, gap or visible loop point.
  *   - the motion is driven by a rAF loop writing `strip.scrollLeft` from a float
  *     accumulator (never `+=`, which would compound the browser's per-write
  *     rounding until the strip crawled or stalled outright). No transform is
  *     used: a transformed ancestor would become the containing block for the
  *     focus view's `position:fixed` card and both break and clip it.
- *   - it parks — and re-syncs the accumulator from the real scroll position —
- *     while a card is hovered, while a reel is focused, while the section is off
- *     screen, and for a moment after any arrow / swipe / wheel input (extended
- *     until the user's momentum fling has actually settled), so JS and the
- *     browser's own scrolling never fight each other. That is what makes it
- *     behave identically on iOS and Android.
- *   - the < / > arrows nudge by ~two cards and hop a whole copy first when that
- *     would run off either end, so they are infinite in both directions too.
+ *   - it stops for the VISITOR ONLY — cursor over the strip, or a finger on it —
+ *     easing down and back up rather than snapping. Arrow presses, a reel being
+ *     focused and a reel being tapped all leave it running. (It also idles while
+ *     the section is off screen, which is unobservable and saves a phone from
+ *     animating a row nobody is looking at.)
+ *   - while a finger is down, or a momentum fling is still decelerating, the loop
+ *     lets go of scrollLeft entirely and just follows the browser — JS and the
+ *     native scroller never fight, which is what makes it behave the same on iOS
+ *     and Android as it does on desktop.
+ *   - the < / > arrows hand the loop an offset it eases out, so the row surges
+ *     and settles instead of stopping; they wrap at both ends.
  *   - reels autoplay MUTED; only ONE reel plays at a time (desktop AND mobile) —
  *     when another reel starts, the previous one is paused
  *   - idle: the first visible (left-most) reel autoplays; desktop hover plays the
@@ -71,17 +75,15 @@ const toCard = (v, idx) => ({
   poster: v.poster_url || '',
 })
 
-const SPEED = 65 // px / second — the row's glide rate. THE knob for pace:
+const SPEED = 65 // px / second — the marquee's glide rate. THE knob for pace:
 // lower = slower, higher = faster. It is a real px/second speed (the rAF loop
 // multiplies it by the frame delta), so it looks the same on a 60Hz phone and a
 // 120Hz one. Note it also sets how often the playing reel changes: the left-most
 // visible card drives idle autoplay, so a card gets ~cardWidth/SPEED seconds.
 const MIN_COPIES = 2 // one copy on screen + one to wrap into = seamless minimum
-const HOLD_AFTER_NUDGE = 1100 // ms the auto-scroll parks after an arrow press
-const HOLD_AFTER_INPUT = 1600 // ms it parks after a swipe / wheel
-const HOLD_WHILE_MOVING = 400 // ms it keeps parking while a fling decelerates
-
-const now = () => (typeof performance !== 'undefined' ? performance.now() : 0)
+const RAMP = 0.16 // s — time constant for easing in/out of motion (pause/resume)
+const NUDGE_EASE = 0.14 // s — time constant the < / > offset eases out over
+const SETTLE_FRAMES = 5 // still frames before a visitor's fling counts as over
 
 export default function VideoReviews() {
   // Reels + order from the dashboard; starts on the shipped fallback so the
@@ -102,11 +104,14 @@ export default function VideoReviews() {
   const canHoverRef = useRef(false) // device actually supports hovering
   const unmutedRef = useRef(-1) // the single reel the user un-muted, -1 when all muted
   const userPausedRef = useRef(false) // user hit Pause — idle autoplay stands down
-  // ---- auto-scroll state ----------------------------------------------------
+  // ---- marquee state --------------------------------------------------------
   const posRef = useRef(0) // float scroll offset driving the loop (px)
   const periodRef = useRef(0) // width of ONE copy incl. its trailing gap (px)
-  const hoverPauseRef = useRef(false) // auto-scroll parked while hovering a card
-  const resumeAtRef = useRef(0) // performance.now() until which it stays parked
+  const velRef = useRef(0) // current glide speed (px/s), eased toward the target
+  const nudgeRef = useRef(0) // outstanding < / > distance, folded in and eased out
+  const hoverPauseRef = useRef(false) // cursor is over the strip
+  const dragRef = useRef(false) // a finger / button is down on the strip
+  const settleRef = useRef(SETTLE_FRAMES) // frames of stillness since a fling ended
   const onScreenRef = useRef(true) // section is in the viewport (else: don't animate)
 
   const [dead, setDead] = useState(() => new Set()) // reel indices whose file failed to load
@@ -256,8 +261,6 @@ export default function VideoReviews() {
       expandedRef.current = -1
       setExpanded(-1)
       setClosing(false)
-      // Let the reel settle back into the row before the glide picks up again.
-      resumeAtRef.current = now() + HOLD_AFTER_NUDGE
     }, 280)
   }, [])
 
@@ -361,19 +364,23 @@ export default function VideoReviews() {
     for (let j = 0; j < reelCount; j += 1) {
       const a = cardRefs.current[j]
       const b = cardRefs.current[j + reelCount]
-      if (a && b) { period = b.offsetLeft - a.offsetLeft; break }
+      // getBoundingClientRect, NOT offsetLeft: offsetLeft is rounded to whole
+      // pixels, and with fluid clamp() card widths that rounding error is what
+      // puts a 1px stutter on the wrap. Both rects are read in the same scroll
+      // state, so their difference is exact to the subpixel.
+      if (a && b) { period = b.getBoundingClientRect().left - a.getBoundingClientRect().left; break }
     }
     periodRef.current = period > 0 ? period : 0
     if (period <= 0) return
     const card = cardRefs.current.find(Boolean)
     const cardW = card ? card.offsetWidth : 200
-    // scrollLeft can only reach `scrollWidth - clientWidth`. For the wrap point
-    // to be reachable — and for an arrow nudge past it to still have track left
-    // — the repeats must cover the strip plus one whole period plus that nudge.
-    // Without this, a short reel list on a wide screen clamps and the row stalls.
+    // scrollLeft can only reach `scrollWidth - clientWidth`, and the loop keeps
+    // its offset inside [0, period) — so the repeats have to cover the strip plus
+    // one whole period. Without this, a short reel list on a wide screen clamps
+    // at its maximum and the row stalls instead of wrapping.
     const need = Math.max(
       MIN_COPIES,
-      1 + Math.ceil((strip.clientWidth + cardW * 2 + 48) / period),
+      1 + Math.ceil((strip.clientWidth + cardW + 32) / period),
     )
     setCopies((c) => (c === need ? c : need))
   }, [reelCount])
@@ -405,12 +412,19 @@ export default function VideoReviews() {
     }
   }, [measure])
 
-  // ---- The auto-scroll loop -------------------------------------------------
-  // Advances a FLOAT accumulator and assigns it to scrollLeft (never `+=`: the
-  // browser rounds what it stores, and re-reading that rounded value every frame
-  // compounds the error until a slow glide crawls or stops outright — which is
-  // exactly how this row ends up looking stuck). Wrapping by one period lands on
-  // a pixel-identical frame, so the reset is invisible.
+  // ---- The marquee loop -----------------------------------------------------
+  // Runs for as long as the section is mounted. It advances a FLOAT accumulator
+  // and assigns it to scrollLeft — never `+=`, because the browser rounds what it
+  // stores and re-reading that rounded value every frame compounds the error
+  // until the glide crawls or stops outright, which is exactly how this row ends
+  // up looking stuck.
+  //
+  // Speed is eased rather than switched: velRef chases a target of SPEED or 0, so
+  // the row glides to a halt under the cursor and back up to pace when it leaves,
+  // instead of snapping. It stops for three things only — the visitor hovering
+  // the strip, the visitor touching it, and the section being off screen (which
+  // is unobservable by definition and keeps a phone from animating a filmstrip
+  // nobody is looking at). Arrow presses do NOT stop it; see nudge().
   useEffect(() => {
     if (!seen) return undefined
     const strip = stripRef.current
@@ -425,35 +439,57 @@ export default function VideoReviews() {
       last = t
       const period = periodRef.current
       if (period <= 0) return
-      const blocked = reduce.matches
-        || hoverPauseRef.current
-        || expandedRef.current !== -1
-        || !onScreenRef.current
-        || t < resumeAtRef.current
-      if (blocked) {
-        // Hand control back to the browser: follow where IT put the strip, and
-        // keep holding while a momentum fling is still decelerating, so we never
-        // yank a scroll that is still moving (the iOS / Android jank case).
-        const at = strip.scrollLeft
-        if (Math.abs(at - posRef.current) > 0.5) {
-          resumeAtRef.current = Math.max(resumeAtRef.current, t + HOLD_WHILE_MOVING)
-        }
-        posRef.current = at
+
+      // A finger / button is down: hands off the scroller completely. Writing
+      // scrollLeft under a live drag is what makes a row feel like it is fighting
+      // you on iOS and Android.
+      if (dragRef.current) {
+        posRef.current = strip.scrollLeft
+        velRef.current = 0
+        settleRef.current = 0
         return
       }
-      let pos = posRef.current + SPEED * dt
-      // Normalise into [0, period): a fling may have left us whole copies away.
-      while (pos >= period) pos -= period
-      while (pos < 0) pos += period
+      // Released, but a momentum fling may still be decelerating. Wait for the
+      // scroller to actually come to rest before taking the wheel back.
+      if (settleRef.current < SETTLE_FRAMES) {
+        const at = strip.scrollLeft
+        settleRef.current = Math.abs(at - posRef.current) > 0.5 ? 0 : settleRef.current + 1
+        posRef.current = at
+        if (settleRef.current < SETTLE_FRAMES) return
+      }
+
+      const target = (hoverPauseRef.current || !onScreenRef.current || reduce.matches) ? 0 : SPEED
+      // Frame-rate-independent exponential approach — same feel at 60 and 120Hz.
+      velRef.current += (target - velRef.current) * (1 - Math.exp(-dt / RAMP))
+
+      let pos = posRef.current + velRef.current * dt
+      // An arrow press is folded in here as an eased-out offset instead of a
+      // native smooth scrollBy, so the marquee keeps gliding straight through the
+      // nudge rather than stopping dead while the browser animates its own scroll.
+      if (nudgeRef.current !== 0) {
+        const hop = nudgeRef.current * (1 - Math.exp(-dt / NUDGE_EASE))
+        pos += hop
+        nudgeRef.current -= hop
+        if (Math.abs(nudgeRef.current) < 0.1) nudgeRef.current = 0
+      }
+
+      if (Math.abs(velRef.current) < 0.02 && nudgeRef.current === 0) {
+        // Fully parked. Stay in sync with the visitor instead of pinning the
+        // scroller, so a hover-then-swipe resumes from where they left it.
+        posRef.current = strip.scrollLeft
+        return
+      }
+
+      // Any two offsets one period apart render identically — normalising into
+      // [0, period) here is the whole trick behind the invisible loop point.
+      pos %= period
+      if (pos < 0) pos += period
       posRef.current = pos
       strip.scrollLeft = pos
     }
     raf = requestAnimationFrame(step)
     return () => cancelAnimationFrame(raf)
   }, [seen])
-
-  // Keep auto-scroll parked while a card is hovered (desktop).
-  useEffect(() => { hoverPauseRef.current = hover !== null }, [hover])
 
   // Find the left-most visible card (the "first visible" reel) for idle autoplay.
   const pickLead = useCallback(() => {
@@ -542,34 +578,40 @@ export default function VideoReviews() {
     clearTimeout(ctrlTimerRef.current)
   }, [])
 
-  // < / > navigation — nudge the strip by ~two cards and park the auto-scroll
-  // briefly. Before moving we fold the current offset back into [0, period) (and
-  // one period further right when heading left), which is invisible because the
-  // copies are identical — that is what makes the arrows infinite in BOTH
-  // directions instead of dead-ending against the track's edges.
+  // < / > navigation. The distance is handed to the marquee loop as an offset it
+  // eases out over ~NUDGE_EASE, rather than a native smooth scrollBy — so the row
+  // never stops to play someone else's animation, it just surges forward (or
+  // back) and settles into its steady glide again. No edge cases at either end:
+  // the loop keeps the offset inside [0, period) and the copies are identical, so
+  // a nudge past the start or the end simply wraps.
   const nudge = (dir) => {
-    const strip = stripRef.current
-    if (!strip) return
-    resumeAtRef.current = now() + HOLD_AFTER_NUDGE
-    const period = periodRef.current
     const card = cardRefs.current.find(Boolean)
-    const gap = parseFloat(getComputedStyle(trackRef.current || strip).columnGap) || 18
-    const cardW = (card?.offsetWidth || 200) + gap
-    let delta = dir * cardW * 2
-    if (period > 0) {
-      if (Math.abs(delta) > period * 0.9) delta = Math.sign(delta) * period * 0.9
-      let at = strip.scrollLeft % period
-      if (at < 0) at += period
-      if (dir < 0) at += period // leave a whole copy of runway to the left
-      strip.scrollLeft = at
-      posRef.current = at
-    }
-    strip.scrollBy({ left: delta, behavior: 'smooth' })
+    if (!card) return
+    const gap = parseFloat(getComputedStyle(trackRef.current || card).columnGap) || 18
+    let delta = dir * (card.offsetWidth + gap) * 2
+    const period = periodRef.current
+    if (period > 0) delta = Math.max(-period * 0.8, Math.min(period * 0.8, delta))
+    nudgeRef.current += delta
+    settleRef.current = SETTLE_FRAMES // our own motion, not a fling to wait out
   }
 
-  // The user is driving (swipe / wheel / drag) — stand down so we never fight
-  // them. The loop extends this hold on its own until the scroll has settled.
-  const holdScroll = () => { resumeAtRef.current = now() + HOLD_AFTER_INPUT }
+  // ---- pause policy ---------------------------------------------------------
+  // The marquee stops for the visitor and nothing else: the cursor resting on the
+  // strip, or a finger on it. Hover is gated on pointerType so that the synthetic
+  // mouse events phones fire after a tap cannot leave the row parked forever.
+  const onStripPointerEnter = (e) => {
+    if (e.pointerType === 'mouse') hoverPauseRef.current = true
+  }
+  const onStripPointerLeave = (e) => {
+    if (e.pointerType === 'mouse') hoverPauseRef.current = false
+    setHover(null)
+  }
+  const onStripPointerDown = () => { dragRef.current = true }
+  // Release: let the loop watch for the fling to decelerate before it takes over.
+  const onStripPointerUp = () => { dragRef.current = false; settleRef.current = 0 }
+  // A trackpad / wheel scroll moves the row without any pointer going down, so
+  // treat it the same as the tail of a fling.
+  const onStripWheel = () => { settleRef.current = 0 }
 
   return (
     <section ref={sectionRef} className={`video-section reveal${seen ? ' in' : ''}${expanded !== -1 ? ' is-focusing' : ''}`}>
@@ -597,11 +639,12 @@ export default function VideoReviews() {
           <div
             className="video-strip"
             ref={stripRef}
-            onMouseLeave={() => setHover(null)}
-            onPointerDown={holdScroll}
-            onTouchStart={holdScroll}
-            onTouchMove={holdScroll}
-            onWheel={holdScroll}
+            onPointerEnter={onStripPointerEnter}
+            onPointerLeave={onStripPointerLeave}
+            onPointerDown={onStripPointerDown}
+            onPointerUp={onStripPointerUp}
+            onPointerCancel={onStripPointerUp}
+            onWheel={onStripWheel}
           >
             <div className="video-track" ref={trackRef} aria-hidden={!seen}>
               {Array.from({ length: total }, (_, i) => {
@@ -656,6 +699,7 @@ export default function VideoReviews() {
                         aria-hidden="true"
                         draggable="false"
                         loading="lazy"
+                        decoding="async"
                       />
                     )}
 

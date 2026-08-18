@@ -510,243 +510,321 @@
 }
 
 /* ============================================================================
-   VIDEO REVIEW SECTION — ported 1:1 from order_management (Blade homepage).
-   Self-contained + scoped under .eng. Local --dark/--white/--gold are tuned to
-   the source so the look matches exactly without touching global tokens.
+   VIDEO REVIEW SECTION — "See the products in action".
+   Self-contained + scoped under .eng. A single-row filmstrip of customer reels
+   that runs as a CONTINUOUS marquee (the rAF loop in VideoReviews.jsx drives
+   .video-strip's scrollLeft over a duplicated track).
+
+   Sizing is driven by three custom properties so the card, the gap and the
+   corner radius always scale together — change --vs-card and everything else
+   stays in proportion. Nothing here may set `transform`, `filter`,
+   `backdrop-filter`, `contain` or `will-change` on .video-strip / .video-track:
+   any of those would become the containing block for the focus view's
+   position:fixed card and would both mis-place and clip it.
    ============================================================================ */
-.eng .video-section{ --dark:#0a0c10; --white:#ffffff; --gold:#d4a93a;
-  padding:50px 48px 40px; background:var(--dark); position:relative; overflow:hidden; isolation:isolate; }
+.eng .video-section{
+  --dark:#0a0c10; --white:#ffffff; --gold:#d4a93a;
+  --vs-gold-soft:#efd08f;
+  --vs-line:rgba(255,255,255,.08);
+  --vs-card:clamp(196px, 14.5vw, 246px);
+  --vs-gap:clamp(16px, 1.5vw, 24px);
+  --vs-radius:clamp(20px, 1.7vw, 28px);
+  padding:clamp(44px, 5vw, 76px) clamp(16px, 3.4vw, 48px) clamp(40px, 4.4vw, 64px);
+  background:
+    radial-gradient(120% 90% at 50% -10%, #11151d 0%, transparent 60%),
+    var(--dark);
+  position:relative; overflow:hidden; isolation:isolate; }
+/* soft aurora wash — decorative only, sits behind everything */
 .eng .video-section::before,
 .eng .video-section::after{
   content:''; position:absolute; width:720px; height:720px; border-radius:50%;
-  filter:blur(140px); opacity:.55; pointer-events:none; z-index:-1; will-change:transform; }
+  filter:blur(140px); opacity:.5; pointer-events:none; z-index:-1; }
 .eng .video-section::before{
-  background:radial-gradient(circle at center, rgba(212,169,58,.32), transparent 65%);
-  top:-220px; left:-180px; animation:vsAuroraDrift 22s ease-in-out infinite; }
+  background:radial-gradient(circle at center, rgba(212,169,58,.3), transparent 65%);
+  top:-240px; left:-200px; animation:vsAuroraDrift 24s ease-in-out infinite; }
 .eng .video-section::after{
-  background:radial-gradient(circle at center, rgba(184,145,42,.18), transparent 65%);
-  bottom:-240px; right:-200px; animation:vsAuroraDrift 28s ease-in-out infinite reverse; }
+  background:radial-gradient(circle at center, rgba(184,145,42,.16), transparent 65%);
+  bottom:-260px; right:-220px; animation:vsAuroraDrift 30s ease-in-out infinite reverse; }
 @keyframes vsAuroraDrift{ 0%,100%{transform:translate3d(0,0,0) scale(1)} 50%{transform:translate3d(60px,-40px,0) scale(1.08)} }
 
-/* scoped section header */
+/* ---- header ---------------------------------------------------------------
+   Hierarchy: eyebrow (smallest, gold) -> title (largest, serif) -> supporting
+   line (quiet, right-aligned so it balances the title without competing).
+   A hairline rules the whole width with a short gold segment at its start. */
 .eng .video-section .section-inner{ max-width:var(--maxw); margin:0 auto; position:relative; }
 .eng .video-section .section-header{
   display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap;
-  gap:32px; margin-bottom:32px; position:relative; }
+  gap:clamp(16px, 2.4vw, 40px);
+  padding-bottom:clamp(20px, 2.2vw, 28px);
+  margin-bottom:clamp(20px, 2.4vw, 32px);
+  border-bottom:1px solid var(--vs-line);
+  position:relative; }
 .eng .video-section .section-header::after{
-  content:''; position:absolute; left:0; bottom:-20px; width:64px; height:2px; background:var(--gold); }
-.eng .video-section .section-header-left{ max-width:640px; }
+  content:''; position:absolute; left:0; bottom:-1px; width:72px; height:1px;
+  background:linear-gradient(90deg, var(--gold), rgba(212,169,58,0)); }
+.eng .video-section .section-header-left{ max-width:680px; }
 .eng .video-section .section-eyebrow{
   display:inline-flex; align-items:center; gap:10px;
-  font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase;
-  color:var(--gold); margin-bottom:16px;
-  padding:6px 16px 6px 12px; border-radius:999px;
-  background:rgba(212,169,58,.06); border:1px solid rgba(212,169,58,.22);
+  font-size:10.5px; font-weight:700; letter-spacing:2.6px; text-transform:uppercase;
+  color:var(--gold); margin-bottom:clamp(12px, 1.2vw, 18px);
+  padding:6px 15px 6px 11px; border-radius:999px;
+  background:rgba(212,169,58,.05); border:1px solid rgba(212,169,58,.2);
   backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05); }
 .eng .video-section .section-eyebrow::before{
-  content:''; display:inline-block; width:28px; height:1px; background:var(--gold);
-  box-shadow:0 0 12px rgba(212,169,58,.65); animation:vsEyebrowDot 2.4s ease-in-out infinite; }
-@keyframes vsEyebrowDot{ 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.55;transform:scale(.85)} }
+  content:''; display:inline-block; width:24px; height:1px; background:var(--gold);
+  box-shadow:0 0 12px rgba(212,169,58,.65); animation:vsEyebrowDot 2.6s ease-in-out infinite; }
+@keyframes vsEyebrowDot{ 0%,100%{opacity:1;transform:scaleX(1)} 50%{opacity:.5;transform:scaleX(.7)} }
 .eng .video-section .section-title{
-  font-family:'Playfair Display',serif; font-size:46px; font-weight:700;
-  color:var(--white); line-height:1.05; letter-spacing:-.6px; margin:0; }
-.eng .video-section .section-title em{ font-style:italic; color:var(--gold); font-weight:700; }
+  font-family:'Playfair Display',serif;
+  font-size:clamp(30px, 4.2vw, 52px);
+  font-weight:700; color:var(--white);
+  line-height:1.04; letter-spacing:-.02em; margin:0;
+  text-wrap:balance; }
+.eng .video-section .section-title em{
+  font-style:italic; font-weight:700;
+  background:linear-gradient(96deg, var(--gold), var(--vs-gold-soft) 55%, var(--gold));
+  -webkit-background-clip:text; background-clip:text; color:transparent; }
 .eng .video-section .section-sub{
-  font-size:14px; color:rgba(255,255,255,.55); line-height:1.7; max-width:380px; text-align:right; margin:0; }
+  font-size:clamp(13px, 1.05vw, 14.5px); color:rgba(255,255,255,.52);
+  line-height:1.65; max-width:34ch; text-align:right; margin:0;
+  padding-left:18px; border-left:1px solid var(--vs-line);
+  align-self:flex-end; }
 
-/* carousel shell — holds the horizontal strip plus the < / > nav buttons */
-.eng .video-carousel{ position:relative; margin-top:8px; }
-/* single-row filmstrip — AUTO-SCROLLS right→left on its own; see VideoReviews.jsx.
-   It is a real horizontal scroll container: the rAF loop drives scrollLeft, and the
-   same overflow lets the visitor swipe / wheel it themselves (the loop parks while
-   they do, then resumes). `scroll-behavior` MUST stay `auto` — `smooth` would make
-   the browser animate every per-frame write and the row would fight itself instead
-   of gliding. `-webkit-overflow-scrolling:touch` is deliberately NOT set: it has
-   been a no-op since iOS 13 and still forces a compositing layer that clips these
-   cards' shadows (see the note in ios.css). `touch-action` keeps vertical page
-   scrolling working over the strip on iOS/Android while horizontal swipes stay
-   with the row. */
+/* ---- carousel shell + marquee track --------------------------------------
+   .video-strip is a real horizontal scroll container: the rAF loop writes its
+   scrollLeft, and the same overflow lets the visitor swipe it themselves (the
+   marquee pauses while they do). scroll-behavior MUST stay `auto` — `smooth`
+   would make the browser animate every per-frame write and the row would fight
+   itself instead of gliding. `-webkit-overflow-scrolling:touch` is deliberately
+   NOT set: a no-op since iOS 13, and it still forces a compositing layer that
+   clips these cards' shadows (see the note in ios.css). */
+.eng .video-carousel{ position:relative; margin-top:clamp(4px, .8vw, 12px); }
 .eng .video-strip{
-  padding:12px 2px;
+  padding:clamp(14px, 1.4vw, 22px) 2px clamp(20px, 2vw, 30px);
   overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
   overscroll-behavior-x:contain;
-  scroll-behavior:auto;
-  scroll-snap-type:none;
+  scroll-behavior:auto; scroll-snap-type:none;
   touch-action:pan-x pan-y;
-  -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);
-  mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent); }
+  -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
+  mask-image:linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%); }
 .eng .video-strip::-webkit-scrollbar{ display:none; }
 /* The track holds the reel list repeated end-to-end (>= 2 copies; the count is
    decided in JS from the strip width) so the loop wraps by exactly one copy and
-   the frame after the wrap is identical to the frame before it — no visible seam.
+   the frame after the wrap is identical to the frame before it — no seam.
    width:max-content keeps every card at its natural size instead of letting flex
    squeeze the row to fit, which is what would break the wrap maths. */
 .eng .video-track{
-  display:flex; gap:18px; width:max-content; }
-.eng .video-strip .video-card{ flex:0 0 200px; width:200px; cursor:pointer; }
-/* < / > carousel nav */
-.eng .video-nav{
-  position:absolute; top:50%; transform:translateY(-50%); z-index:7;
-  width:46px; height:46px; border-radius:50%; padding:0; cursor:pointer;
-  display:flex; align-items:center; justify-content:center; color:var(--white);
-  background:rgba(14,17,22,.62); border:1px solid rgba(212,169,58,.34);
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  box-shadow:0 14px 30px -14px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.06);
-  transition:transform .3s cubic-bezier(.34,1.56,.64,1), background .3s ease, border-color .3s ease, color .3s ease; }
-.eng .video-nav:hover{ background:var(--gold); border-color:var(--gold); color:var(--dark); transform:translateY(-50%) scale(1.08); }
-.eng .video-nav:active{ transform:translateY(-50%) scale(.94); }
-.eng .video-nav--prev{ left:-6px; }
-.eng .video-nav--next{ right:-6px; }
-/* subtle premium fill so a not-yet-loaded reel never reads as a flat-black gap */
-.eng .video-el{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0;
-  background:radial-gradient(120% 80% at 50% 18%, #16110a 0%, #0a0c10 55%, #050608 100%); }
-/* bottom shade keeps the caption legible over any frame */
-.eng .video-strip .video-card::after{ content:''; position:absolute; left:0; right:0; bottom:0; height:46%; z-index:1;
-  pointer-events:none; background:linear-gradient(180deg, transparent, rgba(0,0,0,.62)); }
-/* the reel currently playing gets a gold ring + glow */
-.eng .video-card.is-active{ border-color:rgba(212,169,58,.5);
-  box-shadow:0 30px 60px -26px rgba(0,0,0,.9), 0 0 0 1px rgba(212,169,58,.32), 0 0 38px -8px rgba(212,169,58,.28); }
-.eng .video-card{
-  position:relative; border-radius:22px; overflow:hidden; aspect-ratio:9/16; background:#050608;
-  border:1px solid rgba(255,255,255,.06);
-  box-shadow:0 24px 48px -28px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.04);
+  display:flex; gap:var(--vs-gap); width:max-content; align-items:stretch; }
+
+/* ---- reel card ------------------------------------------------------------ */
+.eng .video-strip .video-card{
+  flex:0 0 auto; inline-size:var(--vs-card);
+  position:relative; aspect-ratio:9/16; border-radius:var(--vs-radius);
+  overflow:hidden; background:#05060a; cursor:pointer;
+  border:1px solid rgba(255,255,255,.07);
+  box-shadow:
+    0 2px 4px -2px rgba(0,0,0,.6),
+    0 18px 36px -22px rgba(0,0,0,.9),
+    inset 0 1px 0 rgba(255,255,255,.05);
   -webkit-tap-highlight-color:transparent;
-  transition:transform .55s cubic-bezier(.34,1.56,.64,1), border-color .4s ease, box-shadow .5s ease; }
-.eng .video-card:hover{
-  transform:translateY(-6px); border-color:rgba(212,169,58,.45);
-  box-shadow:0 36px 64px -28px rgba(0,0,0,.9), 0 0 0 1px rgba(212,169,58,.18), inset 0 1px 0 rgba(255,255,255,.08); }
-.eng .video-card.is-feature::before{
-  content:''; position:absolute; inset:-1px; border-radius:inherit; padding:1px;
-  background:conic-gradient(from 0deg, rgba(212,169,58,.08), rgba(212,169,58,.55), rgba(212,169,58,.04), rgba(212,169,58,.55), rgba(212,169,58,.08));
-  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite:xor; mask-composite:exclude;
-  opacity:.55; animation:vsFeatureSpin 8s linear infinite; pointer-events:none; z-index:1; }
-@keyframes vsFeatureSpin{ to{transform:rotate(360deg)} }
-.eng .video-card iframe,
-.eng .video-card .video-loop{ width:100%; height:100%; border:0; display:block; }
-.eng .video-card .video-loop{ position:absolute; inset:0; object-fit:cover; z-index:0; }
+  transition:
+    transform .5s cubic-bezier(.22,1,.36,1),
+    opacity .4s ease,
+    border-color .4s ease,
+    box-shadow .5s ease; }
+/* bottom scrim keeps any control legible over a bright frame; top scrim does the
+   same for the sound toggle. Both are pointer-transparent. */
+.eng .video-strip .video-card::after{
+  content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.42) 0, transparent 26%),
+    linear-gradient(0deg, rgba(0,0,0,.58) 0, transparent 42%); }
+/* Transparent on purpose: the card::before placeholder underneath is what a
+   reel shows before its poster decodes or its first frame renders. A fill here
+   would hide it and the card would read as a black hole while it glides in. */
+.eng .video-el{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0;
+  background:transparent; }
 .eng .video-poster{
   position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;
-  cursor:pointer; background-size:cover; background-position:center;
-  transition:opacity .45s ease; z-index:2; overflow:hidden; }
-.eng .video-card.is-feature .video-poster::after{
-  content:''; position:absolute; inset:0;
-  background:linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.55) 60%, rgba(5,6,8,.94) 100%);
-  pointer-events:none; }
-.eng .video-poster.is-hidden{ opacity:0; pointer-events:none; }
-.eng .video-poster-shimmer{
-  position:absolute; inset:0;
-  background:linear-gradient(115deg, transparent 35%, rgba(255,255,255,.09) 50%, transparent 65%);
-  transform:translateX(-120%); transition:transform .95s cubic-bezier(.23,1,.32,1); pointer-events:none; z-index:3; }
-.eng .video-card:hover .video-poster-shimmer{ transform:translateX(120%); }
-/* Play control — shown on EVERY reel thumbnail (idle, hovered or playing), with a
-   gentle "breathing" pulse so it always reads as tap-me. The button's own
-   `transform` is left alone so hover-grow / press-shrink keep working; the
-   animation lives on the glow, the two ripple rings and the icon instead, which
-   is also why the rings are separate pseudo-elements (staggered → double ripple). */
+  z-index:2; transition:opacity .5s ease; pointer-events:none; }
+.eng .video-poster.is-hidden{ opacity:0; }
+/* Placeholder layer. Posters stay lazy (14 of them at ~79KB — eager would be
+   ~1.1MB on a phone for a section below the fold), so a reel can glide into
+   view a beat before its image has decoded. This sits at the BOTTOM of the
+   card and everything else covers it as it arrives: an unloaded <img> paints
+   nothing, a video with no frames paints nothing, so whichever lands first
+   simply hides it. No class, no state, no animation — it cannot desync and it
+   costs nothing to keep on all 28 cards.
+   (An earlier pass drove this from React state via the poster's onLoad; that
+   event does not fire for an image that completed before React attached its
+   listener, and the fix would have cost ~28 re-renders of the whole row.) */
+.eng .video-card::before{
+  content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:
+    linear-gradient(118deg, rgba(255,255,255,.035) 0%, transparent 42%),
+    radial-gradient(120% 80% at 50% 16%, #191307 0%, #0d1016 52%, #06070b 100%); }
+
+/* the reel currently playing carries a gold ring + a soft glow */
+.eng .video-card.is-active{
+  border-color:rgba(212,169,58,.42);
+  box-shadow:
+    0 2px 4px -2px rgba(0,0,0,.6),
+    0 22px 44px -22px rgba(0,0,0,.92),
+    0 0 0 1px rgba(212,169,58,.28),
+    0 0 34px -10px rgba(212,169,58,.3),
+    inset 0 1px 0 rgba(255,255,255,.06); }
+
+/* ---- hover: lift the card and dim its neighbours (spotlight) -------------
+   Dimming uses OPACITY only — `filter` would create a containing block and the
+   focus view's position:fixed card would break the moment it was hovered.
+   Held off entirely while a reel is focused (body.vs-focus). */
+@media (hover:hover) and (pointer:fine){
+  body:not(.vs-focus) .eng .video-strip:hover .video-card{ opacity:.45; }
+  body:not(.vs-focus) .eng .video-strip:hover .video-card:hover{ opacity:1; }
+  .eng .video-card:hover{
+    transform:translateY(-10px);
+    border-color:rgba(212,169,58,.5);
+    box-shadow:
+      0 2px 4px -2px rgba(0,0,0,.6),
+      0 34px 60px -24px rgba(0,0,0,.95),
+      0 0 0 1px rgba(212,169,58,.22),
+      0 0 44px -12px rgba(212,169,58,.26),
+      inset 0 1px 0 rgba(255,255,255,.09); }
+}
+/* touch feedback — gentle press, only on devices without hover */
+@media (hover:none){
+  .eng .video-card:active{ transform:scale(.975); transition:transform .16s ease; }
+}
+
+/* ---- play control ---------------------------------------------------------
+   On EVERY reel, so the row always reads as tappable. One soft halo ring
+   instead of the old double ripple: with seven cards on screen at once, two
+   pulsing rings each read as noise rather than as an invitation. The breathe
+   animates opacity/box-shadow only, leaving `transform` free for the hover
+   grow and the press shrink. */
 .eng .video-play-btn{
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-  width:54px; height:54px; border-radius:50%; padding:0;
-  background:rgba(212,169,58,.92); color:var(--dark);
-  display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,.18); cursor:pointer;
-  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); -webkit-tap-highlight-color:transparent;
-  transition:transform .4s cubic-bezier(.34,1.56,.64,1), box-shadow .4s ease, opacity .35s ease, background .3s ease;
-  z-index:5; opacity:.95; box-shadow:0 14px 28px -10px rgba(212,169,58,.6);
-  animation:vsPlayBreathe 2.8s ease-in-out infinite; }
-.eng .video-play-btn::before,
-.eng .video-play-btn::after{
-  content:''; position:absolute; inset:-8px; border-radius:50%; pointer-events:none;
-  border:1px solid rgba(212,169,58,.4); animation:vsVideoPulse 2.8s ease-out infinite; }
-/* second ring, half a cycle behind → a continuous, unhurried ripple */
-.eng .video-play-btn::after{ border-color:rgba(212,169,58,.26); animation-delay:1.4s; }
-.eng .video-play-btn svg{ animation:vsPlayIconPulse 2.8s ease-in-out infinite; }
-.eng .video-card:hover .video-play-btn{ transform:translate(-50%,-50%) scale(1.08); }
-.eng .video-play-btn:active{ transform:translate(-50%,-50%) scale(.94); }
-@keyframes vsVideoPulse{ 0%{transform:scale(1);opacity:.7} 100%{transform:scale(1.6);opacity:0} }
-@keyframes vsPlayBreathe{
-  0%,100%{ opacity:.9;  box-shadow:0 14px 28px -10px rgba(212,169,58,.55); }
-  50%    { opacity:1;   box-shadow:0 16px 34px -8px rgba(212,169,58,.9); } }
-@keyframes vsPlayIconPulse{ 0%,100%{ transform:scale(1) } 50%{ transform:scale(1.1) } }
-.eng .video-poster-caption{ position:absolute; left:0; right:0; bottom:0; padding:22px 24px 24px; color:var(--white); z-index:4; }
-.eng .video-poster-caption .small{
-  font-family:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size:10px; font-weight:500; letter-spacing:2.6px; text-transform:uppercase; color:var(--gold); margin-bottom:8px; opacity:.95; }
-.eng .video-poster-caption .big{
-  font-family:'Playfair Display',serif; font-size:17px; font-weight:700; line-height:1.22; letter-spacing:-.01em;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.eng .video-card.is-feature .video-poster-caption{ padding:24px 24px 24px; }
-.eng .video-card.is-feature .video-poster-caption .small{ font-size:10px; letter-spacing:2.8px; }
-.eng .video-card.is-feature .video-poster-caption .big{ font-size:18px; line-height:1.2; }
-.eng .video-loop--active{ z-index:5; object-fit:contain; background:#000; }
-/* sound (mute / un-mute) toggle — always visible on every reel */
-.eng .video-sound-btn{
-  position:absolute; top:10px; right:10px; z-index:6;
-  width:34px; height:34px; border-radius:50%; padding:0; cursor:pointer;
+  width:clamp(48px, 3.9vw, 58px); aspect-ratio:1; border-radius:50%; padding:0;
   display:flex; align-items:center; justify-content:center;
-  color:var(--white); background:rgba(8,10,14,.5);
-  border:1px solid rgba(255,255,255,.18); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  color:#0a0c10; cursor:pointer; z-index:5;
+  background:linear-gradient(155deg, var(--vs-gold-soft), var(--gold) 58%, #b8912a);
+  border:1px solid rgba(255,255,255,.28);
+  box-shadow:0 10px 26px -10px rgba(212,169,58,.55), inset 0 1px 0 rgba(255,255,255,.45);
   -webkit-tap-highlight-color:transparent;
-  box-shadow:0 6px 16px -8px rgba(0,0,0,.7);
-  transition:transform .3s cubic-bezier(.34,1.56,.64,1), background .3s ease, border-color .3s ease, color .3s ease; }
-.eng .video-sound-btn:hover{ transform:scale(1.08); background:rgba(8,10,14,.72); border-color:rgba(212,169,58,.55); }
-.eng .video-sound-btn:active{ transform:scale(.94); }
-.eng .video-sound-btn svg{ display:block; }
-.eng .video-sound-btn.is-on{
-  color:var(--dark); background:var(--gold); border-color:var(--gold);
-  box-shadow:0 8px 20px -8px rgba(212,169,58,.7); }
-.eng .video-sound-btn.is-on:hover{ background:var(--gold); border-color:var(--gold); }
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1), box-shadow .4s ease, opacity .35s ease;
+  animation:vsPlayBreathe 3.6s ease-in-out infinite; }
+.eng .video-play-btn::before{
+  content:''; position:absolute; inset:-9px; border-radius:50%; pointer-events:none;
+  border:1px solid rgba(212,169,58,.34); animation:vsPlayHalo 3.6s ease-out infinite; }
+.eng .video-play-btn svg{ display:block; margin-left:2px; }
+.eng .video-card:hover .video-play-btn{
+  transform:translate(-50%,-50%) scale(1.1);
+  box-shadow:0 16px 34px -10px rgba(212,169,58,.75), inset 0 1px 0 rgba(255,255,255,.5); }
+.eng .video-play-btn:active{ transform:translate(-50%,-50%) scale(.93); }
+@keyframes vsPlayHalo{ 0%{transform:scale(1);opacity:.6} 100%{transform:scale(1.55);opacity:0} }
+@keyframes vsPlayBreathe{
+  0%,100%{ opacity:.94; box-shadow:0 10px 26px -10px rgba(212,169,58,.5), inset 0 1px 0 rgba(255,255,255,.45); }
+  50%    { opacity:1;   box-shadow:0 14px 32px -8px rgba(212,169,58,.8), inset 0 1px 0 rgba(255,255,255,.5); } }
 
-/* Desktop (real hover): the SOUND toggle shows ONLY while the cursor is over the
-   card, and hides the instant it leaves. The play icon is deliberately excluded —
-   it stays on every thumbnail, pulsing, on desktop and touch alike. Touch devices
-   are unaffected (their controls live in the focus view, which auto-hides them). */
+/* ---- sound (mute / un-mute) toggle --------------------------------------- */
+.eng .video-sound-btn{
+  position:absolute; top:11px; right:11px; z-index:6;
+  width:36px; aspect-ratio:1; border-radius:50%; padding:0; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--white); background:rgba(8,10,14,.46);
+  border:1px solid rgba(255,255,255,.2);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  box-shadow:0 6px 16px -8px rgba(0,0,0,.7);
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1), background .3s ease, border-color .3s ease, color .3s ease, opacity .3s ease; }
+.eng .video-sound-btn svg{ display:block; }
+.eng .video-sound-btn:hover{ transform:scale(1.09); background:rgba(8,10,14,.7); border-color:rgba(212,169,58,.55); }
+.eng .video-sound-btn:active{ transform:scale(.93); }
+.eng .video-sound-btn.is-on{
+  color:#0a0c10; background:var(--gold); border-color:var(--gold);
+  box-shadow:0 8px 20px -8px rgba(212,169,58,.75); }
+.eng .video-sound-btn.is-on:hover{ background:var(--vs-gold-soft); border-color:var(--vs-gold-soft); }
+/* Desktop (real hover): the SOUND toggle shows only while the cursor is over the
+   card, so an idle row stays clean. Touch devices keep it permanently visible —
+   there is no hover there to reveal it with. */
 @media (hover:hover) and (pointer:fine){
   .eng .video-card .video-sound-btn{ opacity:0; pointer-events:none; }
   .eng .video-card:hover .video-sound-btn{ opacity:1; pointer-events:auto; }
 }
 
+/* ---- < / > navigation ----------------------------------------------------- */
+.eng .video-nav{
+  position:absolute; top:50%; transform:translateY(-50%); z-index:7;
+  width:clamp(40px, 3.2vw, 50px); aspect-ratio:1; border-radius:50%; padding:0; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; color:var(--white);
+  background:rgba(12,15,20,.66); border:1px solid rgba(212,169,58,.3);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  box-shadow:0 16px 34px -16px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.07);
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1), background .3s ease, border-color .3s ease, color .3s ease; }
+.eng .video-nav:hover{
+  background:var(--gold); border-color:var(--gold); color:#0a0c10;
+  transform:translateY(-50%) scale(1.09); }
+.eng .video-nav:active{ transform:translateY(-50%) scale(.93); }
+.eng .video-nav--prev{ left:clamp(-8px, -.6vw, -2px); }
+.eng .video-nav--next{ right:clamp(-8px, -.6vw, -2px); }
+
+/* keyboard affordance — the row is operable without a pointer */
+.eng .video-nav:focus-visible,
+.eng .video-play-btn:focus-visible,
+.eng .video-sound-btn:focus-visible{
+  outline:2px solid var(--gold); outline-offset:3px; }
+.eng .video-card:focus-visible{
+  outline:2px solid var(--gold); outline-offset:4px; }
+
+/* ---- responsive -----------------------------------------------------------
+   Only the three sizing tokens change per breakpoint; every rule above is
+   written against them, so the card, gap and radius stay in proportion and the
+   marquee's measured loop period follows automatically. */
 @media (max-width:1100px){
-  .eng .video-strip .video-card{ flex:0 0 188px; width:188px; }
+  .eng .video-section{ --vs-card:clamp(180px, 22vw, 214px); }
 }
 @media (max-width:768px){
-  .eng .video-section{ padding:34px 16px 40px; }
-  /* lighter aurora blobs on mobile — big blurs are expensive to paint */
+  .eng .video-section{
+    --vs-card:clamp(152px, 45vw, 196px);
+    --vs-gap:16px;
+    --vs-radius:22px; }
+  /* lighter aurora on mobile — big blurs are expensive to paint */
   .eng .video-section::before,
-  .eng .video-section::after{ width:420px; height:420px; filter:blur(90px); opacity:.5; }
-  .eng .video-section .section-header{ margin-top:0; margin-bottom:24px; padding-top:0; gap:14px; }
-  .eng .video-section .section-title{ font-size:30px; }
-  .eng .video-section .section-sub{ text-align:left; }
-  .eng .video-strip{ padding:16px 4px; }
-  .eng .video-track{ gap:18px; }
-  .eng .video-nav{ width:40px; height:40px; }
-  .eng .video-nav--prev{ left:-2px; }
-  .eng .video-nav--next{ right:-2px; }
-  /* roomier, fluid cards with a softer, deeper shadow for a premium feel */
-  .eng .video-strip .video-card{ flex:0 0 auto; width:clamp(160px, 52vw, 200px); border-radius:24px; }
-  .eng .video-card{ box-shadow:0 22px 46px -22px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05); }
-  .eng .video-card.is-active{
-    box-shadow:0 26px 54px -22px rgba(0,0,0,.85), 0 0 0 1px rgba(212,169,58,.34), 0 0 30px -8px rgba(212,169,58,.3); }
-  .eng .video-poster-caption{ padding:16px 16px; }
-  .eng .video-poster-caption .small{ font-size:9.5px; letter-spacing:2px; }
+  .eng .video-section::after{ width:420px; height:420px; filter:blur(90px); opacity:.42; }
+  .eng .video-section .section-header{ gap:16px; }
+  .eng .video-section .section-header-left{ max-width:none; }
+  .eng .video-section .section-sub{
+    text-align:left; max-width:52ch; padding-left:0; border-left:0; }
+  .eng .video-nav{ background:rgba(12,15,20,.74); }
 }
 @media (max-width:480px){
-  .eng .video-section{ padding:28px 14px 34px; }
-  .eng .video-track{ gap:16px; }
-  .eng .video-strip .video-card{ width:clamp(150px, 62vw, 184px); border-radius:22px; }
-  .eng .video-sound-btn{ width:32px; height:32px; top:8px; right:8px; }
+  .eng .video-section{
+    --vs-card:clamp(140px, 43vw, 178px);
+    --vs-gap:14px;
+    --vs-radius:20px; }
+  .eng .video-sound-btn{ width:32px; top:9px; right:9px; }
 }
-/* touch feedback — gentle press, only on devices without hover */
-@media (hover:none){
-  .eng .video-card:active{ transform:scale(.97); transition:transform .15s ease; }
+/* Phones: the arrows ride the strip's faded edges rather than sitting over a
+   card's play disc — smaller, quieter, and pushed right out to the rim. */
+@media (max-width:600px){
+  .eng .video-nav{ width:38px; background:rgba(12,15,20,.72); border-color:rgba(212,169,58,.26); }
+  .eng .video-nav--prev{ left:-6px; }
+  .eng .video-nav--next{ right:-6px; }
 }
-@media (prefers-reduced-motion: reduce){
-  .eng .video-track{ animation:none; }
-  /* Play icon stays fully visible, it just stops breathing. */
-  .eng .video-play-btn,
-  .eng .video-play-btn svg{ animation:none; }
-  .eng .video-play-btn::before,
-  .eng .video-play-btn::after{ animation:none; opacity:.5; }
+
+/* ---- reduced motion -------------------------------------------------------
+   The marquee itself stands down in JS (the loop checks the same query); these
+   rules stop the decorative loops. The strip stays overflow-x:auto so the row
+   is still fully browsable by swipe or by the < / > buttons. */
+@media (prefers-reduced-motion:reduce){
+  .eng .video-section::before,
+  .eng .video-section::after{ animation:none; }
+  .eng .video-section .section-eyebrow::before{ animation:none; }
+  .eng .video-play-btn{ animation:none; opacity:1; }
+  .eng .video-play-btn::before{ animation:none; opacity:.4; }
 }
 
 /* ============================================================================
