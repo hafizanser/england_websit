@@ -71,7 +71,11 @@ const toCard = (v, idx) => ({
   poster: v.poster_url || '',
 })
 
-const SPEED = 26 // px / second — slow, premium glide (lower = slower)
+const SPEED = 65 // px / second — the row's glide rate. THE knob for pace:
+// lower = slower, higher = faster. It is a real px/second speed (the rAF loop
+// multiplies it by the frame delta), so it looks the same on a 60Hz phone and a
+// 120Hz one. Note it also sets how often the playing reel changes: the left-most
+// visible card drives idle autoplay, so a card gets ~cardWidth/SPEED seconds.
 const MIN_COPIES = 2 // one copy on screen + one to wrap into = seamless minimum
 const HOLD_AFTER_NUDGE = 1100 // ms the auto-scroll parks after an arrow press
 const HOLD_AFTER_INPUT = 1600 // ms it parks after a swipe / wheel
@@ -404,7 +408,7 @@ export default function VideoReviews() {
   // ---- The auto-scroll loop -------------------------------------------------
   // Advances a FLOAT accumulator and assigns it to scrollLeft (never `+=`: the
   // browser rounds what it stores, and re-reading that rounded value every frame
-  // compounds the error until a 26 px/s glide crawls or stops outright — which is
+  // compounds the error until a slow glide crawls or stops outright — which is
   // exactly how this row ends up looking stuck). Wrapping by one period lands on
   // a pixel-identical frame, so the reset is invisible.
   useEffect(() => {
