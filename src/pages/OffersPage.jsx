@@ -24,6 +24,7 @@ import {
 import PageBanner from '../components/PageBanner'
 import { SectionHeading, EmptyState, ErrorState } from '../components/ui'
 import { getOffers } from '../api/offers'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import { useNotify } from '../context/NotifyContext'
 import { products } from '../data/site'
@@ -315,7 +316,9 @@ export default function OffersPage() {
   // Single data source, single main section (no featured/active split). Every offer
   // is shown once; featured deals are floated to the front and keep their original
   // gold-accented card styling via the `featured` prop.
-  const { data, loading, error, reload } = useAsync(() => getOffers(), [])
+  const { data, loading, error, reload } = useAsync(() => getOffers(), [], {
+    cacheKey: catalogKeys.offers(),
+  })
 
   const offersList = useMemo(() => {
     const list = Array.isArray(data) ? data : []

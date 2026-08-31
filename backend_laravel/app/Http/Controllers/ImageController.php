@@ -26,9 +26,23 @@ class ImageController extends Controller
 
         $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
 
-        return response()->file($path, [
+        // Stored filenames are content-immutable: App\Support\Uploads::save()
+        // stamps every upload with `time()_<random>`, so replacing a product photo
+        // produces a NEW filename and therefore a NEW URL in the catalogue JSON.
+        // A given /image?file=X can never change, which is exactly the condition
+        // `immutable` asks for — the browser may keep it for a year and skip even
+        // the conditional request. (The old max-age=86400 made every shopper
+        // re-validate all ~60 catalogue photos once a day for nothing.)
+        $response = response()->file($path, [
             'Content-Type'  => self::MIME[$ext] ?? 'application/octet-stream',
-            'Cache-Control' => 'public, max-age=86400',
+            'Cache-Control' => 'public, max-age=31536000, immutable',
         ]);
+
+        // Last-Modified + a 304 for If-Modified-Since covers the caches that
+        // ignore `immutable` and the shopper who hard-refreshes.
+        $response->setAutoLastModified();
+        $response->isNotModified($request);
+
+        return $response;
     }
 }

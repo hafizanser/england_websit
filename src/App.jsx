@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import Home from './pages/Home'
@@ -21,6 +21,17 @@ import NotFound from './pages/NotFound'
 const AdminApp = lazy(() => import('./pages/admin/AdminApp'))
 
 export default function App() {
+  // Tells the document-level brand loader (see index.html) that the app is up.
+  // This effect runs after React's FIRST COMMIT — the point at which the tree
+  // below has mounted and the real first screen exists behind the overlay — so
+  // it is the honest "ready" milestone, unlike anything the bundle could report
+  // merely by having parsed. The loader ignores repeat calls, so StrictMode's
+  // double-invoke in dev is harmless, and it has its own timeout if this never
+  // arrives at all.
+  useEffect(() => {
+    if (window.__engLoader) window.__engLoader.ready()
+  }, [])
+
   return (
     <Routes>
       {/* Admin panel — self-contained (own layout + auth) */}

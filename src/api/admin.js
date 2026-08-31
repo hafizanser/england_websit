@@ -1,4 +1,18 @@
 import { http, setAdminToken } from './http'
+import { CATALOG_PREFIX } from './cacheKeys'
+import { invalidateCache } from '../lib/queryCache'
+
+// Every admin write retires the storefront's client cache.
+//
+// The server already bumps its own catalogue version on these routes (see
+// backend_laravel/routes/api.php), and the SPA picks that up from the
+// X-Catalog-Version header — but only on its NEXT read. Clearing here closes the
+// gap for the one person guaranteed to look immediately: the admin who just hit
+// save and switches to the storefront tab to check their work.
+//
+// Scoped to the catalogue prefix, so admin-only cached state (there is none
+// today, and there must never be any) could not be caught by it either way.
+const dropCatalogCache = () => invalidateCache(CATALOG_PREFIX)
 
 // ---- auth ------------------------------------------------------------------
 export async function adminLogin(username, password) {
@@ -67,10 +81,14 @@ export async function getAdminProduct(id) {
 export async function saveProduct(p) {
   const fd = toFormData(p)
   const path = p.id ? `/admin/products/${p.id}` : '/admin/products'
-  return (await http.postForm(path, fd, { auth: true })).product
+  const saved = (await http.postForm(path, fd, { auth: true })).product
+  dropCatalogCache()
+  return saved
 }
 export async function deleteProduct(id) {
-  return http.del(`/admin/products/${id}`, { auth: true })
+  const res = await http.del(`/admin/products/${id}`, { auth: true })
+  dropCatalogCache()
+  return res
 }
 
 // ---- categories ------------------------------------------------------------
@@ -80,10 +98,14 @@ export async function adminListCategories() {
 export async function saveCategory(c, isNew = false) {
   const fd = toFormData(c)
   const path = c.id && !isNew ? `/admin/categories/${c.id}` : '/admin/categories'
-  return (await http.postForm(path, fd, { auth: true })).category
+  const saved = (await http.postForm(path, fd, { auth: true })).category
+  dropCatalogCache()
+  return saved
 }
 export async function deleteCategory(id) {
-  return http.del(`/admin/categories/${id}`, { auth: true })
+  const res = await http.del(`/admin/categories/${id}`, { auth: true })
+  dropCatalogCache()
+  return res
 }
 
 // ---- blog ------------------------------------------------------------------
@@ -94,10 +116,14 @@ export async function adminListBlogs() {
 export async function saveBlog(b) {
   const fd = toFormData(b)
   const path = b.id ? `/admin/blogs/${b.id}` : '/admin/blogs'
-  return (await http.postForm(path, fd, { auth: true })).blog
+  const saved = (await http.postForm(path, fd, { auth: true })).blog
+  dropCatalogCache()
+  return saved
 }
 export async function deleteBlog(id) {
-  return http.del(`/admin/blogs/${id}`, { auth: true })
+  const res = await http.del(`/admin/blogs/${id}`, { auth: true })
+  dropCatalogCache()
+  return res
 }
 
 // ---- homepage reel videos --------------------------------------------------
@@ -109,13 +135,19 @@ export async function adminListVideos() {
 export async function saveVideo(v) {
   const fd = toFormData(v)
   const path = v.id ? `/admin/homepage-videos/${v.id}` : '/admin/homepage-videos'
-  return (await http.postForm(path, fd, { auth: true, timeout: 300000 })).video
+  const saved = (await http.postForm(path, fd, { auth: true, timeout: 300000 })).video
+  dropCatalogCache()
+  return saved
 }
 export async function deleteVideo(id) {
-  return http.del(`/admin/homepage-videos/${id}`, { auth: true })
+  const res = await http.del(`/admin/homepage-videos/${id}`, { auth: true })
+  dropCatalogCache()
+  return res
 }
 export async function reorderVideos(order) {
-  return (await http.post('/admin/homepage-videos/reorder', { order }, { auth: true })).data
+  const res = (await http.post('/admin/homepage-videos/reorder', { order }, { auth: true })).data
+  dropCatalogCache()
+  return res
 }
 
 // ---- profit breakdown (PIN-gated) ------------------------------------------
@@ -169,10 +201,14 @@ export async function adminListOffers() {
 export async function saveOffer(o, isNew = false) {
   const fd = toFormData(o)
   const path = o.id && !isNew ? `/admin/offers/${o.id}` : '/admin/offers'
-  return (await http.postForm(path, fd, { auth: true })).offer
+  const saved = (await http.postForm(path, fd, { auth: true })).offer
+  dropCatalogCache()
+  return saved
 }
 export async function deleteOffer(id) {
-  return http.del(`/admin/offers/${id}`, { auth: true })
+  const res = await http.del(`/admin/offers/${id}`, { auth: true })
+  dropCatalogCache()
+  return res
 }
 
 // ---- reports ---------------------------------------------------------------

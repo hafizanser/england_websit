@@ -4,6 +4,7 @@ import { ChatCircleText, PencilSimpleLine, CircleNotch, CheckCircle, UserCircle,
 import { Stars } from './ui'
 import { useCustomerAuth } from '../context/CustomerAuthContext'
 import { useNotify } from '../context/NotifyContext'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import { getProductReviews, submitReview } from '../api/reviews'
 
@@ -121,7 +122,9 @@ function ReviewForm({ productId, onDone }) {
 }
 
 export default function ProductReviews({ productId }) {
-  const { data, loading, reload } = useAsync(() => getProductReviews(productId), [productId])
+  const { data, loading, reload } = useAsync(() => getProductReviews(productId), [productId], {
+    cacheKey: catalogKeys.productReviews(productId),
+  })
 
   const reviews = data?.reviews || []
   const summary = data?.summary || { count: 0, average: 0, breakdown: {} }

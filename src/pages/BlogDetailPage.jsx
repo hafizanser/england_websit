@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarBlank, Article } from '@phosphor-icons/react'
 import { getBlogBySlug } from '../api/catalog'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import { ErrorState } from '../components/ui'
 
@@ -20,7 +21,9 @@ const paragraphs = (text) =>
 
 export default function BlogDetailPage() {
   const { slug } = useParams()
-  const { data: b, loading, error, reload } = useAsync(() => getBlogBySlug(slug), [slug])
+  const { data: b, loading, error, reload } = useAsync(() => getBlogBySlug(slug), [slug], {
+    cacheKey: catalogKeys.blog(slug),
+  })
 
   return (
     <section className="container-page py-8 sm:py-12">

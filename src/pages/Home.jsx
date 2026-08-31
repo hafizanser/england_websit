@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { brand } from '../data/site'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import { getCategories } from '../api/catalog'
 import { http } from '../api/http'
@@ -233,9 +234,16 @@ function displayStars(review, i) {
 }
 
 export default function Home() {
-  const cats = useAsync(() => getCategories(), [])
-  const products = useAsync(async () => (await http.get('/products/top-selling')).data, [])
-  const reviewsA = useAsync(() => getFeaturedReviews(12), [])
+  // All three are public catalogue reads, so they carry cache keys: the homepage
+  // is the page shoppers bounce back to most, and it should not re-fetch what the
+  // Products page or the footer already pulled a moment ago.
+  const cats = useAsync(() => getCategories(), [], { cacheKey: catalogKeys.categories() })
+  const products = useAsync(async () => (await http.get('/products/top-selling')).data, [], {
+    cacheKey: catalogKeys.topSelling(),
+  })
+  const reviewsA = useAsync(() => getFeaturedReviews(12), [], {
+    cacheKey: catalogKeys.featuredReviews(12),
+  })
 
   const catList = (Array.isArray(cats.data) ? cats.data : []).slice(0, 7)
   const top = (Array.isArray(products.data) ? products.data : []).filter((p) => p?.active !== 0).slice(0, 4)

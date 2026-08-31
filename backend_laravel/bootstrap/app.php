@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Middleware\AdminAuth;
+use App\Http\Middleware\BumpCatalogVersion;
+use App\Http\Middleware\CacheHeaders;
 use App\Http\Middleware\CustomerAuth;
+use App\Http\Middleware\NoStoreHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,6 +24,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin.auth'    => AdminAuth::class,
             'customer.auth' => CustomerAuth::class,
+            // Caching policy — see routes/api.php for where each one is applied.
+            //   cache.public:<max-age>,<stale-while-revalidate>  public catalogue reads
+            //   cache.private                                    anything personal
+            //   catalog.bump                                     retires the catalogue after a write
+            'cache.public'  => CacheHeaders::class,
+            'cache.private' => NoStoreHeaders::class,
+            'catalog.bump'  => BumpCatalogVersion::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

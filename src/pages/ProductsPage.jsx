@@ -6,6 +6,7 @@ import OffersSection from '../components/OffersSection'
 import ProductCard from '../components/ProductCard'
 import { ProductSkeleton, ErrorState, EmptyState } from '../components/ui'
 import { getProducts, getCategories } from '../api/catalog'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import { useScrollRestoring } from '../hooks/useScrollRestoring'
 import { waLink } from '../lib/whatsapp'
@@ -22,13 +23,25 @@ export default function ProductsPage() {
   // and the chip in the results header lets you clear it.
   const qParam = (params.get('q') || '').trim()
 
+  // Cached, so returning here from a product detail page repaints the grid from
+  // what we already had instead of re-fetching the catalogue. That is the whole
+  // point: Layout keys its wrapper on `pathname`, so this component is unmounted
+  // and re-mounted on every navigation — without a cache the Back button always
+  // meant skeletons and a full round-trip, no matter what the HTTP headers said.
+  //
+  // The key carries the category AND the search term, so it can never serve one
+  // filter's results under another's; a stale entry still paints instantly and is
+  // refreshed behind the shopper.
   const { data, loading, error, reload } = useAsync(
     () => getProducts({ cat, q: qParam, sort: 'popular' }),
     [cat, qParam],
+    { cacheKey: catalogKeys.products({ cat, q: qParam, sort: 'popular' }) },
   )
 
   // Categories come from the dashboard catalogue (same source as products).
-  const { data: cats } = useAsync(() => getCategories(), [])
+  const { data: cats } = useAsync(() => getCategories(), [], {
+    cacheKey: catalogKeys.categories(),
+  })
   const categoryList = cats || []
 
   // Where the search that opened this view was launched from. `setParams` starts

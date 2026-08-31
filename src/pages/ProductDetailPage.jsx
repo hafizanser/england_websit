@@ -11,6 +11,7 @@ import {
   Gift,
 } from '@phosphor-icons/react'
 import { getProductById } from '../api/catalog'
+import { catalogKeys } from '../api/cacheKeys'
 import { getOffers } from '../api/offers'
 import { useAsync } from '../hooks/useAsync'
 import { ErrorState } from '../components/ui'
@@ -97,8 +98,12 @@ function DetailSkeleton() {
 
 export default function ProductDetailPage() {
   const { id } = useParams()
-  const { data: p, loading, error, reload } = useAsync(() => getProductById(id), [id])
-  const { data: offers } = useAsync(() => getOffers(), [])
+  // Cached so a shopper walking a category — product, Back, next product, Back —
+  // pays for each product once, and so Back to the grid finds the list still there.
+  const { data: p, loading, error, reload } = useAsync(() => getProductById(id), [id], {
+    cacheKey: catalogKeys.product(id),
+  })
+  const { data: offers } = useAsync(() => getOffers(), [], { cacheKey: catalogKeys.offers() })
 
   // Every available unit type for this product (Piece / Box / Carton …), Carton
   // first. The reorder is display-only, but this page defaults to options[0] —

@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Repositories\HomepageVideoRepo;
 use App\Support\Api;
+use App\Support\CatalogCache;
 use App\Support\VideoStorage;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,11 @@ class HomepageVideoController extends Controller
 {
     public function index()
     {
-        return Api::ok(['data' => (new HomepageVideoRepo())->active()]);
+        // The reel ORDER, not the clips themselves. Tiny payload, but it gates the
+        // homepage carousel, so serving it from cache pulls the reels forward.
+        $data = CatalogCache::remember('homepage-videos', 900, fn () => (new HomepageVideoRepo())->active());
+
+        return Api::ok(['data' => $data]);
     }
 
     /** GET /video?file=NAME — streams a stored reel/poster with HTTP range support. */
@@ -36,9 +41,21 @@ class HomepageVideoController extends Controller
         // Symfony's BinaryFileResponse (returned by response()->file) sets
         // Accept-Ranges: bytes and honours the Range header during prepare(), so
         // seeking / partial fetches work out of the box for the <video> element.
-        return response()->file($path, [
+        //
+        // Reels are stored as `time()_<random>.mp4` (VideoStorage::save), so a
+        // re-uploaded clip lands on a new filename and a given URL is immutable —
+        // safe to cache for a year. These are the heaviest bytes on the site, so
+        // this is the single biggest repeat-visit win.
+        //
+        // No isNotModified() here on purpose: a conditional check against a Range
+        // request is where video seeking goes wrong, and `immutable` means the
+        // browser will not send one anyway.
+        $response = response()->file($path, [
             'Content-Type'  => VideoStorage::MIME[$ext] ?? 'application/octet-stream',
-            'Cache-Control' => 'public, max-age=86400',
+            'Cache-Control' => 'public, max-age=31536000, immutable',
         ]);
+        $response->setAutoLastModified();
+
+        return $response;
     }
 }

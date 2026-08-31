@@ -18,7 +18,12 @@ return [
     'allowed_origins' => $origins ?: $fallback,
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],
-    'exposed_headers' => [],
+    // The storefront runs on a different origin to the API, so a cross-origin
+    // response hides every header that is not on this list. `X-Catalog-Version`
+    // is how the SPA's own cache learns that an admin saved something and drops
+    // what it is holding (src/lib/queryCache.js); ETag is exposed alongside it
+    // for diagnosis. Neither is sensitive.
+    'exposed_headers' => ['ETag', 'X-Catalog-Version'],
     'max_age' => 86400,
     'supports_credentials' => false,
 ];

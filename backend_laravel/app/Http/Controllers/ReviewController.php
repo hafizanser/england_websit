@@ -6,25 +6,45 @@ namespace App\Http\Controllers;
 
 use App\Repositories\ReviewRepo;
 use App\Support\Api;
+use App\Support\CatalogCache;
 use Illuminate\Http\Request;
 
 class ReviewController extends Controller
 {
+    /**
+     * Shorter than the catalogue TTLs: a shopper who has just posted a review
+     * expects to see it, and `store()` below sits behind `catalog.bump` so the
+     * version token retires this the instant one lands.
+     */
+    private const TTL = 120;
+
     /** Public: approved reviews + rating summary for a product. */
     public function index(Request $request, string $id)
     {
-        $model = new ReviewRepo();
-        return Api::ok(['data' => [
-            'reviews' => $model->forProduct($id),
-            'summary' => $model->summary($id),
-        ]]);
+        $data = CatalogCache::remember('reviews:product:' . $id, self::TTL, function () use ($id) {
+            $model = new ReviewRepo();
+            return [
+                'reviews' => $model->forProduct($id),
+                'summary' => $model->summary($id),
+            ];
+        });
+
+        return Api::ok(['data' => $data]);
     }
 
     /** Public: recent approved reviews across all products (homepage slider). */
     public function featured(Request $request)
     {
         $limit = (int) $request->query('limit', 12);
-        return Api::ok(['data' => (new ReviewRepo())->approvedFeatured($limit > 0 ? $limit : 12)]);
+        $limit = $limit > 0 ? $limit : 12;
+
+        $data = CatalogCache::remember(
+            'reviews:featured:' . $limit,
+            self::TTL,
+            fn () => (new ReviewRepo())->approvedFeatured($limit),
+        );
+
+        return Api::ok(['data' => $data]);
     }
 
     /** Submit a review — open to everyone (guests provide a name); published immediately. */

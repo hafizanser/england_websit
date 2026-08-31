@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Article, CalendarBlank, Newspaper, BookOpenText } from '@phosphor-icons/react'
 import PageBanner from '../components/PageBanner'
 import { getBlogs } from '../api/catalog'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import { ErrorState, EmptyState } from '../components/ui'
 import { fadeUp, stagger, viewportOnce } from '../lib/motion'
@@ -81,7 +82,9 @@ function BlogCard({ b }) {
 }
 
 export default function BlogPage() {
-  const { data, loading, error, reload } = useAsync(() => getBlogs(), [])
+  const { data, loading, error, reload } = useAsync(() => getBlogs(), [], {
+    cacheKey: catalogKeys.blogs(),
+  })
   const list = data || []
   const [featured, ...rest] = list
 

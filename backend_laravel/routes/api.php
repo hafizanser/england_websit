@@ -24,52 +24,97 @@ use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use Illuminate\Support\Facades\Route;
 
+// ===========================================================================
+// CACHING POLICY (see bootstrap/app.php for the aliases)
+//
+//   cache.public:<max-age>        Public, identical-for-everyone catalogue data.
+//                                 Adds Cache-Control + an ETag that folds in the
+//                                 catalogue version token, and answers a
+//                                 conditional GET with a 304. 15 seconds is
+//                                 deliberately short — see the middleware for why
+//                                 a long window here would be the wrong lever.
+//   cache.private                 Anything tied to a person: no-store, full stop.
+//   catalog.bump                  Wraps the write paths. A successful non-GET
+//                                 retires the whole catalogue — server cache,
+//                                 ETags and the SPA's own cache in one move.
+//
+// Two rules keep this honest:
+//   1. A route that can return DIFFERENT bytes to two visitors is never
+//      cache.public. If in doubt it goes under cache.private.
+//   2. A route that CHANGES catalogue data is wrapped in catalog.bump, so no
+//      shopper has to wait out a TTL (or clear their cache) to see an edit.
+// ===========================================================================
+
 // ---- health / root --------------------------------------------------------
-Route::get('/', [CatalogController::class, 'categories']);
-Route::get('/api', [CatalogController::class, 'categories']);
+Route::middleware('cache.public:15')->group(function () {
+    Route::get('/', [CatalogController::class, 'categories']);
+    Route::get('/api', [CatalogController::class, 'categories']);
+});
 
 // ---- Shared images (public) ----------------------------------------------
+// Stored filenames are content-immutable, so the controller sets its own
+// one-year `immutable` header rather than going through cache.public.
 Route::get('/image', [ImageController::class, 'show']);
 
 // ---- PDF documents (public) ----------------------------------------------
+// Catalogue PDFs are regenerated in place under a stable name, so they must
+// keep revalidating — no long-lived cache here.
 Route::get('/pdf', [PdfController::class, 'show']);
 
 // ---- Homepage reel videos (public) ---------------------------------------
-Route::get('/homepage-videos', [HomepageVideoController::class, 'index']);
-Route::get('/video', [HomepageVideoController::class, 'stream']);
+Route::get('/homepage-videos', [HomepageVideoController::class, 'index'])
+    ->middleware('cache.public:15');
+Route::get('/video', [HomepageVideoController::class, 'stream']); // immutable, set in the controller
 
 // ---- Catalog (public) -----------------------------------------------------
-Route::get('/products/top-selling', [CatalogController::class, 'topSelling']);
-Route::get('/products', [CatalogController::class, 'products']);
-Route::get('/products/{id}/reviews', [ReviewController::class, 'index']);
-Route::post('/products/{id}/reviews', [ReviewController::class, 'store']);
-Route::get('/products/{id}', [CatalogController::class, 'product']);
-Route::get('/categories', [CatalogController::class, 'categories']);
-Route::get('/offers/featured', [CatalogController::class, 'featuredOffers']);
-Route::get('/offers', [CatalogController::class, 'offers']);
-Route::get('/offers/{slug}', [CatalogController::class, 'offer']);
-Route::get('/blogs', [BlogController::class, 'index']);
-Route::get('/blogs/{slug}', [BlogController::class, 'show']);
+Route::middleware('cache.public:15')->group(function () {
+    Route::get('/products/top-selling', [CatalogController::class, 'topSelling']);
+    Route::get('/products', [CatalogController::class, 'products']);
+    Route::get('/products/{id}/reviews', [ReviewController::class, 'index']);
+    Route::get('/products/{id}', [CatalogController::class, 'product']);
+    Route::get('/reviews/featured', [ReviewController::class, 'featured']);
+});
 
-// ---- Reviews (public) -----------------------------------------------------
-Route::get('/reviews/featured', [ReviewController::class, 'featured']);
+Route::middleware('cache.public:15')->group(function () {
+    Route::get('/categories', [CatalogController::class, 'categories']);
+    Route::get('/offers/featured', [CatalogController::class, 'featuredOffers']);
+    Route::get('/offers', [CatalogController::class, 'offers']);
+    Route::get('/offers/{slug}', [CatalogController::class, 'offer']);
+    Route::get('/blogs', [BlogController::class, 'index']);
+    Route::get('/blogs/{slug}', [BlogController::class, 'show']);
+});
+
+// A new review changes the rating shown on every card for that product.
+Route::post('/products/{id}/reviews', [ReviewController::class, 'store'])
+    ->middleware('catalog.bump');
 
 // ---- Promo + cart pricing (public) ---------------------------------------
-Route::post('/promo/validate', [CatalogController::class, 'validateCode']);
-Route::post('/cart/quote', [CatalogController::class, 'quote']);
+// Priced against the caller's own cart — never cacheable, and deliberately NOT
+// under catalog.bump: these fire on every keystroke in the promo box and change
+// nothing anybody else can see.
+Route::middleware('cache.private')->group(function () {
+    Route::post('/promo/validate', [CatalogController::class, 'validateCode']);
+    Route::post('/cart/quote', [CatalogController::class, 'quote']);
+});
 
 // ---- Checkout + customer orders (public) ----------------------------------
-Route::post('/checkout', [CheckoutController::class, 'place']);
-Route::post('/orders/lookup', [OrderController::class, 'lookup']);
-Route::get('/orders/{code}', [OrderController::class, 'show']);
+// Checkout reserves stock, so it bumps; the order views are per-customer.
+Route::post('/checkout', [CheckoutController::class, 'place'])
+    ->middleware(['cache.private', 'catalog.bump']);
+Route::middleware('cache.private')->group(function () {
+    Route::post('/orders/lookup', [OrderController::class, 'lookup']);
+    Route::get('/orders/{code}', [OrderController::class, 'show']);
+});
 
 // ---- Customer auth --------------------------------------------------------
-Route::post('/auth/customer/register', [AuthController::class, 'customerRegister']);
-Route::post('/auth/customer/login', [AuthController::class, 'customerLogin']);
-Route::post('/auth/customer/phone-login', [AuthController::class, 'customerPhoneLogin']);
-Route::post('/auth/customer/logout', [AuthController::class, 'customerLogout']);
+Route::middleware('cache.private')->group(function () {
+    Route::post('/auth/customer/register', [AuthController::class, 'customerRegister']);
+    Route::post('/auth/customer/login', [AuthController::class, 'customerLogin']);
+    Route::post('/auth/customer/phone-login', [AuthController::class, 'customerPhoneLogin']);
+    Route::post('/auth/customer/logout', [AuthController::class, 'customerLogout']);
+});
 
-Route::middleware('customer.auth')->group(function () {
+Route::middleware(['cache.private', 'customer.auth'])->group(function () {
     Route::get('/auth/customer/me', [AuthController::class, 'customerMe']);
     Route::get('/customer/orders', [OrderController::class, 'myOrders']);
 
@@ -81,12 +126,18 @@ Route::middleware('customer.auth')->group(function () {
 });
 
 // ---- Admin auth -----------------------------------------------------------
-Route::post('/auth/admin/login', [AuthController::class, 'adminLogin']);
-Route::post('/auth/admin/logout', [AuthController::class, 'adminLogout']);
-Route::get('/auth/admin/me', [AuthController::class, 'adminMe'])->middleware('admin.auth');
+Route::middleware('cache.private')->group(function () {
+    Route::post('/auth/admin/login', [AuthController::class, 'adminLogin']);
+    Route::post('/auth/admin/logout', [AuthController::class, 'adminLogout']);
+    Route::get('/auth/admin/me', [AuthController::class, 'adminMe'])->middleware('admin.auth');
+});
 
 // ---- Admin (token-guarded) -----------------------------------------------
-Route::middleware('admin.auth')->group(function () {
+// `cache.private` on the whole group: admin reads (orders, customers, profit,
+// reports) must never be written to any cache. `catalog.bump` on the whole group
+// too, so every product / category / offer / blog / reel / review write retires
+// the storefront catalogue — including routes added here in the future.
+Route::middleware(['cache.private', 'admin.auth', 'catalog.bump'])->group(function () {
     // orders
     Route::get('/admin/orders', [AdminOrderController::class, 'index']);
     Route::post('/admin/orders', [AdminOrderController::class, 'store']);

@@ -4,6 +4,12 @@
 // Base URL resolves (in order): VITE_API_BASE env  ->  XAMPP Apache default.
 // Catalog reads gracefully fall back to bundled data when the backend is down,
 // so browsing always works; orders/admin require the backend.
+//
+// Caching: this layer stays a plain transport. It does NOT store responses — the
+// browser's own HTTP cache handles that (the API sends Cache-Control + ETag), and
+// `useAsync`'s cacheKey handles keeping data on screen across a remount. The one
+// thing done here is reading `X-Catalog-Version` off every response, which is how
+// the SPA learns an admin saved something and drops what it is holding.
 // ---------------------------------------------------------------------------
 
 // Resolved from VITE_API_BASE at build time (set in .env / .env.production):
@@ -11,6 +17,8 @@
 //   • build (.env.production) -> https://api-store.codelps.com
 // Falls back to the local dev server if the env var is missing. The trailing
 // slash is trimmed so `API_BASE + '/products'` never produces a double slash.
+import { noteCatalogVersion } from '../lib/queryCache'
+
 export const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:8000').replace(/\/+$/, '')
 
 const ADMIN_TOKEN_KEY = 'barkat.admin.token'
@@ -71,6 +79,12 @@ async function request(path, { method = 'GET', body, auth = false, customerAuth 
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     })
+    // The API stamps public catalogue responses with the catalogue version. A
+    // changed token means an admin wrote something, so the SPA's cache is
+    // dropped before this response is handed to the caller (which then writes
+    // its own fresh result straight back in). Cross-origin, this header is only
+    // readable because config/cors.php exposes it.
+    noteCatalogVersion(res.headers.get('X-Catalog-Version'))
     let data = {}
     try {
       data = await res.json()

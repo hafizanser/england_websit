@@ -1,4 +1,11 @@
 import { http } from './http'
+import { CATALOG_PREFIX } from './cacheKeys'
+import { invalidateCache } from '../lib/queryCache'
+
+// A review changes the rating badge on every card for that product, plus the
+// homepage testimonial slider — so it retires the same catalogue cache an admin
+// save does rather than trying to surgically patch one key.
+const dropCatalogCache = () => invalidateCache(CATALOG_PREFIX)
 
 // ---- public ----------------------------------------------------------------
 export async function getProductReviews(productId) {
@@ -13,13 +20,15 @@ export async function getFeaturedReviews(limit = 12) {
 // Submit a review — open to everyone. A guest passes their name; logged-in
 // customers are attributed automatically (the token is sent when present).
 export async function submitReview(productId, { rating, comment, customer_name }) {
-  return (
+  const res = (
     await http.post(
       `/products/${productId}/reviews`,
       { rating, comment, customer_name },
       { customerAuth: true },
     )
   ).data
+  dropCatalogCache()
+  return res
 }
 
 // ---- admin -----------------------------------------------------------------
@@ -28,11 +37,15 @@ export async function adminListReviews() {
 }
 
 export async function adminUpdateReview(id, payload) {
-  return (await http.post(`/admin/reviews/${id}`, payload, { auth: true })).data
+  const res = (await http.post(`/admin/reviews/${id}`, payload, { auth: true })).data
+  dropCatalogCache()
+  return res
 }
 
 export async function adminDeleteReview(id) {
-  return http.del(`/admin/reviews/${id}`, { auth: true })
+  const res = await http.del(`/admin/reviews/${id}`, { auth: true })
+  dropCatalogCache()
+  return res
 }
 
 export async function adminNotifications() {

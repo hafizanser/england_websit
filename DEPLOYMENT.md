@@ -112,6 +112,17 @@ exists.
 The app uses **HashRouter** + relative asset paths, so deep links and refreshes
 work with no `.htaccess` rewrites.
 
+> **Include the dotfile.** `dist/.htaccess` carries the static-asset caching
+> policy (below). File Manager hides dotfiles by default — *Settings → Show
+> Hidden Files* — and a zip made on Windows will skip it unless you ask for it.
+> Without it the site still works, it just re-downloads every asset on every
+> visit. Verify after upload:
+>
+> ```bash
+> curl -sI https://store.codelps.com/assets/<any-hashed-file>.js | grep -i cache-control
+> # expect: public, max-age=31536000, immutable
+> ```
+
 ---
 
 ## 7. Go live & verify
@@ -126,6 +137,50 @@ work with no `.htaccess` rewrites.
    then change the password (Security below).
 
 ---
+
+## Caching — what is cached, for how long, and how to bust it
+
+The storefront is fast on repeat visits because four layers cooperate. If you
+change one, read this first; they are designed together.
+
+| Layer | What it holds | Lifetime | How an update gets through |
+|---|---|---|---|
+| `dist/.htaccess` | hashed JS/CSS under `/assets/` | 1 year, `immutable` | a build emits a new filename |
+| `dist/.htaccess` | `banner.jpg`, logos, icons | 1 week | ETag → `304` |
+| `dist/.htaccess` | `/videos/*` reels | 1 month | ETag → `304` |
+| `dist/.htaccess` | `index.html`, `site.webmanifest` | **never cached** | picked up on the next load |
+| API (`ImageController`, `HomepageVideoController`) | product photos + uploaded reels | 1 year, `immutable` | a re-upload gets a new filename, so a new URL |
+| API (`cache.public`) | catalogue JSON | 15 s, then a conditional GET | ETag changes on any write |
+| Laravel `CatalogCache` | the computed catalogue projections | 5–15 min | version token bumped on any write |
+| SPA (`src/lib/queryCache.js`) | catalogue JSON, per tab | the session | version token, or an admin write in the same tab |
+
+**Nothing here ever needs a shopper to clear their cache.** Every admin save,
+checkout and new review runs through `catalog.bump` (`routes/api.php`), which
+retires one shared version token. That token is folded into every ETag and sent
+back as `X-Catalog-Version`, so the same write invalidates the server cache, the
+browser's copy and the SPA's copy at once. An edit is live for every shopper on
+their next navigation.
+
+**Nothing personal is cached.** Every `/admin/*` route, every customer route,
+auth, the saved cart, checkout and order lookup are wrapped in `cache.private`
+(`no-store`), and the SPA cache only ever holds public catalogue reads.
+
+**If you ever need to force a flush by hand:**
+
+```bash
+cd ~/england_api && php artisan cache:clear   # drops the version token + projections
+```
+
+**Rebuilding is what busts the frontend.** `npm run build` re-hashes every
+changed asset and rewrites `index.html`, which is served uncached — so a deploy
+is visible immediately and unchanged bundles stay in the visitor's cache. Do not
+add a long `Cache-Control` to `index.html`; that is the one file that must never
+be cached.
+
+**Editing `dist/.htaccess`:** an invalid directive there returns **500 on every
+request**, so guard anything module-dependent by the module that actually
+defines it (`AddOutputFilterByType` comes from `mod_filter`, not `mod_deflate` —
+the shipped file gets this right). Test on a staging subdomain first.
 
 ## Security checklist
 

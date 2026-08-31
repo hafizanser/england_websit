@@ -1,0 +1,121 @@
+# ===========================================================================
+# England storefront — static asset caching (Apache / cPanel).
+#
+# This file lives in public/ so Vite copies it into dist/ on every build; upload
+# dist/ as usual and the policy ships with it. It belongs in the document root
+# of store.codelps.com (see DEPLOYMENT.md step 6).
+#
+# There are no rewrite rules here on purpose: the app is a HashRouter SPA with
+# relative asset paths, so deep links and refreshes already work without them.
+#
+# ---------------------------------------------------------------------------
+# The policy, and why
+# ---------------------------------------------------------------------------
+#   /assets/*        Vite's build output. Every filename carries a content hash
+#                    (index-dzfN92j3.js), so the bytes behind a given URL can
+#                    never change — a new build produces a new name. That is the
+#                    precondition `immutable` asks for: cache for a year and do
+#                    not even send a conditional request.
+#
+#   images / fonts   Shipped from public/ under STABLE names (banner.jpg,
+#                    england-logo-nav.png). A week, then revalidated — long
+#                    enough to matter to a repeat visitor, short enough that
+#                    replacing the banner is not a support call. The ETag makes
+#                    the revalidation a 304, not a re-download.
+#
+#   /videos/*        Reels. Same stable-name situation but far heavier and far
+#                    less likely to be swapped, so a month.
+#
+#   index.html       NEVER cached. It is the file that names the hashed bundles,
+#                    so a stale copy pins a visitor to the previous deploy no
+#                    matter how correct everything else is. `no-cache` still
+#                    allows a stored copy — it just forces a revalidation, which
+#                    is a ~200 byte 304 on an unchanged deploy.
+#
+#   site.webmanifest Same reasoning: it names icons and start_url.
+#
+# Product photos and videos are NOT here — those are served by the Laravel API
+# from its own uploads folder, which sets its own one-year immutable headers
+# (backend_laravel/app/Http/Controllers/ImageController.php).
+# ===========================================================================
+
+# Apache's default ETag includes the file's inode, which differs between servers
+# and after any move — turning every "unchanged" file into a re-download. Size +
+# mtime is the portable pair.
+FileETag MTime Size
+
+<IfModule mod_headers.c>
+  # The path-based rules below need mod_setenvif for SetEnvIf. Same reasoning as
+  # the compression block at the bottom: an unguarded directive from a missing
+  # module is a 500 on every request, not a silently skipped line.
+  <IfModule mod_setenvif.c>
+    # --- 1. content-hashed build output -> a year, never revalidated --------
+    # Matched on the /assets/ path rather than on a "looks hashed" filename
+    # pattern: `hero-products.jpg` would pass any such pattern and is NOT hashed.
+    # Unanchored so a sub-folder deploy (/england_store/assets/...) still matches.
+    SetEnvIf Request_URI "/assets/" ENG_IMMUTABLE=1
+    Header set Cache-Control "public, max-age=31536000, immutable" env=ENG_IMMUTABLE
+
+    # --- 2. reels -> a month ------------------------------------------------
+    SetEnvIf Request_URI "/videos/" ENG_VIDEO=1
+    SetEnvIf Request_URI "/assets/" !ENG_VIDEO
+    Header set Cache-Control "public, max-age=2592000" env=ENG_VIDEO
+
+    # --- 3. unhashed images + fonts from public/ -> a week, then revalidate -
+    SetEnvIf Request_URI "\.(png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|eot)$" ENG_MEDIA=1
+    SetEnvIf Request_URI "/assets/" !ENG_MEDIA
+    SetEnvIf Request_URI "/videos/" !ENG_MEDIA
+    Header set Cache-Control "public, max-age=604800" env=ENG_MEDIA
+  </IfModule>
+
+  # --- 4. the entry document + manifest -> always revalidate ----------------
+  # A deploy must be visible on the next load, not a week later. Deliberately
+  # OUTSIDE the mod_setenvif guard: this is the rule that must survive even on a
+  # stripped-down server, because getting it wrong strands visitors on an old
+  # build. `unset` first so it wins over the media rule above if both matched.
+  <FilesMatch "^(index\.html|site\.webmanifest)$">
+    Header unset Cache-Control
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# mod_expires as a belt-and-braces companion: on a host where mod_headers is
+# missing this still produces sane Expires dates. Where both are present the
+# Cache-Control set above wins, which is what we want.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css                "access plus 1 year"
+  ExpiresByType application/javascript  "access plus 1 year"
+  ExpiresByType text/javascript         "access plus 1 year"
+  ExpiresByType image/png               "access plus 1 week"
+  ExpiresByType image/jpeg              "access plus 1 week"
+  ExpiresByType image/gif               "access plus 1 week"
+  ExpiresByType image/webp              "access plus 1 week"
+  ExpiresByType image/avif              "access plus 1 week"
+  ExpiresByType image/svg+xml           "access plus 1 week"
+  ExpiresByType image/x-icon            "access plus 1 week"
+  ExpiresByType font/woff2              "access plus 1 year"
+  ExpiresByType font/woff               "access plus 1 year"
+  ExpiresByType video/mp4               "access plus 1 month"
+  ExpiresByType video/webm              "access plus 1 month"
+  ExpiresByType text/html               "access plus 0 seconds"
+</IfModule>
+
+# Compression. Text assets are the ones worth compressing; images, fonts and
+# video are already compressed and re-compressing them only burns CPU.
+#
+# BOTH guards are load-bearing. `AddOutputFilterByType` is provided by
+# mod_filter, NOT mod_deflate — so guarding on mod_deflate alone is not enough:
+# on a server that has mod_deflate but not mod_filter (verified: XAMPP's default
+# build is exactly that) Apache rejects the directive and answers every single
+# request with a 500. An .htaccess error takes the whole site down, so anything
+# in here that depends on a module has to name the module that actually defines
+# it.
+<IfModule mod_deflate.c>
+  <IfModule mod_filter.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+    AddOutputFilterByType DEFLATE application/javascript text/javascript
+    AddOutputFilterByType DEFLATE application/json application/manifest+json
+    AddOutputFilterByType DEFLATE image/svg+xml
+  </IfModule>
+</IfModule>

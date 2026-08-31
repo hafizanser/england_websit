@@ -9,29 +9,61 @@ use App\Repositories\OfferRepo;
 use App\Repositories\ProductRepo;
 use App\Services\OrderService;
 use App\Support\Api;
+use App\Support\CatalogCache;
 use App\Support\SeedOffers;
 use Illuminate\Http\Request;
 
 class CatalogController extends Controller
 {
+    /**
+     * How long a computed catalogue projection may be reused. Short on purpose —
+     * the real invalidation is CatalogCache's version token, bumped the moment an
+     * admin saves; this only bounds staleness for a row edited outside the app.
+     */
+    private const TTL_PRODUCTS = 300;
+    private const TTL_SLOW     = 900;   // categories/offers change far less often
+
     public function products(Request $request)
     {
-        $list = (new ProductRepo())->storefront([
-            'cat'  => $request->query('cat', 'all'),
-            'q'    => $request->query('q', ''),
-            'sort' => $request->query('sort', 'popular'),
-        ]);
+        // The projection is expensive relative to the payload: every row is
+        // decorated, priced across six unit tiers and re-sorted in PHP. Caching
+        // it keyed by the exact filter triple means the Products page, the
+        // "related products" rail on every detail page and the admin order
+        // builder all share one computation.
+        $cat  = (string) $request->query('cat', 'all');
+        $q    = (string) $request->query('q', '');
+        $sort = (string) $request->query('sort', 'popular');
+
+        $list = CatalogCache::remember(
+            'products:' . md5($cat . '|' . $q . '|' . $sort),
+            self::TTL_PRODUCTS,
+            fn () => (new ProductRepo())->storefront(['cat' => $cat, 'q' => $q, 'sort' => $sort]),
+        );
+
         return Api::ok(['data' => $list]);
     }
 
     public function topSelling()
     {
-        return Api::ok(['data' => (new ProductRepo())->storefrontFeatured(8)]);
+        $data = CatalogCache::remember(
+            'products:top-selling:8',
+            self::TTL_PRODUCTS,
+            fn () => (new ProductRepo())->storefrontFeatured(8),
+        );
+
+        return Api::ok(['data' => $data]);
     }
 
     public function product(Request $request, string $id)
     {
-        $found = (new ProductRepo())->storefrontById($id);
+        // A miss is cached as `false` rather than skipped, so a bot walking
+        // /products/1..9999 cannot turn every 404 into a database round-trip.
+        $found = CatalogCache::remember(
+            'product:' . $id,
+            self::TTL_PRODUCTS,
+            fn () => (new ProductRepo())->storefrontById($id) ?? false,
+        );
+
         if (!$found) {
             Api::halt('Product nahi mila', 404);
         }
@@ -40,27 +72,43 @@ class CatalogController extends Controller
 
     public function categories()
     {
-        return Api::ok(['data' => (new CategoryRepo())->storefront()]);
+        $data = CatalogCache::remember(
+            'categories',
+            self::TTL_SLOW,
+            fn () => (new CategoryRepo())->storefront(),
+        );
+
+        return Api::ok(['data' => $data]);
     }
 
     public function offers()
     {
-        $admin = (new OfferRepo())->storefront();
-        return Api::ok(['data' => $admin ?: SeedOffers::list()]);
+        $data = CatalogCache::remember('offers', self::TTL_SLOW, function () {
+            $admin = (new OfferRepo())->storefront();
+            return $admin ?: SeedOffers::list();
+        });
+
+        return Api::ok(['data' => $data]);
     }
 
     public function featuredOffers()
     {
-        $admin = (new OfferRepo())->storefrontFeatured();
-        if (!empty($admin['hero'])) {
-            return Api::ok(['data' => $admin]);
-        }
-        return Api::ok(['data' => SeedOffers::featured()]);
+        $data = CatalogCache::remember('offers:featured', self::TTL_SLOW, function () {
+            $admin = (new OfferRepo())->storefrontFeatured();
+            return !empty($admin['hero']) ? $admin : SeedOffers::featured();
+        });
+
+        return Api::ok(['data' => $data]);
     }
 
     public function offer(Request $request, string $slug)
     {
-        $found = (new OfferRepo())->storefrontBySlug($slug) ?? SeedOffers::bySlug($slug);
+        $found = CatalogCache::remember(
+            'offer:' . $slug,
+            self::TTL_SLOW,
+            fn () => (new OfferRepo())->storefrontBySlug($slug) ?? SeedOffers::bySlug($slug) ?? false,
+        );
+
         if (!$found) {
             Api::halt('Offer nahi mili', 404);
         }

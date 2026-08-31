@@ -15,6 +15,7 @@ import {
 } from '@phosphor-icons/react'
 import PageBanner from '../components/PageBanner'
 import { getCategories } from '../api/catalog'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import { fadeUp, stagger } from '../lib/motion'
 import { brand } from '../data/site'
@@ -304,6 +305,7 @@ export default function CategoriesPage() {
   // the request has actually, finally failed.
   const { data, loading, error, retrying, reload } = useAsync(() => getCategories(), [], {
     retries: 2,
+    cacheKey: catalogKeys.categories(),
   })
   const list = data || []
 

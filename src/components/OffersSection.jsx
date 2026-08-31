@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { products } from '../data/site'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import { getOffers } from '../api/offers'
 import { money, unitLabelFor } from '../lib/cartEngine'
@@ -57,7 +58,7 @@ function dealFacts(o) {
  * outside the homepage it must sit inside an `.eng` ancestor (see ProductsPage).
  */
 export default function OffersSection() {
-  const offersA = useAsync(() => getOffers(), [])
+  const offersA = useAsync(() => getOffers(), [], { cacheKey: catalogKeys.offers() })
   const offers = (!offersA.loading && Array.isArray(offersA.data) ? offersA.data : []).slice(0, 2)
   if (offersA.loading) {
     return (

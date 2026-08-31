@@ -4,6 +4,7 @@ import { Sparkle } from '@phosphor-icons/react'
 import ProductCard from './ProductCard'
 import { ProductSkeleton } from './ui'
 import { getProducts } from '../api/catalog'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 
 // Fisher–Yates shuffle (returns a new array) — used to randomise the "other
@@ -32,7 +33,12 @@ const MAX = 4
 export default function RelatedProducts({ product }) {
   // One fetch of the full catalogue gives us both the same-category matches and
   // the cross-category fillers without a second round-trip.
-  const { data, loading } = useAsync(() => getProducts({ sort: 'popular' }), [])
+  // Same key as the Products page's default view, on purpose: this rail and that
+  // grid ask the API for the identical list, so opening a product from the grid
+  // now renders its related products with no request at all.
+  const { data, loading } = useAsync(() => getProducts({ sort: 'popular' }), [], {
+    cacheKey: catalogKeys.products({ sort: 'popular' }),
+  })
 
   const related = useMemo(() => {
     const all = Array.isArray(data) ? data : []

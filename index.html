@@ -25,8 +25,584 @@
     <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@500,700,800,900&display=swap" />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>England — Har Dukaan Ka Poora Saaman | FMCG Wholesale</title>
+
+    <!-- =====================================================================
+         THE OPENING — full-screen brand loader.
+
+         WHY IT LIVES IN index.html AND NOT IN REACT. A loader that ships inside
+         the bundle cannot cover the thing it exists to cover: it only appears
+         once the bundle has downloaded, parsed and mounted, which on a cold
+         connection is most of the wait. Markup, styles and controller are all
+         inline in the document, so the FIRST paint the browser makes is already
+         the loader — there is no moment where the page shows through.
+
+         It also means every entry point is covered for free. The app is a
+         HashRouter SPA, so `/#/products`, `/#/admin`, a refresh and a pasted
+         deep link all serve THIS document; the loader is on the route because
+         it is on the file.
+
+         COLOUR. #241910 is the existing <meta name="theme-color">, so the
+         browser chrome continues the loader instead of drawing a line above it.
+         Cream #F6F0E4 and gold #B98F43 are --cream / --gold from theme.css.
+         Flat fills only — no gradient anywhere in here.
+         ===================================================================== -->
+    <link rel="preload" as="image" fetchpriority="high" href="/england-loader-mark.webp" />
+    <style>
+      /* Locked while the loader is up, released the instant it leaves. Not
+         `overflow-x`, which index.css sets to `clip` on <html> — this is a
+         temporary inline-weight lock and it is removed, so the stylesheet's
+         own rule takes back over untouched. */
+      html.eng-booting {
+        overflow: hidden;
+      }
+
+      .eng-load {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #241910;
+        /* The exit wipe. Declared here so the transition has a start value to
+           leave from; without it the first frame of the hand-off jumps. */
+        clip-path: inset(0 0 0 0);
+        transition: clip-path 860ms cubic-bezier(0.76, 0, 0.24, 1) 140ms;
+        /* The mark's width, named once: the travelling rule below needs the
+           same number inside a keyframe, and two hard-coded copies of a
+           responsive expression drift apart the moment one is edited. */
+        --eng-mark-w: min(74vw, 30rem);
+      }
+
+      /* Held a little above the true centre. An object centred in the window
+         reads as sitting low, and the counter needs the floor to itself. */
+      .eng-load__stage {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: clamp(18px, 3.4vh, 34px);
+        margin-block-end: clamp(24px, 7vh, 68px);
+        padding-inline: clamp(20px, 6vw, 64px);
+        transition: transform 620ms cubic-bezier(0.22, 1, 0.36, 1),
+          opacity 420ms ease-out;
+      }
+
+      .eng-load__mark {
+        position: relative;
+        inline-size: var(--eng-mark-w);
+        aspect-ratio: 620 / 306;
+      }
+
+      /* THE UNVEIL. The wordmark is wiped in left-to-right while it rises and
+         settles out of a fractional scale — one gesture, three properties, all
+         of them compositor-friendly so a busy main thread cannot stutter it.
+         It starts from `inset(0 100% 0 0)`: fully clipped away, not hidden, so
+         there is nothing to un-hide and no flash of a finished logo first. */
+      .eng-load__mark img {
+        display: block;
+        inline-size: 100%;
+        block-size: 100%;
+        object-fit: contain;
+        opacity: 0;
+        transform: translateY(14px) scale(0.972);
+        clip-path: inset(0 100% 0 0);
+      }
+
+      .eng-load.is-armed .eng-load__mark img {
+        opacity: 1;
+        transform: none;
+        clip-path: inset(0 0 0 0);
+        transition: opacity 520ms ease-out,
+          transform 1000ms cubic-bezier(0.16, 1, 0.3, 1),
+          clip-path 980ms cubic-bezier(0.76, 0, 0.24, 1);
+      }
+
+      /* The gold hairline that rides the leading edge of that wipe. It carries
+         the same easing and duration as the clip, so it stays welded to the
+         edge rather than racing it, and it is gone by the time the mark is
+         whole — the detail is the reveal, not a decoration left on screen. */
+      .eng-load__scan {
+        position: absolute;
+        inset-block: -7%;
+        inset-inline-start: 0;
+        inline-size: 2px;
+        background: #b98f43;
+        opacity: 0;
+      }
+
+      .eng-load.is-armed .eng-load__scan {
+        animation: eng-load-scan 980ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
+      }
+
+      @keyframes eng-load-scan {
+        0% {
+          opacity: 0;
+          transform: translateX(0);
+        }
+        14% {
+          opacity: 1;
+        }
+        84% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translateX(calc(var(--eng-mark-w) - 2px));
+        }
+      }
+
+      /* The tagline arrives a letter at a time — the reference's one signature
+         move, put on the line that can carry it without seams. Delays are
+         stamped per span by the controller.
+
+         A SYSTEM STACK ON PURPOSE, here and on the counter. Bricolage and Plus
+         Jakarta are still downloading while this is on screen, and type that
+         changes shape halfway through the animation is worse than type that
+         never had a face of its own. */
+      .eng-load__tag {
+        margin: 0;
+        max-inline-size: min(100%, 30rem);
+        text-align: center;
+        text-transform: uppercase;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-size: clamp(9px, 1.5vw, 11.5px);
+        font-weight: 600;
+        line-height: 1.9;
+        letter-spacing: 0.42em;
+        text-indent: 0.42em; /* balances the trailing letter-space */
+        color: #cba45c;
+      }
+
+      /* Every letter is its own box so it can be animated on its own delay —
+         which also means the line can break between ANY two of them. The word
+         wrapper is what stops that: breaks are only allowed at the spaces
+         between wrappers, so a narrow screen wraps "HAR DUKAAN KA / POORA
+         SAAMAN" instead of "HAR DUKAAN K / A POORA SAAM / AN". */
+      .eng-load__tag .w {
+        display: inline-block;
+        white-space: nowrap;
+      }
+
+      .eng-load__tag .l {
+        display: inline-block;
+        opacity: 0;
+        transform: translateY(0.85em);
+        transition: opacity 520ms ease-out,
+          transform 760ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .eng-load.is-armed .eng-load__tag .l {
+        opacity: 1;
+        transform: none;
+      }
+
+      .eng-load__meter {
+        position: absolute;
+        margin: 0;
+        inset-block-end: calc(
+          clamp(20px, 3.6vh, 36px) + env(safe-area-inset-bottom, 0px)
+        );
+        inset-inline-end: clamp(18px, 5vw, 44px);
+        display: flex;
+        align-items: baseline;
+        gap: clamp(10px, 2vw, 18px);
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-size: clamp(10px, 1.5vw, 12px);
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: lowercase;
+        color: rgba(246, 240, 228, 0.52);
+        opacity: 0;
+        transition: opacity 420ms ease-out 180ms;
+      }
+
+      .eng-load.is-armed .eng-load__meter {
+        opacity: 1;
+      }
+
+      .eng-load__pct {
+        color: #f6f0e4;
+        font-size: 1.08em;
+        letter-spacing: 0.06em;
+        /* Tabular figures, or the counter twitches sideways on every tick. */
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* The progress rule, pinned to the very bottom edge of the window. It is
+         driven by --eng-p, which is the same number the counter prints. */
+      .eng-load__rule {
+        position: absolute;
+        inset-inline: 0;
+        inset-block-end: 0;
+        block-size: 2px;
+        background: rgba(246, 240, 228, 0.1);
+      }
+
+      .eng-load__rule i {
+        display: block;
+        block-size: 100%;
+        background: #b98f43;
+        transform: scaleX(var(--eng-p, 0));
+        transform-origin: left center;
+        /* No transition: --eng-p is already an exponentially smoothed value
+           written once per frame, so a second easing on top of it would only
+           make the rule lag behind the figure it is supposed to agree with. */
+      }
+
+      /* THE HAND-OFF. The stage lifts and fades first, then the loader itself
+         is wiped away from the top down — so the navbar and the hero are the
+         first things uncovered, and the page arrives the way it is read. */
+      .eng-load[data-state='out'] {
+        clip-path: inset(100% 0 0 0);
+        pointer-events: none;
+      }
+
+      .eng-load[data-state='out'] .eng-load__stage {
+        transform: translateY(-2.2rem);
+        opacity: 0;
+      }
+
+      .eng-load[data-state='out'] .eng-load__meter,
+      .eng-load[data-state='out'] .eng-load__rule {
+        opacity: 0;
+        transition: opacity 260ms ease-out;
+      }
+
+      /* Short viewports (landscape phones) — the mark has to give way first. */
+      @media (max-height: 520px) {
+        .eng-load {
+          --eng-mark-w: min(52vw, 20rem);
+        }
+        .eng-load__stage {
+          margin-block-end: clamp(12px, 4vh, 28px);
+          gap: clamp(12px, 2.4vh, 20px);
+        }
+      }
+
+      /* Travel removed, progress kept. The level is the load and not a
+         flourish, so it still moves — it simply arrives instead of sweeping. */
+      @media (prefers-reduced-motion: reduce) {
+        .eng-load *,
+        .eng-load {
+          animation: none !important;
+        }
+        .eng-load__scan {
+          display: none;
+        }
+        .eng-load__mark img {
+          clip-path: none;
+          transform: none;
+        }
+        .eng-load.is-armed .eng-load__mark img {
+          transition: opacity 200ms linear;
+        }
+        .eng-load__tag .l {
+          transform: none;
+          transition: opacity 200ms linear;
+        }
+        .eng-load[data-state='out'] {
+          clip-path: none;
+          opacity: 0;
+          transition: opacity 300ms linear;
+        }
+        .eng-load[data-state='out'] .eng-load__stage {
+          transform: none;
+        }
+      }
+    </style>
+    <script>
+      // The scroll lock goes on before the body exists, so there is never a
+      // frame where the page behind the loader can be scrolled or seen.
+      document.documentElement.classList.add('eng-booting');
+    </script>
+    <noscript>
+      <style>
+        /* Nothing can dismiss the loader without JS, so it must never appear. */
+        .eng-load {
+          display: none !important;
+        }
+        html.eng-booting {
+          overflow: visible;
+        }
+      </style>
+    </noscript>
   </head>
   <body>
+    <!-- FIRST IN THE BODY, before the mount point. This is what the browser
+         paints while the bundle is still coming down, so it has to be markup in
+         the document rather than a component inside it. -->
+    <div
+      class="eng-load"
+      id="eng-load"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading England"
+    >
+      <div class="eng-load__stage">
+        <div class="eng-load__mark">
+          <img
+            id="eng-load-mark"
+            src="/england-loader-mark.webp"
+            width="620"
+            height="306"
+            alt="England"
+            fetchpriority="high"
+            decoding="async"
+            draggable="false"
+          />
+          <i class="eng-load__scan" aria-hidden="true"></i>
+        </div>
+        <p class="eng-load__tag" id="eng-load-tag" aria-hidden="true">
+          Har Dukaan Ka Poora Saaman
+        </p>
+      </div>
+
+      <p class="eng-load__meter" aria-hidden="true">
+        <span>loading&hellip;</span>
+        <span class="eng-load__pct" id="eng-load-pct">0&thinsp;%</span>
+      </p>
+
+      <div class="eng-load__rule" aria-hidden="true"><i></i></div>
+    </div>
+
+    <script>
+      /*
+       * THE CONTROLLER.
+       *
+       * The number is real. It is not a timer counting to a hundred while the
+       * page does whatever it is doing — it is pinned to milestones the
+       * document actually reaches, and it waits at each one until the next
+       * arrives:
+       *
+       *     the document parsed        →  30
+       *     the web fonts resolved     →  52
+       *     every subresource loaded   →  70
+       *     React's first commit       →  88
+       *     the first screen is up     → 100
+       *
+       * Between two milestones it creeps a fraction of the remaining distance
+       * per frame, so it always moves and can never overtake the thing it is
+       * reporting. That asymptote is the whole trick: the readout is honest
+       * and it never sits still.
+       *
+       * TWO GUARANTEES, pulling in opposite directions. A load that finishes
+       * instantly still plays the entrance, because a loader that flashes is
+       * worse than no loader. A load that never finishes is dismissed at
+       * MAX_MS regardless — this thing covers the entire site, and a hung
+       * request must never be able to hold the door shut.
+       */
+      (function () {
+        var el = document.getElementById('eng-load');
+
+        if (!el) return;
+
+        var root = document.documentElement;
+        var img = document.getElementById('eng-load-mark');
+        var pctEl = document.getElementById('eng-load-pct');
+        var tagEl = document.getElementById('eng-load-tag');
+
+        var MIN_MS = 1150; // floor on the whole appearance
+        var ENTER_MS = 980; // the entrance, once it has actually started
+        var ARM_MS = 1100; // longest the entrance will wait on the wordmark
+        var MAX_MS = 6500; // hard ceiling, whatever else happens
+
+        var began = Date.now();
+        var armedAt = 0;
+        var ceiling = 6; // where the creep is currently allowed to reach
+        var shown = 0; // what the readout is displaying
+        var printed = -1;
+        var mounted = false;
+        var loaded = document.readyState === 'complete';
+        var done = false;
+        var frame = 0;
+        var lastFrame = 0;
+
+        // The tagline arrives a letter at a time. Split here rather than in the
+        // markup so the copy stays one readable string to edit; the spans are
+        // in place before the first paint either way, because this script is
+        // parser-blocking and sits directly under the element.
+        (function () {
+          var words = tagEl.textContent.trim().split(/\s+/);
+          var n = 0;
+
+          tagEl.textContent = '';
+
+          for (var w = 0; w < words.length; w++) {
+            // Letters are individually animated, which means a line may break
+            // between ANY two of them. Each word gets a wrapper so the only
+            // legal break points are the spaces between words — otherwise a
+            // narrow screen wraps "HAR DUKAAN K / A POORA SAAM / AN".
+            var word = document.createElement('span');
+
+            word.className = 'w';
+
+            for (var i = 0; i < words[w].length; i++) {
+              var letter = document.createElement('span');
+
+              letter.className = 'l';
+              letter.textContent = words[w].charAt(i);
+              letter.style.transitionDelay = 560 + n++ * 26 + 'ms';
+              word.appendChild(letter);
+            }
+
+            tagEl.appendChild(word);
+
+            if (w < words.length - 1) {
+              tagEl.appendChild(document.createTextNode(' '));
+            }
+          }
+        })();
+
+        // The wordmark is a file like any other, and the entrance waits for it
+        // rather than wiping in an empty box. The wait is capped: a mark that
+        // never lands must not cost the visitor the whole animation.
+        function arm() {
+          if (armedAt) return;
+          armedAt = Date.now();
+          el.classList.add('is-armed');
+        }
+
+        if (img.complete && img.naturalWidth) {
+          arm();
+        } else {
+          img.addEventListener('load', arm);
+          img.addEventListener('error', function () {
+            // The optimised mark is a derived file. If it is ever missing, fall
+            // back to the wordmark the navbar already ships — resolved against
+            // the document so a sub-folder deploy still finds it.
+            if (img.getAttribute('data-fallback')) {
+              arm();
+              return;
+            }
+
+            img.setAttribute('data-fallback', '1');
+            img.src = new URL('england-logo-nav.png', document.baseURI).href;
+          });
+        }
+
+        window.setTimeout(arm, ARM_MS);
+
+        function paint(now) {
+          /* THE CREEP IS INTEGRATED AGAINST TIME, NOT COUNTED PER FRAME.
+             Parsing and executing the bundle blocks the main thread for
+             hundreds of milliseconds at precisely the moment the milestones
+             are landing, so requestAnimationFrame stops firing there. A
+             per-frame creep spends that whole stall standing still and then
+             crawls out of it on the handful of frames it gets — the readout
+             sat at 15 % with the site already mounted behind it. Advancing by
+             the time that actually elapsed means it comes back from a stall
+             where the clock says it should be. */
+          var dt = lastFrame ? Math.min((now - lastFrame) / 1000, 0.5) : 0;
+
+          // First frame: the loader itself is now on screen. That is a real
+          // milestone and it keeps the readout off a suspiciously low number
+          // during the gap before the document finishes parsing.
+          if (!lastFrame) reach(16);
+
+          lastFrame = now;
+
+          var target = done ? 100 : ceiling;
+          var rate = done ? 7 : 4.5; // how fast it closes the gap, per second
+
+          shown += (target - shown) * (1 - Math.exp(-rate * dt));
+
+          if (done && target - shown < 0.4) shown = target;
+
+          el.style.setProperty('--eng-p', (shown / 100).toFixed(4));
+
+          var whole = Math.round(shown);
+
+          if (whole !== printed) {
+            printed = whole;
+            pctEl.textContent = whole + ' %';
+          }
+
+          frame = window.requestAnimationFrame(paint);
+        }
+
+        function reach(value) {
+          if (value > ceiling) ceiling = value;
+        }
+
+        function finish() {
+          if (done) return;
+          done = true;
+
+          var now = Date.now();
+          // Hold long enough that the appearance is never a flash AND that the
+          // entrance, whenever it managed to start, is allowed to complete.
+          var wait =
+            Math.max(
+              MIN_MS - (now - began),
+              ENTER_MS - (now - (armedAt || began)),
+              0
+            ) + 420; // …plus the beat it takes the readout to land on 100
+
+          window.setTimeout(function () {
+            el.setAttribute('data-state', 'out');
+            root.classList.remove('eng-booting');
+
+            window.setTimeout(function () {
+              window.cancelAnimationFrame(frame);
+              if (el.parentNode) el.parentNode.removeChild(el);
+            }, 1150);
+          }, wait);
+        }
+
+        if (document.readyState !== 'loading') {
+          reach(30);
+        } else {
+          document.addEventListener('DOMContentLoaded', function () {
+            reach(30);
+          });
+        }
+
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(function () {
+            reach(52);
+          });
+        } else {
+          reach(52);
+        }
+
+        if (!loaded) {
+          window.addEventListener('load', function () {
+            loaded = true;
+            reach(70);
+            if (mounted) finish();
+          });
+        } else {
+          reach(70);
+        }
+
+        window.__engLoader = {
+          reach: reach,
+
+          /* The last milestone is the application's to report. <App> calls this
+             once React has committed its first render, which is the moment the
+             real page exists behind the loader — the site is ready when its
+             first screen is drawn, not when its scripts have merely parsed. */
+          ready: function () {
+            if (mounted) return;
+            mounted = true;
+            reach(88);
+
+            // Assets the first screen wants may still be in flight. Hand over
+            // on `load`, or after a short grace if that tail runs long: a
+            // below-the-fold image finishing is not worth another second of
+            // dark screen.
+            if (loaded) finish();
+            else window.setTimeout(finish, 700);
+          },
+        };
+
+        // If the bundle never boots at all, the site still opens.
+        window.setTimeout(finish, MAX_MS);
+
+        frame = window.requestAnimationFrame(paint);
+      })();
+    </script>
+
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

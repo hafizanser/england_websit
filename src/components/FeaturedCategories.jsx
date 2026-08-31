@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { ArrowUpRight } from '@phosphor-icons/react'
 import { getCategories } from '../api/catalog'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import { SectionHeading } from './ui'
 import { fadeUp, stagger, viewportOnce } from '../lib/motion'
@@ -94,7 +95,7 @@ export default function FeaturedCategories() {
   // Categories come ONLY from the admin API (single source of truth), so new
   // admin categories appear here automatically and every tile links with the
   // real id that the products filter expects.
-  const { data, loading } = useAsync(() => getCategories(), [])
+  const { data, loading } = useAsync(() => getCategories(), [], { cacheKey: catalogKeys.categories() })
   const list = (data || []).slice(0, 10)
 
   // Nothing to show (backend unreachable / no categories) → hide the section

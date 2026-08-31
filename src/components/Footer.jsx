@@ -12,6 +12,7 @@ import {
 } from '@phosphor-icons/react'
 import { brand, navLinks } from '../data/site'
 import { getCategories } from '../api/catalog'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import BrandLogo from './BrandLogo'
 
@@ -44,7 +45,9 @@ export default function Footer() {
   // land on an empty grid, making a footer shortcut to one a dead end. The list
   // scrolls within its column (see the <ul> below) so a long catalogue never
   // stretches the footer or breaks column alignment.
-  const { data: cats, loading: catsLoading } = useAsync(() => getCategories(), [])
+  const { data: cats, loading: catsLoading } = useAsync(() => getCategories(), [], {
+    cacheKey: catalogKeys.categories(),
+  })
   const categoryList = (!catsLoading && Array.isArray(cats) ? cats : []).filter((c) => (c.items ?? 1) > 0)
 
   return (

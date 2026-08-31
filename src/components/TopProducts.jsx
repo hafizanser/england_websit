@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Package, ArrowUpRight } from '@phosphor-icons/react'
 import { getTopSelling } from '../api/catalog'
+import { catalogKeys } from '../api/cacheKeys'
 import { useAsync } from '../hooks/useAsync'
 import { SectionHeading, ProductSkeleton, ErrorState, EmptyState } from './ui'
 import ProductCard from './ProductCard'
@@ -11,7 +12,9 @@ const filters = ['Sab', 'Tissues', 'Soap', 'Shampoo', 'Baby Care', 'Agarbati']
 
 export default function TopProducts() {
   const [active, setActive] = useState('Sab')
-  const { data, loading, error, reload } = useAsync(() => getTopSelling(), [])
+  const { data, loading, error, reload } = useAsync(() => getTopSelling(), [], {
+    cacheKey: catalogKeys.topSelling(),
+  })
 
   const shown = useMemo(() => {
     const list = data || []
