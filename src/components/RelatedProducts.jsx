@@ -92,7 +92,7 @@ export default function RelatedProducts({ product }) {
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 min-[760px]:grid-cols-3 min-[1100px]:grid-cols-4">
         {loading
           ? Array.from({ length: MAX }).map((_, i) => <ProductSkeleton key={i} />)
-          : related.map((p) => <ProductCard key={p.id} p={p} preferLargestUnit />)}
+          : related.map((p) => <ProductCard key={p.id} p={p} preferLargestUnit showVideo />)}
       </div>
     </motion.section>
   )

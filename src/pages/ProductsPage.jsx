@@ -243,7 +243,7 @@ export default function ProductsPage() {
 
           {!loading &&
             !error &&
-            data?.map((p) => <ProductCard key={p.id} p={p} preferLargestUnit showMargin showVideo={false} />)}
+            data?.map((p) => <ProductCard key={p.id} p={p} preferLargestUnit showMargin showVideo />)}
 
           {/* A search that found nothing and a category that is simply empty are
               different situations and must not share one message — "is category
