@@ -20,6 +20,8 @@ import RelatedProducts from '../components/RelatedProducts'
 import EnquiryButton from '../components/EnquiryButton'
 import MrpPerPiece from '../components/MrpPerPiece'
 import ProductGallery from '../components/ProductGallery'
+import ProductVideoBadge from '../components/ProductVideoBadge'
+import { productVideo } from '../lib/productMedia'
 import { orderUnitOptions, unitLabelFor } from '../lib/cartEngine'
 
 // Split admin text (newline / bullet separated) into clean bullet points.
@@ -47,7 +49,7 @@ function unitBullets(text) {
     .filter(Boolean)
 }
 
-function Gallery({ images, name, overview = [] }) {
+function Gallery({ images, name, overview = [], video, poster }) {
   return (
     <ProductGallery
       images={images}
@@ -76,6 +78,34 @@ function Gallery({ images, name, overview = [] }) {
             ))}
           </ul>
         </div>
+      )}
+
+      {/* The product's short clip — the SAME <ProductVideoBadge> the catalogue
+          cards use, resolved by the same productVideo() helper, so the detail
+          page shows the identical preview (and opens the identical lightbox)
+          for a product as its card does in the grid.
+
+          It goes in ProductGallery's children slot for the same reason the
+          packaging badge above does: that slot renders inside the frame's
+          `relative` box, which is what the badge's own `absolute bottom-2.5
+          right-2.5` anchors to. Its z-30 clears the dots (z-20), and it sits
+          bottom-right where neither the centred dots nor the vertically
+          centred arrows nor the top-right packaging badge reach. */}
+      {video && (
+        <ProductVideoBadge
+          // KEYED ON THE CLIP. Unlike the grid — where every card owns a badge
+          // whose src never changes — this one instance is reused as the
+          // shopper moves from one product to the next, and a <video> whose
+          // `src` attribute is swapped in place does not reliably re-run the
+          // resource selection algorithm. Without this the previous product's
+          // clip keeps playing on the new product. Remounting is the fix, and
+          // it also resets the badge's own inView/open state.
+          key={video.src}
+          src={video.src}
+          kind={video.kind}
+          poster={video.poster || poster}
+          name={name}
+        />
       )}
     </ProductGallery>
   )
@@ -135,6 +165,11 @@ export default function ProductDetailPage() {
   const stock = Number(p?.stock) || 0
   const outOfStock = !!p && stock <= 0
   const shortBullets = p ? unitBullets(p.sub) : []
+
+  // This product's preview clip, from the same resolver the catalogue cards use
+  // — so a product shows the same clip here as on its card. Keyed on the product
+  // so navigating between details re-resolves rather than reusing the last one.
+  const video = useMemo(() => (p ? productVideo(p) : null), [p])
   const detailBullets = p ? toBullets(p.description) : []
 
   return (
@@ -169,7 +204,13 @@ export default function ProductDetailPage() {
           {/* Main section */}
           <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
             {/* LEFT — gallery (with the packaging badge overlaid on the image) */}
-            <Gallery images={p.images} name={p.name} overview={shortBullets} />
+            <Gallery
+              images={p.images}
+              name={p.name}
+              overview={shortBullets}
+              video={video}
+              poster={p.image}
+            />
 
             {/* RIGHT — info */}
             <motion.div
