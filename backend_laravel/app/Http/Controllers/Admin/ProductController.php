@@ -10,6 +10,7 @@ use App\Support\Api;
 use App\Support\Uploads;
 use App\Support\VideoStorage;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 
 /** Admin product management against the shared order_system catalogue (tbl_product). */
 class ProductController extends Controller
@@ -30,6 +31,7 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        $this->assertBodyArrived($request);
         $d = $request->all();
         if (mb_strlen(trim((string) ($d['product_name'] ?? ''))) < 2) {
             Api::halt('Product ka naam likhein', 422);
@@ -61,6 +63,7 @@ class ProductController extends Controller
             Api::halt('Product nahi mila', 404);
         }
 
+        $this->assertBodyArrived($request);
         $d = $request->all();
         $data = $this->payload($d);
 
@@ -125,6 +128,21 @@ class ProductController extends Controller
      */
     private function videoColumns(Request $request, ?array $existing): array
     {
+        // A REJECTED UPLOAD MUST NOT LOOK LIKE NO UPLOAD.
+        //
+        // `hasFile()` is false for a file PHP refused as well as for one that was
+        // never sent — Laravel's isValidFile() only checks that the temp path is
+        // non-empty, and a file over upload_max_filesize has no temp path. Both
+        // therefore fell into the "nothing was said about the video" branch
+        // below, which is the branch that deliberately changes nothing. The
+        // result was the worst possible outcome: the admin waits out a 64 MB
+        // upload, the save returns 200, the dashboard says "Product update ho
+        // gaya", and the clip is nowhere. Ask the file why it is invalid first.
+        $upload = $request->file('product_video');
+        if ($upload instanceof UploadedFile && !$upload->isValid()) {
+            Api::halt(self::uploadErrorMessage($upload->getError()), 422);
+        }
+
         if ($request->hasFile('product_video')) {
             // Transcodes to web H.264 and cuts a poster from an early frame —
             // the same pipeline the homepage reels use, so a product clip plays
@@ -145,6 +163,46 @@ class ProductController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * A POST whose body PHP threw away before Laravel ever saw it.
+     *
+     * When a request exceeds post_max_size, PHP discards $_POST AND $_FILES
+     * wholesale and carries on with an empty request. Without this check the
+     * consequences are silent and destructive rather than merely confusing: on
+     * create, the caller gets "Product ka naam likhein" for a form they filled
+     * in correctly; on UPDATE, payload() reads a missing product_name as '' and
+     * writes that over the real one — an oversized video upload would rename the
+     * product to nothing.
+     */
+    private function assertBodyArrived(Request $request): void
+    {
+        $declared = (int) $request->server('CONTENT_LENGTH', 0);
+        if ($declared > 0 && count($request->all()) === 0 && count($request->allFiles()) === 0) {
+            Api::halt(
+                'File bohat bari hai — server ne poori request hi reject kar di (post_max_size). '
+                . 'Chhoti video use karein, ya hosting par post_max_size barhwaein.',
+                413
+            );
+        }
+    }
+
+    /** Why PHP refused an uploaded file, in words the dashboard can act on. */
+    private static function uploadErrorMessage(int $code): string
+    {
+        return match ($code) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE =>
+                'Video server ki upload limit se bari hai (upload_max_filesize). '
+                . 'Chhoti clip use karein, ya hosting par limit barhwaein.',
+            UPLOAD_ERR_PARTIAL =>
+                'Video adhoori upload hui — connection toot gaya. Dobara koshish karein.',
+            UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE =>
+                'Server video ko save nahi kar saka (temp folder ka masla). Hosting support se rabta karein.',
+            UPLOAD_ERR_EXTENSION =>
+                'Server ki kisi PHP extension ne upload rok diya.',
+            default => 'Video upload nahi ho saki. Dobara koshish karein.',
+        };
     }
 
     /** Drop a product's previously stored clip + poster (best-effort). */

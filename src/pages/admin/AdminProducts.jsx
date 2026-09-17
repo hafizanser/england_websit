@@ -50,7 +50,11 @@ const emptyProduct = () => ({
 // real limit and one that grants more has a larger one, so the only honest
 // thing this number can do from the browser is set an expectation. The actual
 // rejection, if it comes, arrives as a 413 with a message naming the fix.
-const MAX_VIDEO_BYTES = 64 * 1024 * 1024
+// Matches SKIP_UNDER_BYTES in lib/videoCompress.js — the point above which a
+// clip is re-encoded in the browser rather than uploaded as-is. Said out loud in
+// the form because the conversion costs real time and the clip's audio, and
+// finding that out mid-save is worse than being told before starting.
+const COMPRESS_OVER_BYTES = 12 * 1024 * 1024
 
 const mb = (bytes) => (bytes / (1024 * 1024)).toFixed(1)
 
@@ -67,6 +71,12 @@ const mb = (bytes) => (bytes / (1024 * 1024)).toFixed(1)
 //   idle         the ordinary label
 function saveLabel(saving, progress) {
   if (!saving) return 'Save karein'
+  // Re-encoding happens first and takes about as long as the clip itself, so it
+  // needs to be named — otherwise a 30-second wait before the upload even starts
+  // reads as the same hang this whole readout exists to eliminate.
+  if (progress?.phase === 'compress') {
+    return `Video chhoti ki ja rahi hai… ${progress.percent ?? 0}%`
+  }
   if (progress?.phase === 'upload' && progress.percent != null) {
     return `Upload ho rahi hai… ${progress.percent}%`
   }
@@ -551,7 +561,7 @@ export default function AdminProducts() {
             {/* The bar is the button's own background filling left to right, not
                 a separate widget: there is nowhere else in this footer to put
                 one, and it keeps the label readable the whole way across. */}
-            {progress?.phase === 'upload' && progress.percent != null && (
+            {(progress?.phase === 'upload' || progress?.phase === 'compress') && progress.percent != null && (
               <span
                 aria-hidden="true"
                 className="absolute inset-y-0 left-0 bg-brand-500 transition-[width] duration-200 ease-out"
@@ -706,10 +716,10 @@ export default function AdminProducts() {
                         {editing.productVideo ? editing.productVideo.name : 'Assigned video'}
                       </p>
                       {editing.productVideo && (
-                        <p className={`text-xs ${editing.productVideo.size > MAX_VIDEO_BYTES ? 'font-semibold text-saffron-700' : 'text-brand-400'}`}>
+                        <p className={`text-xs ${editing.productVideo.size > COMPRESS_OVER_BYTES ? 'font-semibold text-saffron-700' : 'text-brand-400'}`}>
                           {mb(editing.productVideo.size)} MB
-                          {editing.productVideo.size > MAX_VIDEO_BYTES
-                            ? ' — server ki limit se bari ho sakti hai. Chhoti clip behtar hai.'
+                          {editing.productVideo.size > COMPRESS_OVER_BYTES
+                            ? ' — save karte waqt chhoti ki jayegi (thora waqt lagega, awaaz nahi rahegi).'
                             : ''}
                         </p>
                       )}
@@ -742,7 +752,8 @@ export default function AdminProducts() {
                   onChange={(e) => set({ productVideo: e.target.files?.[0] || null, removeVideo: false })}
                 />
                 <p className="mt-1.5 text-xs text-brand-400">
-                  Is product ke card aur detail page par yehi video chalegi. Upload ke baad khud-ba-khud optimize ho jayegi. Khali chhorein to koi video nahi dikhegi.
+                  Is product ke card aur detail page par yehi video chalegi. Khali chhorein to koi video nahi dikhegi.
+                  {' '}Choti clip (12 MB tak) jaisi hai waisi hi jati hai; us se bari video browser mein chhoti ki jati hai — is mein awaaz nahi rehti.
                 </p>
               </div>
             </section>

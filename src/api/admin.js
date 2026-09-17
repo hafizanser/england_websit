@@ -2,6 +2,7 @@ import { http, setAdminToken } from './http'
 import { CATALOG_PREFIX } from './cacheKeys'
 import { invalidateCache } from '../lib/queryCache'
 import { compressImage } from '../lib/imageCompress'
+import { compressVideo } from '../lib/videoCompress'
 
 // Every admin write retires the storefront's client cache.
 //
@@ -84,7 +85,19 @@ export async function getAdminProduct(id) {
 // as the body goes up and again when the server starts processing it. Optional:
 // every existing caller keeps working without it.
 export async function saveProduct(p, { onProgress } = {}) {
-  const fd = await toFormData(p)
+  // BEFORE the body is assembled, not inside toFormData: re-encoding a clip runs
+  // in real time and has to report its own progress, which a synchronous-looking
+  // field walker has no way to surface. Images are different — they are
+  // instant — so they stay where they are.
+  const prepared = { ...p }
+  if (prepared.product_video instanceof File) {
+    prepared.product_video = await compressVideo(prepared.product_video, {
+      onProgress: (fraction) =>
+        onProgress?.({ phase: 'compress', percent: Math.round(fraction * 100) }),
+    })
+  }
+
+  const fd = await toFormData(prepared)
   const path = p.id ? `/admin/products/${p.id}` : '/admin/products'
   // No explicit timeout: http.js measures the gap since the last byte moved
   // rather than the total duration, which is the only thing that works for a
