@@ -53,19 +53,38 @@ function englandServiceWorker(apiBase) {
 
       const build = createHash('sha256').update(files.join('|')).digest('hex').slice(0, 12)
 
-      // An empty or malformed VITE_API_BASE would make `new URL()` throw inside
-      // the worker, so it falls back to a well-formed origin under the reserved
-      // .invalid TLD — parseable, and unable to match any request ever made.
-      let apiOrigin = 'https://api.disabled.invalid'
-      try {
-        apiOrigin = new URL(apiBase).origin
-      } catch {
-        this.warn(`VITE_API_BASE ("${apiBase}") is not a URL — API caching is disabled in sw.js`)
+      // VITE_API_BASE COMES IN TWO SHAPES, and the worker has to recognise the
+      // API under both:
+      //
+      //   https://api-store.codelps.com   a separate origin
+      //   /api                            same origin as the storefront, behind
+      //                                   a path prefix
+      //
+      // An earlier version of this ran `new URL(apiBase)` and took the origin.
+      // That throws on the relative form — which is the form the live site
+      // actually uses — and the fallback it landed on matched nothing, so the
+      // deployed worker quietly cached no catalogue JSON and no product images
+      // at all. Splitting it into an origin AND a prefix is what makes both
+      // shapes describable; an empty origin means "wherever this worker is
+      // served from", which is the only honest answer for a relative base,
+      // because the deploy host is not knowable at build time.
+      let apiOrigin = ''
+      let apiPrefix = ''
+
+      const base = String(apiBase || '').trim()
+      if (/^https?:\/\//i.test(base)) {
+        const url = new URL(base)
+        apiOrigin = url.origin
+        apiPrefix = url.pathname.replace(/\/+$/, '')
+      } else {
+        apiPrefix = base.replace(/\/+$/, '')
+        if (apiPrefix && !apiPrefix.startsWith('/')) apiPrefix = '/' + apiPrefix
       }
 
       const source = readFileSync(swTemplate, 'utf8')
         .replace('__ENG_BUILD__', build)
         .replace('__ENG_API_ORIGIN__', apiOrigin)
+        .replace('__ENG_API_PREFIX__', apiPrefix)
         .replace('__ENG_PRECACHE__', JSON.stringify(precache))
 
       // Deliberately unhashed. A service worker is found by URL, and that URL

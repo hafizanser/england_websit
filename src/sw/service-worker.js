@@ -4,7 +4,7 @@
 // England storefront — service worker.
 //
 // This file is a TEMPLATE, not a module. It is never imported by the app: the
-// Vite plugin in vite.config.js reads it at build time, substitutes the three
+// Vite plugin in vite.config.js reads it at build time, substitutes the
 // placeholders below and emits the result as `dist/sw.js`. That is what lets it
 // know the exact hashed filenames of the build it belongs to without anyone
 // maintaining a list by hand.
@@ -47,7 +47,14 @@
 
 // --- injected at build time (see vite.config.js) ---------------------------
 const BUILD = '__ENG_BUILD__'
-const API_ORIGIN = '__ENG_API_ORIGIN__'
+
+// Where the API lives, as an origin plus a path prefix. An EMPTY origin means
+// "the same origin this worker was served from" — which is what a relative
+// VITE_API_BASE like `/api` means, and the only thing it can mean, since the
+// deploy host is not knowable when this file is generated.
+const API_ORIGIN = '__ENG_API_ORIGIN__' || self.location.origin
+const API_PREFIX = '__ENG_API_PREFIX__'
+
 const PRECACHE = __ENG_PRECACHE__
 
 // Bumped BY HAND, and only when the shape of what is stored changes in a way
@@ -104,12 +111,30 @@ const API_PUBLIC = [
 const IMAGE_EXT = /\.(png|jpe?g|gif|svg|webp|avif|ico)$/i
 const FONT_EXT = /\.(woff2?|ttf|otf|eot)$/i
 
+/**
+ * The API-relative path of `url`, or null when it is not an API request at all.
+ *
+ * Everything that decides whether a response may be stored goes through here, so
+ * the allowlist above can stay written the way the routes are written on the
+ * server — `/products`, not `/api/products` — no matter which prefix this
+ * deployment happens to serve them under.
+ */
+function apiPath(url) {
+  if (url.origin !== API_ORIGIN) return null
+  if (!API_PREFIX) return url.pathname
+  if (url.pathname === API_PREFIX) return '/'
+  if (!url.pathname.startsWith(API_PREFIX + '/')) return null
+  return url.pathname.slice(API_PREFIX.length)
+}
+
 // Product artwork, served by the API out of its uploads folder under a
 // content-immutable name (ImageController sets its own one-year header).
-const isApiImage = (url) => url.origin === API_ORIGIN && url.pathname === '/image'
+const isApiImage = (url) => apiPath(url) === '/image'
 
-const isPublicApiRead = (url) =>
-  url.origin === API_ORIGIN && API_PUBLIC.some((re) => re.test(url.pathname))
+const isPublicApiRead = (url) => {
+  const path = apiPath(url)
+  return path !== null && API_PUBLIC.some((re) => re.test(path))
+}
 
 const isBuildAsset = (url) => url.href.startsWith(ROOT) && url.pathname.includes('/assets/')
 

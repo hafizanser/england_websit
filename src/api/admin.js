@@ -1,6 +1,7 @@
 import { http, setAdminToken } from './http'
 import { CATALOG_PREFIX } from './cacheKeys'
 import { invalidateCache } from '../lib/queryCache'
+import { compressImage } from '../lib/imageCompress'
 
 // Every admin write retires the storefront's client cache.
 //
@@ -79,7 +80,7 @@ export async function getAdminProduct(id) {
 }
 // `p` is a plain object; File fields (productImage, galleryFiles[]) become multipart parts.
 export async function saveProduct(p) {
-  const fd = toFormData(p)
+  const fd = await toFormData(p)
   const path = p.id ? `/admin/products/${p.id}` : '/admin/products'
   const saved = (await http.postForm(path, fd, { auth: true })).product
   dropCatalogCache()
@@ -96,7 +97,7 @@ export async function adminListCategories() {
   return (await http.get('/admin/categories', { auth: true })).data
 }
 export async function saveCategory(c, isNew = false) {
-  const fd = toFormData(c)
+  const fd = await toFormData(c)
   const path = c.id && !isNew ? `/admin/categories/${c.id}` : '/admin/categories'
   const saved = (await http.postForm(path, fd, { auth: true })).category
   dropCatalogCache()
@@ -114,7 +115,7 @@ export async function adminListBlogs() {
 }
 // `b` may carry an `image` File field (multipart). New post if no id.
 export async function saveBlog(b) {
-  const fd = toFormData(b)
+  const fd = await toFormData(b)
   const path = b.id ? `/admin/blogs/${b.id}` : '/admin/blogs'
   const saved = (await http.postForm(path, fd, { auth: true })).blog
   dropCatalogCache()
@@ -133,7 +134,7 @@ export async function adminListVideos() {
 // `v` may carry a `video` File field (multipart) OR a `drive_url` string.
 // Uploads/optimisation can take a while, so allow a generous timeout.
 export async function saveVideo(v) {
-  const fd = toFormData(v)
+  const fd = await toFormData(v)
   const path = v.id ? `/admin/homepage-videos/${v.id}` : '/admin/homepage-videos'
   const saved = (await http.postForm(path, fd, { auth: true, timeout: 300000 })).video
   dropCatalogCache()
@@ -171,14 +172,24 @@ export async function getProfitOrderDetail(id, pin) {
 //  - File values are appended as files
 //  - arrays append `key[]` entries (skipped when empty so the field is omitted)
 //  - booleans -> '1'/'0'; null/undefined skipped; objects JSON-encoded
-function toFormData(obj) {
+// ASYNC because every image in `obj` is re-encoded before it is appended — see
+// lib/imageCompress.js. This is the one choke point every admin multipart save
+// passes through (products, categories, blogs, offers, homepage videos), so
+// putting it here is what makes the rule impossible to forget at a call site.
+//
+// The compressor is a no-op for anything that is not a large raster image, so
+// the homepage video upload that also comes through here is untouched.
+async function toFormData(obj) {
   const fd = new FormData()
   for (const [key, value] of Object.entries(obj)) {
     if (value === null || value === undefined || value === '') continue
     if (value instanceof File) {
-      fd.append(key, value)
+      fd.append(key, await compressImage(value))
     } else if (Array.isArray(value)) {
-      value.forEach((v) => {
+      const parts = await Promise.all(
+        value.map((v) => (v instanceof File ? compressImage(v) : v)),
+      )
+      parts.forEach((v) => {
         if (v instanceof File) fd.append(`${key}[]`, v)
         else fd.append(`${key}[]`, String(v))
       })
@@ -199,7 +210,7 @@ export async function adminListOffers() {
 }
 // Multipart so the banner image File uploads with the rest of the fields.
 export async function saveOffer(o, isNew = false) {
-  const fd = toFormData(o)
+  const fd = await toFormData(o)
   const path = o.id && !isNew ? `/admin/offers/${o.id}` : '/admin/offers'
   const saved = (await http.postForm(path, fd, { auth: true })).offer
   dropCatalogCache()

@@ -133,9 +133,45 @@ function httpFallbackMessage(status, path) {
 
 // Multipart/form-data request (for image uploads). The browser sets the
 // Content-Type (with boundary) automatically, so we must NOT set it here.
-async function requestForm(path, formData, { method = 'POST', auth = true, timeout = 20000 } = {}) {
+// A FIXED TIMEOUT IS THE WRONG SHAPE FOR AN UPLOAD.
+//
+// For a GET, the clock is measuring how long the server takes to think, and 15 s
+// of thinking really is broken. For a multipart POST it is mostly measuring how
+// long the visitor's connection takes to PUSH the body — which is a function of
+// how many bytes are in it, and nothing to do with the server being slow. At a
+// flat 20 s, saving a product with a few photos on an ordinary office uplink
+// aborted a request that was working perfectly, and reported it to the admin as
+// "Server response slow hai".
+//
+// So the allowance is derived from the payload: a floor for the round trip, plus
+// time proportional to the bytes being sent. The ceiling is what still catches a
+// genuinely dead connection rather than hanging the dashboard forever.
+//
+// Images are compressed before they get here (lib/imageCompress.js), so in
+// practice the computed value is now near the floor — this is the belt to that
+// pair of braces, for the one product shot that will not shrink.
+const FORM_BASE_MS = 30000
+const FORM_MS_PER_MB = 20000
+const FORM_MAX_MS = 180000
+
+function uploadBytes(formData) {
+  let bytes = 0
+  try {
+    for (const [, value] of formData.entries()) {
+      if (value && typeof value.size === 'number') bytes += value.size
+    }
+  } catch {
+    // No iterable entries (a very old engine) — the floor alone still applies.
+  }
+  return bytes
+}
+
+async function requestForm(path, formData, { method = 'POST', auth = true, timeout } = {}) {
+  const allowance =
+    timeout ??
+    Math.min(FORM_MAX_MS, FORM_BASE_MS + (uploadBytes(formData) / 1e6) * FORM_MS_PER_MB)
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeout)
+  const timer = setTimeout(() => controller.abort(), allowance)
   const headers = {}
   if (auth) {
     const token = getAdminToken()
@@ -158,7 +194,12 @@ async function requestForm(path, formData, { method = 'POST', auth = true, timeo
     return data
   } catch (e) {
     if (e.name === 'AbortError') {
-      const err = new Error('Server response slow hai. Dobara koshish karein.')
+      // Names the thing the admin can actually act on. The old wording blamed
+      // the server for what is almost always a large file on a slow uplink, and
+      // sent whoever read it looking in the wrong place.
+      const err = new Error(
+        'Upload poora nahi ho saka — internet slow hai ya file bohat bari hai. Chhoti image ke saath dobara koshish karein.',
+      )
       err.code = 'TIMEOUT'
       throw err
     }
