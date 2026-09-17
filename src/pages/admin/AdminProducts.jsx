@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
-import { Plus, PencilSimple, Trash, Package, MagnifyingGlass, CircleNotch, Eye, X, Star } from '@phosphor-icons/react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, PencilSimple, Trash, Package, MagnifyingGlass, CircleNotch, Eye, X, Star, UploadSimple } from '@phosphor-icons/react'
 import { adminListProducts, saveProduct, deleteProduct, adminListCategories } from '../../api/admin'
 import { totalSmallUnits, unitsPerMainUnit, mrpPerPiece, mrpPieceLabel } from '../../lib/pack'
 import { onImgError } from '../../lib/img'
@@ -37,6 +37,11 @@ const emptyProduct = () => ({
   show_profit_breakdown: 1, is_featured: 0, is_active: 1,
   product_image: '', product_image_url: '', multiple_images: [], multiple_images_urls: [],
   productImage: null, galleryFiles: [],
+  // The product's preview clip. `product_video_url` is what the API sends back
+  // for one already assigned; `productVideo` is a newly picked File waiting to
+  // be uploaded; `removeVideo` is the admin having cleared it.
+  product_video: '', product_video_url: '', product_video_poster_url: '',
+  productVideo: null, removeVideo: false,
 })
 
 // Padded SKU code derived from the DB id (mirrors the reference inventory view).
@@ -108,6 +113,8 @@ const toForm = (p) => {
     : []
   f.productImage = null
   f.galleryFiles = []
+  f.productVideo = null
+  f.removeVideo = false
   return f
 }
 
@@ -123,6 +130,7 @@ export default function AdminProducts() {
   const { confirm, success, error } = useNotify()
   const imgInput = useRef(null)
   const galleryInput = useRef(null)
+  const videoInput = useRef(null)
 
   const load = async () => {
     setLoading(true)
@@ -181,6 +189,14 @@ export default function AdminProducts() {
     if (e.productImage instanceof File) payload.product_image = e.productImage
     if (e.id) payload.existing_images = JSON.stringify((e.existing_gallery || []).map((g) => g.name))
     if (e.galleryFiles && e.galleryFiles.length) payload.multiple_images = e.galleryFiles
+
+    // THE VIDEO IS ONLY MENTIONED WHEN IT ACTUALLY CHANGED. Saying nothing is a
+    // real instruction to the API — "keep the assigned clip" — and it is what
+    // makes toggleStatus() below safe: that re-submits the whole row to flip one
+    // flag, and if this always sent a value, every toggle would wipe the video.
+    if (e.productVideo instanceof File) payload.product_video = e.productVideo
+    else if (e.removeVideo) payload.product_video_action = 'remove'
+
     return payload
   }
 
@@ -198,6 +214,22 @@ export default function AdminProducts() {
       setSaving(false)
     }
   }
+
+  // What the modal's little <video> plays: a newly picked file, otherwise
+  // whatever is already assigned to the product.
+  //
+  // Memoised on the File rather than built during render, which is what the
+  // image previews above do. For a 60 KB thumbnail a fresh blob URL per render
+  // is invisible; for a clip it is a new handle onto tens of megabytes every
+  // time a price field is typed in, and none of them are collected while the
+  // modal is open.
+  const videoPreview = useMemo(
+    () =>
+      editing?.productVideo instanceof File
+        ? URL.createObjectURL(editing.productVideo)
+        : editing?.product_video_url || '',
+    [editing?.productVideo, editing?.product_video_url],
+  )
 
   // Flip Active/Inactive in place. Re-saves the full row (with the flag toggled)
   // so the DB updates immediately; optimistic UI reverts on failure.
@@ -590,6 +622,65 @@ export default function AdminProducts() {
                 </div>
                 <input ref={galleryInput} type="file" accept="image/*" multiple className="hidden" onChange={(e) => set({ galleryFiles: [...(editing.galleryFiles || []), ...Array.from(e.target.files || [])] })} />
                 <button type="button" onClick={() => galleryInput.current?.click()} className="mt-2 rounded-2xl border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 hover:bg-sand-50">+ Gallery images</button>
+              </div>
+
+              {/* Product video — the clip the card's corner badge and the detail
+                  page play for THIS product. Nothing here changes how that badge
+                  looks or where it sits; this only decides which file it gets.
+                  Leave it empty and the product simply has no badge. */}
+              <div>
+                <label className={fieldLabel}>Product video</label>
+
+                {videoPreview ? (
+                  <div className="flex items-start gap-3">
+                    <video
+                      // Keyed on the source so picking a different file actually
+                      // reloads the element — a <video> whose src attribute is
+                      // swapped in place keeps playing the previous clip.
+                      key={videoPreview}
+                      src={videoPreview}
+                      poster={editing.productVideo ? undefined : editing.product_video_poster_url || undefined}
+                      className="h-24 w-24 shrink-0 rounded-xl border border-brand-100 bg-black object-cover"
+                      muted
+                      playsInline
+                      controls
+                      preload="metadata"
+                    />
+                    <div className="min-w-0 space-y-2">
+                      <p className="truncate text-xs font-semibold text-brand-600">
+                        {editing.productVideo ? editing.productVideo.name : 'Assigned video'}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => videoInput.current?.click()} className="rounded-2xl border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 hover:bg-sand-50">Badlein</button>
+                        <button
+                          type="button"
+                          onClick={() => set({ productVideo: null, removeVideo: true, product_video_url: '', product_video_poster_url: '' })}
+                          className="inline-flex items-center gap-1.5 rounded-2xl border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-500 hover:bg-sand-50"
+                        >
+                          <X size={13} weight="bold" /> Hataayein
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => videoInput.current?.click()} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-brand-300 bg-white px-4 py-3 text-sm font-semibold text-brand-700 hover:bg-sand-50">
+                    <UploadSimple size={16} weight="bold" /> Video chunein
+                  </button>
+                )}
+
+                <input
+                  ref={videoInput}
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  // Picking a file cancels a pending removal — otherwise choosing
+                  // a replacement right after clearing would upload the new clip
+                  // AND still be carrying the "remove" instruction.
+                  onChange={(e) => set({ productVideo: e.target.files?.[0] || null, removeVideo: false })}
+                />
+                <p className="mt-1.5 text-xs text-brand-400">
+                  Is product ke card aur detail page par yehi video chalegi. Upload ke baad khud-ba-khud optimize ho jayegi. Khali chhorein to koi video nahi dikhegi.
+                </p>
               </div>
             </section>
 

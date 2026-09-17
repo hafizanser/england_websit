@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Support\Uploads;
+use App\Support\VideoStorage;
 
 /**
  * Products in the shared order_system database (tbl_product). Port of the legacy
@@ -25,6 +26,7 @@ class ProductRepo extends BaseRepo
         'production_packet_price', 'production_dozen_price', 'production_bundle_price',
         'dozen_in_box', 'boxes_in_cotton', 'pieces_per_bundle', 'pieces_per_packet',
         'total_stock_cotton', 'product_image', 'multiple_images',
+        'product_video', 'product_video_poster',
         'mrp_piece', 'mrp_box', 'mrp_carton', 'mrp_packet', 'mrp_dozen', 'mrp_bundle',
         'show_profit_breakdown', 'is_featured', 'is_active',
     ];
@@ -248,6 +250,13 @@ class ProductRepo extends BaseRepo
             'categoryId'  => (string) ($r['category_id'] ?? ''),
             'image'       => $r['product_image_url'] ?? null,
             'images'      => $gallery,
+            // The product's own preview clip, or null when none is assigned —
+            // which the storefront reads as "no badge on this card". Named
+            // `video_url` because that is one of the field names the front-end
+            // resolver already looked for (lib/productMedia.js); the poster rides
+            // along so the badge has a still to show before the clip decodes.
+            'video_url'    => $r['product_video_url'] ?? null,
+            'video_poster' => $r['product_video_poster_url'] ?? null,
             'seed'        => self::seedFrom($name),
             'unit'        => $unit,
             'units'       => $units,
@@ -289,12 +298,20 @@ class ProductRepo extends BaseRepo
 
     public function delete(int $id): void
     {
-        $product = $this->first("SELECT product_image, multiple_images FROM {$this->table} WHERE id = ?", [$id]);
+        $product = $this->first(
+            "SELECT product_image, multiple_images, product_video, product_video_poster
+               FROM {$this->table} WHERE id = ?",
+            [$id]
+        );
         if ($product) {
             Uploads::delete($product['product_image'] ?? null);
             foreach (json_decode((string) ($product['multiple_images'] ?? '[]'), true) ?: [] as $img) {
                 Uploads::delete($img);
             }
+            // Otherwise a deleted product leaves its clip behind forever — and a
+            // clip is three orders of magnitude heavier than a stray JPEG.
+            VideoStorage::delete($product['product_video'] ?? null);
+            VideoStorage::delete($product['product_video_poster'] ?? null);
         }
         $this->exec("DELETE FROM {$this->table} WHERE id = ?", [$id]);
     }
@@ -341,6 +358,11 @@ class ProductRepo extends BaseRepo
         $row['multiple_images'] = $gallery;
         $row['product_image_url'] = Uploads::url($row['product_image'] ?? null);
         $row['multiple_images_urls'] = array_map(fn ($n) => Uploads::url($n), $gallery);
+
+        // VideoStorage, not Uploads: clips live in their own folder and are served
+        // by the range-aware GET /video route, which is what makes seeking work.
+        $row['product_video_url'] = VideoStorage::url($row['product_video'] ?? null);
+        $row['product_video_poster_url'] = VideoStorage::url($row['product_video_poster'] ?? null);
 
         foreach (['show_profit_breakdown', 'is_featured', 'is_active'] as $b) {
             $row[$b] = (int) ($row[$b] ?? 0);

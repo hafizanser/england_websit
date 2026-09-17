@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Repositories\ProductRepo;
 use App\Support\Api;
 use App\Support\Uploads;
+use App\Support\VideoStorage;
 use Illuminate\Http\Request;
 
 /** Admin product management against the shared order_system catalogue (tbl_product). */
@@ -45,6 +46,8 @@ class ProductController extends Controller
             $gallery[] = Uploads::save($file, (string) rand(100, 999));
         }
         $data['multiple_images'] = $gallery;
+
+        $data += $this->videoColumns($request, null);
 
         return Api::ok(['product' => (new ProductRepo())->insert($data)], 201);
     }
@@ -87,6 +90,8 @@ class ProductController extends Controller
         }
         $data['multiple_images'] = array_values(array_filter($keep));
 
+        $data += $this->videoColumns($request, $existing);
+
         return Api::ok(['product' => $model->update($id, $data)]);
     }
 
@@ -97,6 +102,60 @@ class ProductController extends Controller
     }
 
     // ---- helpers -----------------------------------------------------------
+
+    /**
+     * The product's preview clip, as columns to write — or an EMPTY ARRAY meaning
+     * "this request said nothing about the video, leave it exactly as it is".
+     *
+     * That empty return is the important case, not an afterthought. The admin list
+     * flips Active/Inactive by re-submitting the whole product row
+     * (AdminProducts.jsx → toggleStatus), and that submission carries no file and
+     * no removal flag. Returning nulls there — or folding these columns into
+     * payload() with the rest — would mean every toggle silently deleted the clip
+     * the admin had just uploaded. ProductRepo::prepareRow only writes columns it
+     * is actually given, so saying nothing is how you say "don't touch it".
+     *
+     * Three things can be asked for, and only one of them per request:
+     *
+     *   a new file            optimised + stored, the previous clip deleted
+     *   product_video_action  'remove' → the clip is deleted and the columns cleared
+     *   anything else         no change
+     *
+     * @return array{product_video?:string|null,product_video_poster?:string|null}
+     */
+    private function videoColumns(Request $request, ?array $existing): array
+    {
+        if ($request->hasFile('product_video')) {
+            // Transcodes to web H.264 and cuts a poster from an early frame —
+            // the same pipeline the homepage reels use, so a product clip plays
+            // identically to one of those. Throws on a non-video extension.
+            $stored = VideoStorage::saveUpload($request->file('product_video'));
+            $this->deleteVideo($existing);
+
+            return [
+                'product_video'        => $stored['video_file'],
+                'product_video_poster' => $stored['poster_file'],
+            ];
+        }
+
+        if ((string) $request->input('product_video_action', '') === 'remove') {
+            $this->deleteVideo($existing);
+
+            return ['product_video' => null, 'product_video_poster' => null];
+        }
+
+        return [];
+    }
+
+    /** Drop a product's previously stored clip + poster (best-effort). */
+    private function deleteVideo(?array $existing): void
+    {
+        if (!$existing) {
+            return;
+        }
+        VideoStorage::delete($existing['product_video'] ?? null);
+        VideoStorage::delete($existing['product_video_poster'] ?? null);
+    }
 
     /** Normalise a single-or-multi file field to a flat list of UploadedFile. */
     private function fileList(Request $request, string $key): array
