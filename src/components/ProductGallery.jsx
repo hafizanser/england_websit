@@ -85,7 +85,13 @@ export default function ProductGallery({
   return (
     <div className={className}>
       <div
-        className={`group/gal relative ${frameClassName}`}
+        // Isolated for the same reason the product card is: the frame stacks
+        // arrows and dots (z-20) and hosts the caller's overlays in `children`
+        // — the packaging badge (z-20) and the video badge (z-30) on the detail
+        // page, where no card wraps them. Left to resolve against the root,
+        // those numbers collide with the page's sticky chrome. Contained, they
+        // only ever order the frame's own contents.
+        className={`group/gal relative isolate ${frameClassName}`}
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >

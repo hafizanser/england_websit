@@ -34,6 +34,15 @@
 #
 #   site.webmanifest Same reasoning: it names icons and start_url.
 #
+#   sw.js            Same reasoning, and the most important of the three. The
+#                    service worker is found by URL and names the precache list
+#                    for its build; a cached copy means a deploy's new worker
+#                    does not exist as far as the browser is concerned, and the
+#                    old one keeps serving the old build's shell. It is emitted
+#                    UNHASHED for that same reason (see vite.config.js), so it
+#                    would otherwise be swept up by the one-year rule that
+#                    mod_expires applies to every .js file below.
+#
 # Product photos and videos are NOT here — those are served by the Laravel API
 # from its own uploads folder, which sets its own one-year immutable headers
 # (backend_laravel/app/Http/Controllers/ImageController.php).
@@ -73,7 +82,7 @@ FileETag MTime Size
   # OUTSIDE the mod_setenvif guard: this is the rule that must survive even on a
   # stripped-down server, because getting it wrong strands visitors on an old
   # build. `unset` first so it wins over the media rule above if both matched.
-  <FilesMatch "^(index\.html|site\.webmanifest)$">
+  <FilesMatch "^(index\.html|site\.webmanifest|sw\.js)$">
     Header unset Cache-Control
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>

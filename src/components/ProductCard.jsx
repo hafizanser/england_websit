@@ -125,7 +125,22 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true, s
       animate={reduce ? false : { opacity: 1, y: 0 }}
       transition={reduce ? undefined : spring}
       whileHover={reduce ? undefined : { y: -6 }}
-      className="group flex flex-col overflow-hidden rounded-3xl border border-brand-100 bg-white shadow-soft focus-within:ring-2 focus-within:ring-saffron-400/50"
+      // `isolate` (isolation: isolate) is load-bearing, not decoration. The card
+      // stacks things inside itself — the gallery's arrows and dots, the video
+      // badge — and without a stacking context of its own those z-indexes are
+      // resolved against the ROOT, where they compete with the page's own
+      // chrome. That is exactly what went wrong: the badge (z-30) and the
+      // products page's sticky category bar (z-30) tied, DOM order decided it,
+      // and the badge rode over the bar on every scroll. Isolating makes the
+      // card paint as ONE unit at its natural place in the flow, so the sticky
+      // bar's z-30 clears the whole card and the numbers inside only ever mean
+      // something relative to each other. It costs nothing: the card has no
+      // z-index of its own, so its position in the page's stack is unchanged.
+      //
+      // Nothing that must escape the card lives inside it — VideoLightbox is
+      // portalled to <body> precisely so the card's overflow/radius cannot clip
+      // it, and that is what keeps it above the navbar with this in place.
+      className="group isolate flex flex-col overflow-hidden rounded-3xl border border-brand-100 bg-white shadow-soft focus-within:ring-2 focus-within:ring-saffron-400/50"
     >
       {/* Media — clean, edge-to-edge image (fixed aspect ratio → no CLS). Links to
           the product page on the storefront; callers can disable that (admin) so a

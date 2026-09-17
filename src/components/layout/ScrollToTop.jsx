@@ -13,7 +13,8 @@ import {
 //
 //   • forward navigation (a product card, a nav link, any button that calls
 //     navigate) starts the new page at the top — unless that page positions
-//     ITSELF (see `selfPositioning`);
+//     ITSELF (see `selfPositioning`) or explicitly asks to stay put (see
+//     `keepScroll`);
 //   • Back / Forward returns to the exact pixel the shopper left, on every route,
 //     including the self-positioning ones.
 //
@@ -39,6 +40,13 @@ export default function ScrollToTop() {
   const offerDeepLink = pathname === '/offers' && new URLSearchParams(search).has('offer')
   const selfPositioning = Boolean(state?.scrollToGrid || state?.scrollToOffer || offerDeepLink)
   const isPop = navType === 'POP'
+
+  // "The URL changed but the page did not" — a filter, a sort, a chip. The
+  // navigating code puts the scrollY it measured BEFORE the swap here (see
+  // ProductsPage's `keepOrigin`), because by the time this effect runs the
+  // replacement content is already committed and the browser has clamped the
+  // position to whatever the half-empty page can hold.
+  const keepScroll = typeof state?.keepScroll === 'number' ? state.keepScroll : null
 
   // Per-entry key, plus the URL as a fallback so a reload (which throws every
   // entry key away) can still find the position it left.
@@ -98,12 +106,19 @@ export default function ScrollToTop() {
     // means "start at the top".
     if (isPop) return restoreScroll(remembered ?? 0)
 
+    // A filter change on the page the shopper is already reading. Held rather
+    // than jumped: the incoming content is skeletons for a moment, and a page
+    // that short cannot sit at this offset — restoreScroll keeps re-asserting it
+    // until the products land and the document is tall enough again, then lets
+    // go. Any real scroll input cancels it, so it never fights the shopper.
+    if (keepScroll !== null) return restoreScroll(keepScroll)
+
     // Forward navigation into a page that positions itself before first paint.
     if (selfPositioning) return undefined
 
     window.scrollTo(0, 0)
     return undefined
-  }, [location, isPop, selfPositioning])
+  }, [location, isPop, selfPositioning, keepScroll])
 
   return null
 }

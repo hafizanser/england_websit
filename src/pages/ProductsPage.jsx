@@ -50,19 +50,50 @@ export default function ProductsPage() {
   // an empty search silently loses the way home and "Filter saaf karein" degrades
   // to clearing in place.
   const searchOrigin = location.state?.searchOrigin
-  const keepOrigin = { replace: true, state: searchOrigin ? { searchOrigin } : undefined }
+
+  // CHANGING A FILTER IS NOT A NEW PAGE — SO DON'T MOVE THE SHOPPER.
+  //
+  // The category pills live in a sticky bar, which means the shopper is almost
+  // always scrolled INTO the grid when they tap one. The tap is still a real
+  // navigation — the category belongs in the URL: it is shareable, it survives a
+  // reload, and Back steps through the filters — and ScrollToTop's default for a
+  // forward navigation is to start the new page at the top. Right for a new page;
+  // wrong here, where the page did not change at all, only its contents did. It
+  // threw the shopper back up to the banner on every single tap.
+  //
+  // `keepScroll` carries the answer, and it has to be CAPTURED HERE rather than
+  // read back wherever it is acted on. By then React has swapped the grid for
+  // eight skeletons, the document is a fraction of its former height, and the
+  // browser has already clamped scrollY to fit it — the position is gone before
+  // anything downstream can look at it. Read in the click handler, while the grid
+  // is still on screen, it is the real number.
+  //
+  // ScrollToTop turns it into a HOLD rather than a one-shot jump, for that same
+  // reason: the skeleton page is too short to sit at this offset and only grows
+  // back into it once the products land.
+  //
+  // /categories gets this for free — its chips are component state, so nothing
+  // navigates and nothing resets. This is what makes the two pages behave the
+  // same way without making the products URL lie about what is on screen.
+  const keepOrigin = () => ({
+    replace: true,
+    state: {
+      ...(searchOrigin ? { searchOrigin } : null),
+      keepScroll: Math.round(window.scrollY),
+    },
+  })
 
   const setCat = (next) => {
     const p = new URLSearchParams(params)
     if (next === 'all') p.delete('cat')
     else p.set('cat', next)
-    setParams(p, keepOrigin)
+    setParams(p, keepOrigin())
   }
 
   const clearSearch = () => {
     const p = new URLSearchParams(params)
     p.delete('q')
-    setParams(p, keepOrigin)
+    setParams(p, keepOrigin())
   }
 
   const resetFilters = () => {
@@ -76,11 +107,11 @@ export default function ProductsPage() {
       return
     }
     // Otherwise (direct/shared link, or a category-only empty state) there is no
-    // origin to return to — clear the filters in place.
+    // origin to return to — clear the filters in place, from where they stand.
     const p = new URLSearchParams(params)
     p.delete('q')
     p.delete('cat')
-    setParams(p, { replace: true })
+    setParams(p, keepOrigin())
   }
 
   // A search that matches nothing STAYS HERE and shows the empty state, with

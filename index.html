@@ -41,10 +41,26 @@
          deep link all serve THIS document; the loader is on the route because
          it is on the file.
 
-         COLOUR. #241910 is the existing <meta name="theme-color">, so the
-         browser chrome continues the loader instead of drawing a line above it.
-         Cream #F6F0E4 and gold #B98F43 are --cream / --gold from theme.css.
-         Flat fills only — no gradient anywhere in here.
+         THE COMPOSITION, top to bottom:
+
+             a gold bloom, breathing slowly behind everything
+             the ENGLAND wordmark, wiped in behind a travelling gold hairline
+             the progress rule — drawn open from its centre, then filled
+             the tagline, arriving a letter at a time
+             the footer: englandwaly.com · crafted by Codelps
+
+         Every one of those is a flat fill on flat colour. #241910 is the
+         existing <meta name="theme-color">, so the browser chrome continues the
+         panel instead of drawing a line above it; cream #F6F0E4 and gold
+         #B98F43 / #CBA45C are --cream / --gold / --gold-2 from theme.css.
+
+         IT MUST NEVER BE THE SLOW PART. Two mechanisms keep that honest: the
+         readout is pinned to milestones the document really reaches (see the
+         controller), and a visitor who has been here before gets the same
+         sequence at roughly half the duration — by their second visit the
+         service worker has the bundle on disk, so a leisurely entrance would be
+         the only thing left to wait for. `--d-*` below are what `is-warm`
+         shortens; nothing else changes, so the two speeds cannot drift apart.
          ===================================================================== -->
     <link rel="preload" as="image" fetchpriority="high" href="/england-loader-mark.webp" />
     <style>
@@ -67,24 +83,69 @@
         /* The exit wipe. Declared here so the transition has a start value to
            leave from; without it the first frame of the hand-off jumps. */
         clip-path: inset(0 0 0 0);
-        transition: clip-path 860ms cubic-bezier(0.76, 0, 0.24, 1) 140ms;
-        /* The mark's width, named once: the travelling rule below needs the
-           same number inside a keyframe, and two hard-coded copies of a
-           responsive expression drift apart the moment one is edited. */
-        --eng-mark-w: min(74vw, 30rem);
+        transition: clip-path 700ms cubic-bezier(0.76, 0, 0.24, 1) 110ms;
+
+        /* The mark's width, named once: the stage is built around it — the
+           progress row is exactly this wide — and two hand-copied responsive
+           expressions drift apart the moment one of them is edited. */
+        --eng-mark-w: min(72vw, 27rem);
+
+        /* The three durations the whole sequence is built from. */
+        --d-mark: 940ms; /* the wordmark unveil, and the hairline riding it */
+        --d-rise: 800ms; /* anything that travels into place */
+        --d-fade: 500ms; /* anything that simply appears */
+      }
+
+      /* A returning visitor. Same sequence, roughly half the time — see the
+         note above. */
+      .eng-load.is-warm {
+        --d-mark: 540ms;
+        --d-rise: 460ms;
+        --d-fade: 290ms;
+      }
+
+      /* Depth without a gradient doing the talking: one warm bloom behind the
+         mark and one darkening at the floor, both very low contrast. It
+         breathes on a long cycle, which is what stops a panel of static type
+         from reading as a frozen screenshot while a slow request finishes. */
+      .eng-load__bloom {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        background:
+          radial-gradient(58% 44% at 50% 43%, rgba(185, 143, 67, 0.23), rgba(185, 143, 67, 0) 72%),
+          radial-gradient(130% 88% at 50% 122%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0) 62%);
+        transition: opacity 900ms ease-out;
+      }
+
+      .eng-load.is-armed .eng-load__bloom {
+        opacity: 1;
+        animation: eng-load-breathe 5600ms ease-in-out 900ms infinite;
+      }
+
+      @keyframes eng-load-breathe {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 0.82;
+        }
+        50% {
+          transform: scale(1.07);
+          opacity: 1;
+        }
       }
 
       /* Held a little above the true centre. An object centred in the window
-         reads as sitting low, and the counter needs the floor to itself. */
+         reads as sitting low, and the footer needs the floor to itself. */
       .eng-load__stage {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: clamp(18px, 3.4vh, 34px);
-        margin-block-end: clamp(24px, 7vh, 68px);
+        gap: clamp(15px, 2.6vh, 26px);
+        margin-block-end: clamp(20px, 6vh, 56px);
         padding-inline: clamp(20px, 6vw, 64px);
-        transition: transform 620ms cubic-bezier(0.22, 1, 0.36, 1),
-          opacity 420ms ease-out;
+        transition: transform 560ms cubic-bezier(0.22, 1, 0.36, 1), opacity 380ms ease-out;
       }
 
       .eng-load__mark {
@@ -104,7 +165,7 @@
         block-size: 100%;
         object-fit: contain;
         opacity: 0;
-        transform: translateY(14px) scale(0.972);
+        transform: translateY(12px) scale(0.974);
         clip-path: inset(0 100% 0 0);
       }
 
@@ -112,9 +173,9 @@
         opacity: 1;
         transform: none;
         clip-path: inset(0 0 0 0);
-        transition: opacity 520ms ease-out,
-          transform 1000ms cubic-bezier(0.16, 1, 0.3, 1),
-          clip-path 980ms cubic-bezier(0.76, 0, 0.24, 1);
+        transition: opacity var(--d-fade) ease-out,
+          transform var(--d-rise) cubic-bezier(0.16, 1, 0.3, 1),
+          clip-path var(--d-mark) cubic-bezier(0.76, 0, 0.24, 1);
       }
 
       /* The gold hairline that rides the leading edge of that wipe. It carries
@@ -131,7 +192,7 @@
       }
 
       .eng-load.is-armed .eng-load__scan {
-        animation: eng-load-scan 980ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
+        animation: eng-load-scan var(--d-mark) cubic-bezier(0.76, 0, 0.24, 1) forwards;
       }
 
       @keyframes eng-load-scan {
@@ -151,25 +212,113 @@
         }
       }
 
-      /* The tagline arrives a letter at a time — the reference's one signature
-         move, put on the line that can carry it without seams. Delays are
-         stamped per span by the controller.
+      /* THE PROGRESS ROW — the rule and the figure that agree with it, exactly
+         as wide as the wordmark above them. Keeping the two welded to the mark
+         rather than parking a bar at the bottom of the window is the whole
+         difference between a brand opening and a browser chrome imitation. */
+      .eng-load__meter {
+        display: flex;
+        align-items: center;
+        gap: clamp(12px, 2.2vw, 20px);
+        inline-size: var(--eng-mark-w);
+        opacity: 0;
+        transition: opacity var(--d-fade) ease-out 150ms;
+      }
 
-         A SYSTEM STACK ON PURPOSE, here and on the counter. Bricolage and Plus
-         Jakarta are still downloading while this is on screen, and type that
-         changes shape halfway through the animation is worse than type that
-         never had a face of its own. */
+      .eng-load.is-armed .eng-load__meter {
+        opacity: 1;
+      }
+
+      /* Drawn open from its own centre as it arrives, then filled from the
+         left. Two transforms on two elements, so neither has to undo the other. */
+      .eng-load__rule {
+        position: relative;
+        flex: 1 1 auto;
+        min-inline-size: 0;
+        block-size: 2px;
+        overflow: hidden;
+        border-radius: 2px;
+        background: rgba(246, 240, 228, 0.13);
+        transform: scaleX(0.05);
+        transform-origin: center;
+        transition: transform var(--d-rise) cubic-bezier(0.16, 1, 0.3, 1) 190ms;
+      }
+
+      .eng-load.is-armed .eng-load__rule {
+        transform: scaleX(1);
+      }
+
+      .eng-load__rule i {
+        display: block;
+        block-size: 100%;
+        background: #b98f43;
+        transform: scaleX(var(--eng-p, 0));
+        transform-origin: left center;
+        /* No transition: --eng-p is already an exponentially smoothed value
+           written once per frame, so a second easing on top of it would only
+           make the rule lag behind the figure it is supposed to agree with. */
+      }
+
+      /* A highlight travelling the track, under no circumstances a fake
+         progress bar — it carries no information and is not tied to the
+         number. It exists because the readout is HONEST and an honest readout
+         sometimes sits still for a second on a slow connection, and a panel
+         with nothing moving on it reads as crashed. */
+      .eng-load__rule::after {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inline-size: 36%;
+        background: linear-gradient(
+          90deg,
+          rgba(246, 240, 228, 0),
+          rgba(246, 240, 228, 0.45),
+          rgba(246, 240, 228, 0)
+        );
+        transform: translateX(-130%);
+      }
+
+      .eng-load.is-armed .eng-load__rule::after {
+        animation: eng-load-sheen 2100ms cubic-bezier(0.45, 0, 0.25, 1) 760ms infinite;
+      }
+
+      @keyframes eng-load-sheen {
+        to {
+          transform: translateX(400%);
+        }
+      }
+
+      .eng-load__pct {
+        flex: none;
+        min-inline-size: 3.7em;
+        text-align: end;
+        /* A SYSTEM STACK ON PURPOSE, here and on the tagline and the footer.
+           Bricolage and Plus Jakarta are still downloading while this is on
+           screen, and type that changes shape halfway through the animation is
+           worse than type that never had a face of its own. */
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-size: clamp(10px, 1.4vw, 12px);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: rgba(246, 240, 228, 0.92);
+        /* Tabular figures, or the counter twitches sideways on every tick. */
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* The tagline arrives a letter at a time — the one signature move, put on
+         the line that can carry it without seams. Delays are stamped per span
+         by the controller. */
       .eng-load__tag {
         margin: 0;
         max-inline-size: min(100%, 30rem);
         text-align: center;
         text-transform: uppercase;
         font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-        font-size: clamp(9px, 1.5vw, 11.5px);
+        font-size: clamp(8.5px, 1.4vw, 11px);
         font-weight: 600;
         line-height: 1.9;
-        letter-spacing: 0.42em;
-        text-indent: 0.42em; /* balances the trailing letter-space */
+        letter-spacing: 0.4em;
+        text-indent: 0.4em; /* balances the trailing letter-space */
         color: #cba45c;
       }
 
@@ -186,9 +335,9 @@
       .eng-load__tag .l {
         display: inline-block;
         opacity: 0;
-        transform: translateY(0.85em);
-        transition: opacity 520ms ease-out,
-          transform 760ms cubic-bezier(0.16, 1, 0.3, 1);
+        transform: translateY(0.8em);
+        transition: opacity var(--d-fade) ease-out,
+          transform var(--d-rise) cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       .eng-load.is-armed .eng-load__tag .l {
@@ -196,57 +345,61 @@
         transform: none;
       }
 
-      .eng-load__meter {
+      /* The footer line: whose shop this is, and who built it. Sized and
+         tracked to sit well below the stage in the reading order — it is a
+         colophon, not a second headline. */
+      .eng-load__foot {
         position: absolute;
-        margin: 0;
-        inset-block-end: calc(
-          clamp(20px, 3.6vh, 36px) + env(safe-area-inset-bottom, 0px)
-        );
-        inset-inline-end: clamp(18px, 5vw, 44px);
+        inset-inline: clamp(18px, 5vw, 48px);
+        inset-block-end: calc(clamp(18px, 3.2vh, 34px) + env(safe-area-inset-bottom, 0px));
         display: flex;
-        align-items: baseline;
-        gap: clamp(10px, 2vw, 18px);
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
         font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-        font-size: clamp(10px, 1.5vw, 12px);
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: lowercase;
-        color: rgba(246, 240, 228, 0.52);
+        font-size: clamp(8px, 1.15vw, 10px);
+        font-weight: 600;
+        letter-spacing: 0.26em;
+        text-transform: uppercase;
+        color: rgba(246, 240, 228, 0.4);
         opacity: 0;
-        transition: opacity 420ms ease-out 180ms;
+        transition: opacity var(--d-fade) ease-out 400ms;
       }
 
-      .eng-load.is-armed .eng-load__meter {
+      .eng-load.is-armed .eng-load__foot {
         opacity: 1;
       }
 
-      .eng-load__pct {
-        color: #f6f0e4;
-        font-size: 1.08em;
-        letter-spacing: 0.06em;
-        /* Tabular figures, or the counter twitches sideways on every tick. */
-        font-variant-numeric: tabular-nums;
+      .eng-load__foot span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.7em;
+        white-space: nowrap;
       }
 
-      /* The progress rule, pinned to the very bottom edge of the window. It is
-         driven by --eng-p, which is the same number the counter prints. */
-      .eng-load__rule {
-        position: absolute;
-        inset-inline: 0;
-        inset-block-end: 0;
-        block-size: 2px;
-        background: rgba(246, 240, 228, 0.1);
-      }
-
-      .eng-load__rule i {
-        display: block;
-        block-size: 100%;
+      .eng-load__foot i {
+        inline-size: 3px;
+        block-size: 3px;
+        border-radius: 50%;
         background: #b98f43;
-        transform: scaleX(var(--eng-p, 0));
-        transform-origin: left center;
-        /* No transition: --eng-p is already an exponentially smoothed value
-           written once per frame, so a second easing on top of it would only
-           make the rule lag behind the figure it is supposed to agree with. */
+      }
+
+      .eng-load__foot b {
+        font-weight: inherit;
+      }
+
+      /* Narrow phones: the two ends of the footer would otherwise meet in the
+         middle. Tracking comes in first, and "Crafted" is the word that goes —
+         the two names are the part that matters. */
+      @media (max-width: 420px) {
+        .eng-load__foot {
+          gap: 8px;
+          font-size: 8px;
+          letter-spacing: 0.16em;
+        }
+        .eng-load__foot b {
+          display: none;
+        }
       }
 
       /* THE HAND-OFF. The stage lifts and fades first, then the loader itself
@@ -258,24 +411,39 @@
       }
 
       .eng-load[data-state='out'] .eng-load__stage {
-        transform: translateY(-2.2rem);
+        transform: translateY(-2rem);
         opacity: 0;
+        transition: transform 400ms cubic-bezier(0.7, 0, 0.84, 0), opacity 240ms ease-in;
+      }
+
+      /* `animation: none` is load-bearing on both of these: a transition cannot
+         override a running animation, so the breathing bloom and the travelling
+         sheen would otherwise keep their own opacity all the way through the
+         exit and be cut off mid-cycle by the wipe. */
+      .eng-load[data-state='out'] .eng-load__bloom,
+      .eng-load[data-state='out'] .eng-load__rule::after {
+        animation: none;
+        opacity: 0;
+        transition: opacity 220ms ease-out;
       }
 
       .eng-load[data-state='out'] .eng-load__meter,
-      .eng-load[data-state='out'] .eng-load__rule {
+      .eng-load[data-state='out'] .eng-load__foot {
         opacity: 0;
-        transition: opacity 260ms ease-out;
+        transition: opacity 240ms ease-out;
       }
 
       /* Short viewports (landscape phones) — the mark has to give way first. */
       @media (max-height: 520px) {
         .eng-load {
-          --eng-mark-w: min(52vw, 20rem);
+          --eng-mark-w: min(50vw, 19rem);
         }
         .eng-load__stage {
-          margin-block-end: clamp(12px, 4vh, 28px);
-          gap: clamp(12px, 2.4vh, 20px);
+          margin-block-end: clamp(10px, 3vh, 22px);
+          gap: clamp(10px, 2.2vh, 18px);
+        }
+        .eng-load__foot {
+          inset-block-end: calc(10px + env(safe-area-inset-bottom, 0px));
         }
       }
 
@@ -283,11 +451,16 @@
          flourish, so it still moves — it simply arrives instead of sweeping. */
       @media (prefers-reduced-motion: reduce) {
         .eng-load *,
+        .eng-load *::after,
         .eng-load {
           animation: none !important;
         }
-        .eng-load__scan {
+        .eng-load__scan,
+        .eng-load__rule::after {
           display: none;
+        }
+        .eng-load__bloom {
+          opacity: 1;
         }
         .eng-load__mark img {
           clip-path: none;
@@ -296,6 +469,10 @@
         .eng-load.is-armed .eng-load__mark img {
           transition: opacity 200ms linear;
         }
+        .eng-load__rule {
+          transform: none;
+          transition: none;
+        }
         .eng-load__tag .l {
           transform: none;
           transition: opacity 200ms linear;
@@ -303,7 +480,7 @@
         .eng-load[data-state='out'] {
           clip-path: none;
           opacity: 0;
-          transition: opacity 300ms linear;
+          transition: opacity 260ms linear;
         }
         .eng-load[data-state='out'] .eng-load__stage {
           transform: none;
@@ -338,6 +515,8 @@
       aria-live="polite"
       aria-label="Loading England"
     >
+      <div class="eng-load__bloom" aria-hidden="true"></div>
+
       <div class="eng-load__stage">
         <div class="eng-load__mark">
           <img
@@ -352,17 +531,21 @@
           />
           <i class="eng-load__scan" aria-hidden="true"></i>
         </div>
+
+        <div class="eng-load__meter" aria-hidden="true">
+          <span class="eng-load__rule"><i></i></span>
+          <span class="eng-load__pct" id="eng-load-pct">0&thinsp;%</span>
+        </div>
+
         <p class="eng-load__tag" id="eng-load-tag" aria-hidden="true">
           Har Dukaan Ka Poora Saaman
         </p>
       </div>
 
-      <p class="eng-load__meter" aria-hidden="true">
-        <span>loading&hellip;</span>
-        <span class="eng-load__pct" id="eng-load-pct">0&thinsp;%</span>
-      </p>
-
-      <div class="eng-load__rule" aria-hidden="true"><i></i></div>
+      <div class="eng-load__foot" aria-hidden="true">
+        <span>englandwaly.com</span>
+        <span><i></i><b>Crafted&nbsp;</b>by Codelps</span>
+      </div>
     </div>
 
     <script>
@@ -401,10 +584,36 @@
         var pctEl = document.getElementById('eng-load-pct');
         var tagEl = document.getElementById('eng-load-tag');
 
-        var MIN_MS = 1150; // floor on the whole appearance
-        var ENTER_MS = 980; // the entrance, once it has actually started
-        var ARM_MS = 1100; // longest the entrance will wait on the wordmark
-        var MAX_MS = 6500; // hard ceiling, whatever else happens
+        /*
+         * HAS THIS BROWSER BEEN HERE BEFORE?
+         *
+         * The floors below exist so a fast load is not a flash. On a FIRST
+         * visit that is worth the time — it is the brand's one opening, and the
+         * network is genuinely busy behind it anyway. On every visit after
+         * that, the service worker has the bundle and the fonts on disk and the
+         * app is ready in a few hundred milliseconds, at which point a
+         * cinematic floor is no longer covering a wait: it IS the wait. So the
+         * returning visitor gets the same sequence, played at roughly half
+         * length, and the CSS reads `is-warm` for exactly the same reason.
+         *
+         * The flag is written when the loader COMPLETES, not when it starts, so
+         * a first visit that was abandoned or failed still gets a proper
+         * opening on the next attempt.
+         */
+        var WARM = false;
+
+        try {
+          WARM = localStorage.getItem('eng.seen') === '1';
+        } catch (e) {
+          // Private mode, or storage blocked. Falls through as a first visit,
+          // which is the safe direction to be wrong in.
+        }
+
+        var MIN_MS = WARM ? 360 : 760; // floor on the whole appearance
+        var ENTER_MS = WARM ? 520 : 820; // the entrance, once it has really started
+        var HOLD_MS = WARM ? 170 : 340; // the beat the readout needs to land on 100
+        var ARM_MS = 900; // longest the entrance will wait on the wordmark
+        var MAX_MS = 6000; // hard ceiling, whatever else happens
 
         var began = Date.now();
         var armedAt = 0;
@@ -417,12 +626,16 @@
         var frame = 0;
         var lastFrame = 0;
 
+        if (WARM) el.classList.add('is-warm');
+
         // The tagline arrives a letter at a time. Split here rather than in the
         // markup so the copy stays one readable string to edit; the spans are
         // in place before the first paint either way, because this script is
         // parser-blocking and sits directly under the element.
         (function () {
           var words = tagEl.textContent.trim().split(/\s+/);
+          var lead = WARM ? 300 : 520;
+          var step = WARM ? 14 : 24;
           var n = 0;
 
           tagEl.textContent = '';
@@ -441,7 +654,7 @@
 
               letter.className = 'l';
               letter.textContent = words[w].charAt(i);
-              letter.style.transitionDelay = 560 + n++ * 26 + 'ms';
+              letter.style.transitionDelay = lead + n++ * step + 'ms';
               word.appendChild(letter);
             }
 
@@ -514,7 +727,7 @@
 
           if (whole !== printed) {
             printed = whole;
-            pctEl.textContent = whole + ' %';
+            pctEl.textContent = whole + ' %';
           }
 
           frame = window.requestAnimationFrame(paint);
@@ -528,6 +741,14 @@
           if (done) return;
           done = true;
 
+          // Recorded here rather than at boot: a first visit that was abandoned
+          // or that failed halfway still deserves a real opening next time.
+          try {
+            localStorage.setItem('eng.seen', '1');
+          } catch (e) {
+            /* nothing to do — next visit simply plays the full entrance */
+          }
+
           var now = Date.now();
           // Hold long enough that the appearance is never a flash AND that the
           // entrance, whenever it managed to start, is allowed to complete.
@@ -536,7 +757,7 @@
               MIN_MS - (now - began),
               ENTER_MS - (now - (armedAt || began)),
               0
-            ) + 420; // …plus the beat it takes the readout to land on 100
+            ) + HOLD_MS;
 
           window.setTimeout(function () {
             el.setAttribute('data-state', 'out');
@@ -545,7 +766,7 @@
             window.setTimeout(function () {
               window.cancelAnimationFrame(frame);
               if (el.parentNode) el.parentNode.removeChild(el);
-            }, 1150);
+            }, 950);
           }, wait);
         }
 
@@ -592,7 +813,7 @@
             // below-the-fold image finishing is not worth another second of
             // dark screen.
             if (loaded) finish();
-            else window.setTimeout(finish, 700);
+            else window.setTimeout(finish, WARM ? 420 : 700);
           },
         };
 

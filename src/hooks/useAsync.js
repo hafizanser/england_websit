@@ -32,12 +32,21 @@ const idleState = { data: null, loading: true, error: null, attempt: 0, revalida
 // Pass a cacheKey and the hook stops starting from nothing on every mount. What
 // it does with a cached entry depends on HOW the shopper got here:
 //
-//   Back / Forward     served from cache, and NOT revalidated. This is the case
-//                      the whole thing exists for: Layout unmounts the page on
-//                      every route change, so without it Back always meant
-//                      skeletons and a full re-download of the catalogue. A
-//                      shopper returning to a grid they were just looking at
-//                      wants it back, not refreshed.
+//   Back / Forward     served from cache, and NOT revalidated — as long as the
+//                      entry is FRESH. This is the case the whole thing exists
+//                      for: Layout unmounts the page on every route change, so
+//                      without it Back always meant skeletons and a full
+//                      re-download of the catalogue. A shopper returning to a
+//                      grid they were just looking at wants it back, not
+//                      refreshed.
+//
+//   a stale entry      painted immediately and ALWAYS refreshed, whichever way
+//                      the shopper arrived. This is what a returning visitor
+//                      gets: yesterday's catalogue is on screen in the first
+//                      frame — no skeletons at all — and corrected a moment
+//                      later if anything moved. Back does not get to opt out of
+//                      the check here, because "what they were just looking at"
+//                      was a previous visit.
 //
 //   anything else      served from cache INSTANTLY and refreshed behind them
 //   (a click, a        (`revalidating`). Nothing flashes — the swap is an
@@ -116,18 +125,22 @@ export function useAsync(fn, deps = [], options = {}) {
       const cached = cacheKey && !force ? readCache(cacheKey) : null
 
       if (cached) {
+        // A Back/Forward into a page this session already rendered is the one
+        // arrival that may skip the check — and only while the entry is still
+        // fresh. A stale one (hydrated from the durable tier, i.e. left over from
+        // an earlier visit) is painted just as eagerly but always verified.
+        const refresh = cached.stale || !restoreRef.current
+
         // Show what we have, always — `loading` stays false so the page renders
         // its real UI rather than a skeleton. The identity check keeps the common
         // case (the seed already put this exact object on screen) from queueing a
         // render that changes nothing.
         setState((s) =>
           s.data === cached.data && !s.loading && !s.error
-            ? (restoreRef.current ? s : { ...s, revalidating: true })
-            : { data: cached.data, loading: false, error: null, attempt: 0, revalidating: !restoreRef.current },
+            ? (refresh ? { ...s, revalidating: true } : s)
+            : { data: cached.data, loading: false, error: null, attempt: 0, revalidating: refresh },
         )
-        // A Back/Forward into a page this session already rendered: return them
-        // to it and leave it alone. Every other arrival falls through and checks.
-        if (restoreRef.current) return
+        if (!refresh) return
       } else if (keepData) {
         setState((s) =>
           s.data == null
@@ -225,6 +238,8 @@ function seedFor(cacheKey, isRestore) {
     loading: false,
     error: null,
     attempt: 0,
-    revalidating: !isRestore,
+    // Mirrors `refresh` in run() — the two must agree, or the first paint would
+    // claim to be revalidating when nothing is about to, or vice versa.
+    revalidating: cached.stale || !isRestore,
   }
 }

@@ -7,6 +7,13 @@ import VideoLightbox from './VideoLightbox'
 // autoplays muted + looped inside a rounded glass frame, with a gently pulsing
 // play indicator. Clicking it opens the existing fullscreen lightbox (unchanged).
 //
+// Layering: the badge's z-30 is a WITHIN-THE-FRAME number — it clears the
+// gallery's arrows and dots (z-20) and nothing else. Both of its hosts (the
+// product card, the gallery frame) are `isolate`d, so it can never reach the
+// page's own stack and ride over the sticky category bar the way it used to.
+// Raising it here without raising them is meaningless; raising it there would
+// put it back on top of the bar.
+//
 // Perf: a catalogue grid of autoplaying clips is expensive, so the media is both
 // lazy-loaded AND playback-gated by an IntersectionObserver — the file is only
 // requested once the card nears the viewport, and the loop is paused the instant

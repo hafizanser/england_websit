@@ -7,6 +7,7 @@ import { CartProvider } from './context/CartContext'
 import { SessionProvider } from './context/SessionContext'
 import { CustomerAuthProvider } from './context/CustomerAuthContext'
 import { initSafeAreaVars } from './lib/viewport'
+import { initServiceWorker } from './lib/serviceWorker'
 import './index.css'
 import './theme.css'
 // Loaded LAST so the iOS/Safari parity layer can correct both stylesheets above.
@@ -24,6 +25,12 @@ import './ios.css'
 // toolbar collapses, so every bar sized from env() directly resized mid-scroll;
 // Android reports a constant 0px. See lib/viewport.js.
 initSafeAreaVars()
+
+// Warms the offline/repeat-visit caches. Deliberately the LAST thing set up and
+// deliberately not awaited: it registers after window.load, so nothing it does
+// competes with the first screen. See lib/serviceWorker.js — it is a no-op in
+// dev, where it tears down any worker a previous production build left behind.
+initServiceWorker()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
