@@ -44,6 +44,36 @@ const emptyProduct = () => ({
   productVideo: null, removeVideo: false,
 })
 
+// The largest clip the API is configured to accept — matches
+// upload_max_filesize in backend_laravel/public/.user.ini. Shown as a warning
+// rather than enforced as a block: a host that ignores .user.ini has a smaller
+// real limit and one that grants more has a larger one, so the only honest
+// thing this number can do from the browser is set an expectation. The actual
+// rejection, if it comes, arrives as a 413 with a message naming the fix.
+const MAX_VIDEO_BYTES = 64 * 1024 * 1024
+
+const mb = (bytes) => (bytes / (1024 * 1024)).toFixed(1)
+
+// What the Save button says while a save is running.
+//
+// The three states are genuinely different things and the admin needs to be able
+// to tell them apart — a video save that sits at "Save karein" with a spinner
+// for four minutes is indistinguishable from a broken one, which is exactly how
+// this looked before there was any readout at all:
+//
+//   uploading    real measured bytes, so it visibly moves
+//   processing   the file has landed; the server is transcoding it and cannot
+//                report a percentage, so it must not pretend to
+//   idle         the ordinary label
+function saveLabel(saving, progress) {
+  if (!saving) return 'Save karein'
+  if (progress?.phase === 'upload' && progress.percent != null) {
+    return `Upload ho rahi hai… ${progress.percent}%`
+  }
+  if (progress?.phase === 'processing') return 'Server process kar raha hai…'
+  return 'Save ho raha hai…'
+}
+
 // Padded SKU code derived from the DB id (mirrors the reference inventory view).
 const skuOf = (id) => `SKU: ${String(id ?? '').padStart(5, '0')}`
 
@@ -126,6 +156,9 @@ export default function AdminProducts() {
   const [editing, setEditing] = useState(null)
   const [viewing, setViewing] = useState(null)
   const [saving, setSaving] = useState(false)
+  // { phase: 'upload' | 'processing' | 'done', percent } while a save is in
+  // flight, else null. Only meaningful for saves carrying a file.
+  const [progress, setProgress] = useState(null)
   const [togglingId, setTogglingId] = useState(null)
   const { confirm, success, error } = useNotify()
   const imgInput = useRef(null)
@@ -202,9 +235,17 @@ export default function AdminProducts() {
 
   const onSave = async () => {
     setSaving(true)
+    setProgress(null)
     try {
       const isEdit = !!editing.id
-      await saveProduct(productPayload(editing))
+      await saveProduct(productPayload(editing), {
+        // Only worth showing when there is actually a file going up. A
+        // fields-only save is a few hundred bytes and completes in one tick, so
+        // flashing "0% → 100%" on it is noise, not information.
+        onProgress: editing.productVideo instanceof File || editing.productImage instanceof File
+          ? setProgress
+          : undefined,
+      })
       setEditing(null)
       await load()
       success(isEdit ? 'Product update ho gaya' : 'Naya product add ho gaya')
@@ -212,6 +253,7 @@ export default function AdminProducts() {
       error(err.message || 'Save nahi hua')
     } finally {
       setSaving(false)
+      setProgress(null)
     }
   }
 
@@ -505,8 +547,21 @@ export default function AdminProducts() {
         title={editing?.id ? 'Product edit karein' : 'Naya product'}
         onClose={() => setEditing(null)}
         footer={
-          <button onClick={onSave} disabled={saving || !editing?.product_name} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-700 px-5 py-3 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-50">
-            {saving ? <CircleNotch size={16} className="animate-spin" /> : null} Save karein
+          <button onClick={onSave} disabled={saving || !editing?.product_name} className="relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-brand-700 px-5 py-3 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-50">
+            {/* The bar is the button's own background filling left to right, not
+                a separate widget: there is nowhere else in this footer to put
+                one, and it keeps the label readable the whole way across. */}
+            {progress?.phase === 'upload' && progress.percent != null && (
+              <span
+                aria-hidden="true"
+                className="absolute inset-y-0 left-0 bg-brand-500 transition-[width] duration-200 ease-out"
+                style={{ width: `${progress.percent}%` }}
+              />
+            )}
+            <span className="relative flex items-center gap-2">
+              {saving ? <CircleNotch size={16} className="animate-spin" /> : null}
+              {saveLabel(saving, progress)}
+            </span>
           </button>
         }
       >
@@ -650,6 +705,14 @@ export default function AdminProducts() {
                       <p className="truncate text-xs font-semibold text-brand-600">
                         {editing.productVideo ? editing.productVideo.name : 'Assigned video'}
                       </p>
+                      {editing.productVideo && (
+                        <p className={`text-xs ${editing.productVideo.size > MAX_VIDEO_BYTES ? 'font-semibold text-saffron-700' : 'text-brand-400'}`}>
+                          {mb(editing.productVideo.size)} MB
+                          {editing.productVideo.size > MAX_VIDEO_BYTES
+                            ? ' — server ki limit se bari ho sakti hai. Chhoti clip behtar hai.'
+                            : ''}
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-2">
                         <button type="button" onClick={() => videoInput.current?.click()} className="rounded-2xl border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 hover:bg-sand-50">Badlein</button>
                         <button

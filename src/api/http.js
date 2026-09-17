@@ -133,85 +133,165 @@ function httpFallbackMessage(status, path) {
 
 // Multipart/form-data request (for image uploads). The browser sets the
 // Content-Type (with boundary) automatically, so we must NOT set it here.
-// A FIXED TIMEOUT IS THE WRONG SHAPE FOR AN UPLOAD.
+// ---------------------------------------------------------------------------
+// Multipart uploads go through XMLHttpRequest, not fetch.
+// ---------------------------------------------------------------------------
+// This is the one place in the app that deliberately uses the older API, for a
+// reason fetch cannot work around: FETCH CANNOT REPORT UPLOAD PROGRESS. It hands
+// back a promise that settles when the RESPONSE arrives, and says nothing at all
+// about the bytes going up. For a 200 KB photo nobody notices. For a product
+// video it meant the Save button spun with no information for minutes, looking
+// identical whether the upload was moving, stalled, or dead — which is exactly
+// what it looked like. `xhr.upload.onprogress` is the only way to see inside it.
 //
-// For a GET, the clock is measuring how long the server takes to think, and 15 s
-// of thinking really is broken. For a multipart POST it is mostly measuring how
-// long the visitor's connection takes to PUSH the body — which is a function of
-// how many bytes are in it, and nothing to do with the server being slow. At a
-// flat 20 s, saving a product with a few photos on an ordinary office uplink
-// aborted a request that was working perfectly, and reported it to the admin as
-// "Server response slow hai".
+// AND THE TIMEOUT IS STALL-BASED, NOT TOTAL. A fixed deadline is the wrong shape
+// for an upload twice over: too short and it kills a slow-but-working transfer
+// (a flat 20 s used to abort a perfectly healthy save and blame the server);
+// too long and a genuinely dead connection hangs the dashboard. Measuring the
+// gap since the last byte moved instead is right in both directions — a 40 MB
+// clip crawling up a village DSL line is never interrupted, and a connection
+// that drops is caught in STALL_MS.
 //
-// So the allowance is derived from the payload: a floor for the round trip, plus
-// time proportional to the bytes being sent. The ceiling is what still catches a
-// genuinely dead connection rather than hanging the dashboard forever.
+// Two phases are reported, because they fail differently and the second one has
+// no percentage to give:
 //
-// Images are compressed before they get here (lib/imageCompress.js), so in
-// practice the computed value is now near the floor — this is the belt to that
-// pair of braces, for the one product shot that will not shrink.
-const FORM_BASE_MS = 30000
-const FORM_MS_PER_MB = 20000
-const FORM_MAX_MS = 180000
+//   upload      bytes on the wire. Real, measured, 0-100.
+//   processing  the body has landed and the server is transcoding it with
+//               ffmpeg (VideoStorage). Nothing can be measured from out here, so
+//               the UI says so rather than parking a progress bar at 100%.
+const STALL_MS = 45000
 
-function uploadBytes(formData) {
-  let bytes = 0
-  try {
-    for (const [, value] of formData.entries()) {
-      if (value && typeof value.size === 'number') bytes += value.size
-    }
-  } catch {
-    // No iterable entries (a very old engine) — the floor alone still applies.
-  }
-  return bytes
-}
+// Images are compressed before they get here (lib/imageCompress.js) and videos
+// are transcoded on the far end, so the processing phase can legitimately run
+// long. This caps only the silence, not the work.
+const PROCESSING_STALL_MS = 300000
 
-async function requestForm(path, formData, { method = 'POST', auth = true, timeout } = {}) {
-  const allowance =
-    timeout ??
-    Math.min(FORM_MAX_MS, FORM_BASE_MS + (uploadBytes(formData) / 1e6) * FORM_MS_PER_MB)
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), allowance)
-  const headers = {}
-  if (auth) {
-    const token = getAdminToken()
-    if (token) headers.Authorization = `Bearer ${token}`
-  }
-  try {
-    const res = await fetch(API_BASE + path, { method, headers, body: formData, signal: controller.signal })
-    let data = {}
-    try {
-      data = await res.json()
-    } catch {
-      data = {}
+function requestForm(
+  path,
+  formData,
+  { method = 'POST', auth = true, timeout, onProgress } = {},
+) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open(method, API_BASE + path, true)
+
+    if (auth) {
+      const token = getAdminToken()
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
     }
-    if (!res.ok) {
-      const err = new Error(data.error || `HTTP ${res.status}`)
-      err.status = res.status
-      err.fields = data.fields || null
-      throw err
+    // Content-Type is left alone on purpose: the browser has to set it itself so
+    // the multipart boundary matches the body it is about to serialise.
+
+    let phase = 'upload'
+    let lastTick = Date.now()
+    let settled = false
+
+    const report = (next) => {
+      lastTick = Date.now()
+      if (typeof onProgress === 'function') {
+        try {
+          onProgress(next)
+        } catch {
+          // A broken progress handler must never take the upload down with it.
+        }
+      }
     }
-    return data
-  } catch (e) {
-    if (e.name === 'AbortError') {
-      // Names the thing the admin can actually act on. The old wording blamed
-      // the server for what is almost always a large file on a slow uplink, and
-      // sent whoever read it looking in the wrong place.
+
+    const finish = (fn, arg) => {
+      if (settled) return
+      settled = true
+      clearInterval(watchdog)
+      fn(arg)
+    }
+
+    const watchdog = setInterval(() => {
+      const limit = timeout ?? (phase === 'upload' ? STALL_MS : PROCESSING_STALL_MS)
+      if (Date.now() - lastTick < limit) return
+      xhr.abort()
       const err = new Error(
-        'Upload poora nahi ho saka — internet slow hai ya file bohat bari hai. Chhoti image ke saath dobara koshish karein.',
+        phase === 'upload'
+          ? 'Upload ruk gaya — internet check karein aur dobara koshish karein.'
+          : 'Server ne file process karne mein bohat waqt liya. Chhoti ya chhoti-duration video try karein.',
       )
       err.code = 'TIMEOUT'
-      throw err
+      finish(reject, err)
+    }, 1000)
+
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return report({ phase: 'upload', percent: null })
+      report({
+        phase: 'upload',
+        loaded: e.loaded,
+        total: e.total,
+        percent: Math.min(99, Math.round((e.loaded / e.total) * 100)),
+      })
     }
-    if (e instanceof TypeError) {
-      const err = new Error('Backend se rabta nahi ho saka.')
+
+    // The body is fully on the wire. Everything after this is the server's time,
+    // and it is not measurable — say which phase we are in rather than implying
+    // a stalled percentage.
+    xhr.upload.onload = () => {
+      phase = 'processing'
+      report({ phase: 'processing', percent: 100 })
+    }
+
+    // Any byte of the RESPONSE arriving also counts as the server being alive.
+    xhr.onprogress = () => {
+      lastTick = Date.now()
+    }
+
+    xhr.onload = () => {
+      let data = {}
+      try {
+        data = JSON.parse(xhr.responseText || '{}')
+      } catch {
+        data = {}
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        report({ phase: 'done', percent: 100 })
+        return finish(resolve, data)
+      }
+      const err = new Error(data.error || formFallbackMessage(xhr.status))
+      err.status = xhr.status
+      err.fields = data.fields || null
+      finish(reject, err)
+    }
+
+    xhr.onerror = () => {
+      const err = new Error(`Backend se rabta nahi ho saka (${API_BASE}).`)
       err.code = 'NETWORK'
-      throw err
+      finish(reject, err)
     }
-    throw e
-  } finally {
-    clearTimeout(timer)
+
+    // Only reached when something other than the watchdog aborted (a navigation
+    // away mid-upload); the watchdog has already settled its own case.
+    xhr.onabort = () => {
+      const err = new Error('Upload cancel ho gaya.')
+      err.code = 'ABORTED'
+      finish(reject, err)
+    }
+
+    report({ phase: 'upload', percent: 0 })
+    xhr.send(formData)
+  })
+}
+
+// An upload has failure modes a JSON GET does not, and the server answers most
+// of them with an HTML error page rather than our envelope — so the status code
+// is all there is to go on. Naming the real cause matters here more than
+// anywhere else in the app: every one of these is fixed by a different person
+// doing a different thing.
+function formFallbackMessage(status) {
+  if (status === 413) {
+    return 'File server ki limit se bari hai. Chhoti file use karein, ya hosting par upload_max_filesize / post_max_size barhwaein.'
   }
+  if (status === 401 || status === 403) return 'Ijazat nahi — dobara login karein.'
+  if (status === 419) return 'Session expire ho gaya — dobara login karein.'
+  if (status === 0) return 'Connection toot gaya.'
+  if (status >= 500) {
+    return `Server error (${status}). Bari video par yeh aksar PHP ki max_execution_time ya memory_limit hoti hai.`
+  }
+  return `Upload fail hua (HTTP ${status}).`
 }
 
 // ---- in-flight GET de-duplication ------------------------------------------

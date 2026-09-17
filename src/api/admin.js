@@ -80,18 +80,17 @@ export async function getAdminProduct(id) {
 }
 // `p` is a plain object; File fields (productImage, galleryFiles[], product_video)
 // become multipart parts.
-export async function saveProduct(p) {
+// `onProgress` is forwarded to the transport, which reports { phase, percent }
+// as the body goes up and again when the server starts processing it. Optional:
+// every existing caller keeps working without it.
+export async function saveProduct(p, { onProgress } = {}) {
   const fd = await toFormData(p)
   const path = p.id ? `/admin/products/${p.id}` : '/admin/products'
-  // A save carrying a video is a different animal from one carrying photos: the
-  // body is far bigger AND the server runs ffmpeg over it before answering. The
-  // size-derived allowance in http.js covers the upload but not the transcode,
-  // so this borrows the flat ceiling the homepage reel upload already uses.
-  // Images are compressed client-side, so a photo-only save keeps the short one.
-  const hasVideo = p.product_video instanceof File
-  const saved = (
-    await http.postForm(path, fd, { auth: true, ...(hasVideo ? { timeout: 300000 } : null) })
-  ).product
+  // No explicit timeout: http.js measures the gap since the last byte moved
+  // rather than the total duration, which is the only thing that works for a
+  // video — a big clip on a slow uplink takes minutes and is perfectly healthy,
+  // while a dropped connection needs catching in seconds.
+  const saved = (await http.postForm(path, fd, { auth: true, onProgress })).product
   dropCatalogCache()
   return saved
 }
