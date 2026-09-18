@@ -366,7 +366,9 @@ class ProductRepo extends BaseRepo
         // the MP4 its background transcode produces, the moment that file exists
         // — so the switch needs no database write and no job to report back.
         $row['product_video_url'] = VideoStorage::url(VideoStorage::resolveProduct($row['product_video'] ?? null));
-        $row['product_video_poster_url'] = VideoStorage::url($row['product_video_poster'] ?? null);
+        // Only linked once the file exists: for a clip still being converted in
+        // the background, the job has not written its poster yet.
+        $row['product_video_poster_url'] = VideoStorage::urlIfPresent($row['product_video_poster'] ?? null);
         $row['product_video_pending'] = VideoStorage::isPendingProduct($row['product_video'] ?? null);
 
         foreach (['show_profit_breakdown', 'is_featured', 'is_active'] as $b) {

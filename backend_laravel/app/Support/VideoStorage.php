@@ -18,7 +18,7 @@ use Symfony\Component\Process\Process;
  */
 class VideoStorage
 {
-    private const VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', 'ogg', 'ogv'];
+    public const VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', 'ogg', 'ogv'];
 
     public const MIME = [
         'mp4'  => 'video/mp4',
@@ -101,17 +101,16 @@ class VideoStorage
     // =======================================================================
     //
     // saveUpload() above transcodes INSIDE the HTTP request. That is tolerable
-    // for a short homepage reel and fatal for a phone clip: on shared cPanel
-    // hosting PHP runs behind FastCGI, and a request that produces no output
-    // for roughly 40-60 seconds is killed by the web server and reported to the
-    // browser as 503 — no matter how high max_execution_time is set. That is
-    // precisely the error product-video saves were failing with. A large iPhone
-    // HEVC clip takes minutes to transcode on a shared CPU allowance.
+    // for a short homepage reel and not for a phone clip: a large iPhone HEVC
+    // clip takes minutes to transcode on a shared CPU allowance, and the live
+    // host ends every request at ~300 s with its own 503 page — no matter how
+    // high max_execution_time is set. (That cut-off, hit by the UPLOAD itself,
+    // was the real cause of the product-video 503s; see ChunkedUpload.)
     //
     // So a product upload does only cheap, BOUNDED work in the request — a
-    // move, an ffprobe, at most a stream-copy remux and one poster frame, each
-    // capped at QUICK_TIMEOUT, far below any FastCGI limit — and anything heavier
-    // is handed to a detached process that outlives the request:
+    // move, an ffprobe, at most a stream-copy remux and one poster frame, all
+    // within REQUEST_BUDGET — and anything heavier is handed to a detached
+    // process that outlives the request:
     //
     //   already web-ready   H.264 (4:2:0, <=1920px) with AAC or no audio, in an
     //                       MP4 box. This is exactly what the admin panel's
@@ -129,8 +128,18 @@ class VideoStorage
 
     private const PRODUCT_SRC = '/^(.+)_src\.[A-Za-z0-9]+$/';
 
-    // Seconds any synchronous ffmpeg/ffprobe call may take inside a request.
+    // Seconds any single synchronous ffmpeg/ffprobe call may take inside a request.
     private const QUICK_TIMEOUT = 20;
+
+    // Seconds ALL of a request's synchronous ffmpeg/ffprobe work may take
+    // together. Capping each call is not enough — an earlier version capped every
+    // step at 20 s, and probe + two poster attempts + an ffmpeg check could still
+    // add up to over a minute on a CPU-throttled shared host, all of it spent
+    // with the admin watching "Server process kar raha hai".
+    private const REQUEST_BUDGET = 20;
+
+    /** Absolute microtime by which this request's ffmpeg work must be done. */
+    private static float $deadline = 0.0;
 
     /**
      * Store a product clip without transcoding it in the request.
@@ -152,6 +161,10 @@ class VideoStorage
         $file->move($dir, $src);
         $srcPath = "{$dir}/{$src}";
 
+        self::$deadline = microtime(true) + self::REQUEST_BUDGET;
+
+        // ffprobe only reads the container's index — it does not decode a frame,
+        // so it is cheap even for a 4K HEVC clip.
         $info  = self::probe($srcPath);
         $final = null;
 
@@ -173,24 +186,33 @@ class VideoStorage
             }
         }
 
-        $video  = $final ?? $src;
-        $poster = self::grabPoster("{$dir}/{$video}", "{$dir}/{$stem}.jpg") ? "{$stem}.jpg" : null;
+        if ($final !== null) {
+            // A finished H.264 file. One frame of it is cheap to decode, so the
+            // poster is made now and the clip is complete when this returns.
+            $poster = self::grabPoster("{$dir}/{$final}", "{$dir}/{$stem}.jpg") ? "{$stem}.jpg" : null;
 
-        $pending = false;
-        if ($final === null) {
-            $pending = self::ffmpegWorks() && self::startBackgroundTranscode($srcPath, $dir, $stem, $info);
-
-            // No job is coming — no ffmpeg on this host, proc_open disabled, no
-            // shell. Then the original IS the final file, and its name must say
-            // so: a "_src" name is a promise that an MP4 is on the way, and the
-            // dashboard would report "processing" for a clip nobody is
-            // processing, forever.
-            if (!$pending && @rename($srcPath, "{$dir}/{$stem}.{$ext}")) {
-                $video = "{$stem}.{$ext}";
-            }
+            return ['video_file' => $final, 'poster_file' => $poster, 'pending' => false];
         }
 
-        return ['video_file' => $video, 'poster_file' => $poster, 'pending' => $pending];
+        // NOT web-ready — typically an iPhone HEVC original. Nothing in this
+        // request decodes it: not the poster, not a probe frame, nothing. An
+        // earlier version grabbed the poster here, which meant decoding 4K HEVC
+        // frames inside the request on a throttled shared CPU — the very work the
+        // background job exists to keep out of it. The job writes <stem>.jpg as
+        // well, and the storefront only links a poster once that file exists
+        // (see urlIfPresent), so recording its name now is safe.
+        if (self::ffmpegWorks() && self::startBackgroundTranscode($srcPath, $dir, $stem, $info)) {
+            return ['video_file' => $src, 'poster_file' => "{$stem}.jpg", 'pending' => true];
+        }
+
+        // No job is coming — no ffmpeg on this host, proc_open disabled, no
+        // shell. Then the original IS the final file, and its name must say so:
+        // a "_src" name is a promise that an MP4 is on the way, and the
+        // dashboard would report "processing" for a clip nobody is processing,
+        // for ever. (No ffmpeg also means no poster could be made.)
+        $video = @rename($srcPath, "{$dir}/{$stem}.{$ext}") ? "{$stem}.{$ext}" : $src;
+
+        return ['video_file' => $video, 'poster_file' => null, 'pending' => false];
     }
 
     /**
@@ -209,6 +231,23 @@ class VideoStorage
         return $name;
     }
 
+    /**
+     * url(), but only for a stored file that actually exists yet. Used for a
+     * product poster, which the background job may still be writing: linking it
+     * early would hand every shopper a 404 until it lands.
+     */
+    public static function urlIfPresent(?string $name): ?string
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return null;
+        }
+        if (preg_match('#^https?://#i', $name) || str_starts_with($name, '/')) {
+            return self::url($name);
+        }
+        return is_file(self::dir() . '/' . basename($name)) ? self::url($name) : null;
+    }
+
     /** True while a stored product clip is still the original awaiting its MP4. */
     public static function isPendingProduct(?string $name): bool
     {
@@ -223,13 +262,26 @@ class VideoStorage
         return preg_match(self::PRODUCT_SRC, basename($name)) === 1;
     }
 
+    /** Seconds left in this request's ffmpeg budget (a full step if none is set). */
+    private static function remaining(): float
+    {
+        if (self::$deadline <= 0) {
+            return self::QUICK_TIMEOUT;
+        }
+        return min(self::QUICK_TIMEOUT, self::$deadline - microtime(true));
+    }
+
     /** Streams, codecs and sizes via ffprobe — or null if it is unavailable. */
     private static function probe(string $path): ?array
     {
         $ffprobe = (string) config('fmcg.ffprobe_path', 'ffprobe');
+        $timeout = self::remaining();
+        if ($timeout < 1) {
+            return null;
+        }
         try {
             $p = new Process([$ffprobe, '-v', 'error', '-show_streams', '-show_format', '-of', 'json', $path]);
-            $p->setTimeout(self::QUICK_TIMEOUT);
+            $p->setTimeout($timeout);
             $p->run();
             if (!$p->isSuccessful()) {
                 return null;
@@ -410,9 +462,13 @@ class VideoStorage
 
     private static function runQuick(array $cmd): bool
     {
+        $timeout = self::remaining();
+        if ($timeout < 1) {
+            return false; // the request's budget is spent — skip, never overrun
+        }
         try {
             $p = new Process($cmd);
-            $p->setTimeout(self::QUICK_TIMEOUT);
+            $p->setTimeout($timeout);
             $p->run();
             return $p->isSuccessful();
         } catch (\Throwable $e) {

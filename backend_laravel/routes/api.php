@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProfitController as AdminProfitController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
+use App\Http\Controllers\Admin\VideoUploadController as AdminVideoUploadController;
 use Illuminate\Support\Facades\Route;
 
 // ===========================================================================
@@ -130,6 +131,18 @@ Route::middleware('cache.private')->group(function () {
     Route::post('/auth/admin/login', [AuthController::class, 'adminLogin']);
     Route::post('/auth/admin/logout', [AuthController::class, 'adminLogout']);
     Route::get('/auth/admin/me', [AuthController::class, 'adminMe'])->middleware('admin.auth');
+});
+
+// ---- Admin: product video upload, in pieces -------------------------------
+// Same guard as the admin group below, minus `catalog.bump`: a piece of a file
+// changes nothing a shopper can see, and bumping on every piece would retire
+// the storefront catalogue a dozen times per clip. The product save that
+// attaches the finished clip goes through the group below and bumps once.
+// Why pieces at all: App\Support\ChunkedUpload.
+Route::middleware(['cache.private', 'admin.auth'])->group(function () {
+    Route::post('/admin/video-uploads', [AdminVideoUploadController::class, 'start']);
+    Route::post('/admin/video-uploads/{id}', [AdminVideoUploadController::class, 'chunk']);
+    Route::delete('/admin/video-uploads/{id}', [AdminVideoUploadController::class, 'discard']);
 });
 
 // ---- Admin (token-guarded) -----------------------------------------------

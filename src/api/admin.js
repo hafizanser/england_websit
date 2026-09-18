@@ -79,11 +79,110 @@ export async function adminListProducts() {
 export async function getAdminProduct(id) {
   return (await http.get(`/admin/products/${id}`, { auth: true })).product
 }
-// `p` is a plain object; File fields (productImage, galleryFiles[], product_video)
-// become multipart parts.
-// `onProgress` is forwarded to the transport, which reports { phase, percent }
-// as the body goes up and again when the server starts processing it. Optional:
-// every existing caller keeps working without it.
+// ---- product video upload ----------------------------------------------------
+// A clip goes up IN PIECES, several at once, before the product is saved; the
+// save then names it (`product_video_upload`) instead of carrying the file.
+//
+// Why not one request — measured against the live host, September 2026:
+//   • the host ends any request still open at ~300 s with its own 503 page, and
+//     the time spent uploading counts;
+//   • browsers use HTTP/2 there, and its Apache lets each request have only
+//     64 KB in flight, so one request uploads at ~135 KB/s from Pakistan however
+//     fast the connection is — a 64 MB clip needed ~8 minutes and was always
+//     cut off at 5.
+// A 4 MB piece takes ~30 s. And the 64 KB limit is per request, so four at once
+// measured 4.3x faster than one. Server side: App\Support\ChunkedUpload.
+const UPLOAD_PARALLEL = 4
+const UPLOAD_ATTEMPTS = 3
+
+// Worth another try: the connection dropped or stalled, or the host had a
+// moment. Anything else is an answer — not logged in, file refused, upload gone
+// — that sending the same bytes again cannot change.
+const isRetryable = (err) => !err.status || err.status >= 500 || [408, 409, 425, 429].includes(err.status)
+
+// Resolves to the upload's id. Progress is reported as ONE upload
+// ({ phase: 'upload', percent }) across all pieces, so the Save button reads
+// exactly as it did when the clip went up in a single request.
+export async function uploadVideo(file, { onProgress } = {}) {
+  const { id, chunk_bytes: pieceBytes, chunks } = await http.post(
+    '/admin/video-uploads',
+    { name: file.name || 'video.mp4', size: file.size },
+    { auth: true },
+  )
+
+  const sent = new Array(chunks).fill(0)
+  const report = () => {
+    const loaded = sent.reduce((a, b) => a + b, 0)
+    onProgress?.({
+      phase: 'upload',
+      loaded,
+      total: file.size,
+      percent: Math.min(99, Math.floor((loaded / file.size) * 100)),
+    })
+  }
+
+  const sendPiece = async (index) => {
+    const piece = file.slice(index * pieceBytes, Math.min(file.size, (index + 1) * pieceBytes))
+    for (let attempt = 1; ; attempt++) {
+      const fd = new FormData()
+      fd.append('index', String(index))
+      fd.append('chunk', piece, 'chunk.bin')
+      try {
+        await http.postForm(`/admin/video-uploads/${id}`, fd, {
+          auth: true,
+          onProgress: (e) => {
+            if (e.phase !== 'upload' || e.loaded == null) return
+            // `loaded` includes the multipart framing — never count past the piece.
+            sent[index] = Math.min(e.loaded, piece.size)
+            report()
+          },
+        })
+        sent[index] = piece.size
+        report()
+        return
+      } catch (err) {
+        sent[index] = 0
+        report()
+        if (attempt >= UPLOAD_ATTEMPTS || !isRetryable(err)) throw err
+        await new Promise((resolve) => setTimeout(resolve, 2000 * attempt))
+      }
+    }
+  }
+
+  // UPLOAD_PARALLEL workers pull the next piece until none are left. After a
+  // failure none of them starts another: the whole upload is going to be
+  // reported as failed, so more bytes would only be wasted.
+  let next = 0
+  let failed = false
+  const worker = async () => {
+    while (!failed && next < chunks) {
+      const index = next++
+      try {
+        await sendPiece(index)
+      } catch (err) {
+        failed = true
+        throw err
+      }
+    }
+  }
+
+  report()
+  try {
+    await Promise.all(Array.from({ length: Math.min(UPLOAD_PARALLEL, chunks) }, worker))
+  } catch (err) {
+    // Best-effort: the server also sweeps abandoned uploads after a day.
+    http.del(`/admin/video-uploads/${id}`, { auth: true }).catch(() => {})
+    throw err
+  }
+  return id
+}
+
+// `p` is a plain object; File fields (productImage, galleryFiles[]) become
+// multipart parts. A `product_video` File is uploaded on its own first (see
+// uploadVideo) and the save carries only its id.
+// `onProgress` receives { phase, percent }: 'compress' while the clip is
+// re-encoded in the browser, 'upload' as it goes up, 'processing' while the
+// server stores it. Optional: every existing caller keeps working without it.
 export async function saveProduct(p, { onProgress } = {}) {
   // BEFORE the body is assembled, not inside toFormData: re-encoding a clip runs
   // in real time and has to report its own progress, which a synchronous-looking
@@ -91,19 +190,32 @@ export async function saveProduct(p, { onProgress } = {}) {
   // instant — so they stay where they are.
   const prepared = { ...p }
   if (prepared.product_video instanceof File) {
-    prepared.product_video = await compressVideo(prepared.product_video, {
+    const video = await compressVideo(prepared.product_video, {
       onProgress: (fraction) =>
         onProgress?.({ phase: 'compress', percent: Math.round(fraction * 100) }),
     })
+    prepared.product_video_upload = await uploadVideo(video, { onProgress })
+    delete prepared.product_video
   }
 
   const fd = await toFormData(prepared)
   const path = p.id ? `/admin/products/${p.id}` : '/admin/products'
   // No explicit timeout: http.js measures the gap since the last byte moved
-  // rather than the total duration, which is the only thing that works for a
-  // video — a big clip on a slow uplink takes minutes and is perfectly healthy,
-  // while a dropped connection needs catching in seconds.
-  const saved = (await http.postForm(path, fd, { auth: true, onProgress })).product
+  // rather than the total duration, which is the only thing that works for an
+  // upload — a big file on a slow uplink takes minutes and is perfectly
+  // healthy, while a dropped connection needs catching in seconds.
+  const saved = (
+    await http.postForm(path, fd, {
+      auth: true,
+      // With the clip already on the server this request is a few KB, and its
+      // own 0→100 % would only rewind the bar the pieces just filled. What the
+      // admin is waiting on now is the server storing the clip.
+      onProgress:
+        prepared.product_video_upload && onProgress
+          ? (e) => onProgress(e.phase === 'upload' ? { phase: 'processing', percent: 100 } : e)
+          : onProgress,
+    })
+  ).product
   dropCatalogCache()
   return saved
 }

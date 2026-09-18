@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Repositories\ProductRepo;
 use App\Support\Api;
+use App\Support\ChunkedUpload;
 use App\Support\Uploads;
 use App\Support\VideoStorage;
 use Illuminate\Http\Request;
@@ -118,9 +119,12 @@ class ProductController extends Controller
      * the admin had just uploaded. ProductRepo::prepareRow only writes columns it
      * is actually given, so saying nothing is how you say "don't touch it".
      *
-     * Three things can be asked for, and only one of them per request:
+     * Four things can be asked for, and only one of them per request:
      *
-     *   a new file            optimised + stored, the previous clip deleted
+     *   product_video_upload  the id of a clip already uploaded in pieces
+     *                         (Admin\VideoUploadController) — how the dashboard
+     *                         sends every video now; stored, the previous clip deleted
+     *   a new file            the same, for a clip sent inside this request
      *   product_video_action  'remove' → the clip is deleted and the columns cleared
      *   anything else         no change
      *
@@ -128,6 +132,24 @@ class ProductController extends Controller
      */
     private function videoColumns(Request $request, ?array $existing): array
     {
+        // A clip uploaded in pieces beforehand. One long request was being cut
+        // off by the host at ~300 s — see App\Support\ChunkedUpload. The pieces
+        // are discarded whatever happens here: stored, refused or incomplete.
+        $uploadId = trim((string) $request->input('product_video_upload', ''));
+        if ($uploadId !== '') {
+            try {
+                $stored = VideoStorage::storeProductUpload(ChunkedUpload::finish($uploadId));
+            } finally {
+                ChunkedUpload::discard($uploadId);
+            }
+            $this->deleteVideo($existing);
+
+            return [
+                'product_video'        => $stored['video_file'],
+                'product_video_poster' => $stored['poster_file'],
+            ];
+        }
+
         // A REJECTED UPLOAD MUST NOT LOOK LIKE NO UPLOAD.
         //
         // `hasFile()` is false for a file PHP refused as well as for one that was
@@ -145,11 +167,11 @@ class ProductController extends Controller
 
         if ($request->hasFile('product_video')) {
             // Stored without transcoding in this request — see
-            // VideoStorage::storeProductUpload. Doing the full ffmpeg encode here
-            // is what produced the 503s: FastCGI kills a request that stays
-            // silent for ~40-60 s, and a phone clip takes minutes. A web-ready
-            // upload (what the admin panel's compressor produces) is kept as-is;
-            // anything else is finished by a detached background job.
+            // VideoStorage::storeProductUpload. A full ffmpeg encode here would
+            // hold the request for minutes, and this host ends every request at
+            // ~300 s with a 503. A web-ready upload (what the admin panel's
+            // compressor produces) is kept as-is; anything else is finished by a
+            // detached background job.
             $stored = VideoStorage::storeProductUpload($request->file('product_video'));
             $this->deleteVideo($existing);
 

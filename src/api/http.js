@@ -289,7 +289,10 @@ function formFallbackMessage(status) {
   if (status === 419) return 'Session expire ho gaya — dobara login karein.'
   if (status === 0) return 'Connection toot gaya.'
   if (status >= 500) {
-    return `Server error (${status}). Bari video par yeh aksar PHP ki max_execution_time ya memory_limit hoti hai.`
+    // The host's own error page — Laravel's errors always carry a message. On
+    // this hosting a 503 means a request outlived the host's ~300 s cut-off,
+    // which the upload itself used to do (see api/admin.js → uploadVideo).
+    return `Server error (${status}) — hosting ne request rok di. Dobara koshish karein; baar baar ho to cPanel → Errors dekhein.`
   }
   return `Upload fail hua (HTTP ${status}).`
 }
