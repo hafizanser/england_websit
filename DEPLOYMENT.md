@@ -189,20 +189,49 @@ after deploying, the host is ignoring it:** set the same values in cPanel →
 *MultiPHP INI Editor*, which always wins.
 
 The dashboard reports what it sees rather than guessing: the Save button shows
-real upload progress, then "Server process kar raha hai…" while ffmpeg runs, and
-a rejection comes back naming the limit to raise (413) or the execution/memory
-limit (5xx). A stalled connection is caught by a gap-since-last-byte watchdog in
-`src/api/http.js`, so a slow-but-moving upload is never cut off.
+real upload progress (across all of a clip's pieces), then "Server process kar
+raha hai…" while the server stores it, and a rejection comes back naming the
+limit to raise (413). A stalled piece is caught by a gap-since-last-byte
+watchdog in `src/api/http.js` and sent again.
 
-### How product videos are processed (why saves no longer 503)
+Since product videos upload in pieces (next section), these limits only have to
+fit ONE piece — the API sizes pieces to `upload_max_filesize` itself (4 MB when
+the limit allows) — so they no longer cap the clip; `ChunkedUpload::MAX_BYTES`
+(256 MB) does.
 
-The API **never transcodes a product video inside the upload request.** It used
-to, and on this hosting that is what returned **503**: PHP runs behind FastCGI,
-and a request that produces no output for roughly 40–60 seconds is killed by
-Apache regardless of `max_execution_time`. A phone clip takes minutes.
+### Why product videos upload in pieces (the real cause of the 503)
 
-Now the request does only bounded work (each step capped at 20 s — in testing
-every upload finished in 0.5–2.5 s), then answers:
+Measured against the live host in September 2026, without logging in:
+
+| Test | Result |
+|---|---|
+| 64.3 MB upload over HTTP/1.1 (curl) | reached Laravel in 14 s (its 401 — not logged in) |
+| 105 MiB upload over HTTP/1.1 | Laravel's own 413 "The POST data is too large" — so `post_max_size = 104M` from `.user.ini` **is** in effect |
+| 64.3 MB upload over **HTTP/2** — what every browser uses with this host | ~135 KB/s; at **303 s** Apache's own HTML **503**, 42.7 MB in — PHP never ran |
+| 10.5 MB over HTTP/1.1, throttled to take over 300 s | the same 503, at 301.8 s |
+| The host's HTTP/2 settings | 64 KB flow-control window per request; 274 ms round trip → ~135 KB/s per request |
+| 4 × 2 MB at once on one HTTP/2 connection | 578 KB/s combined — 4.3× one request |
+
+So the host ends every request at ~300 s, upload time included, and HTTP/2's
+64 KB per-request window makes a single large upload far too slow to beat it.
+Neither is a PHP setting, and neither can be changed from a shared-hosting
+account.
+
+The dashboard therefore uploads a clip in 4 MB pieces, four at a time
+(`src/api/admin.js` → `uploadVideo`; server side `App\Support\ChunkedUpload`),
+each piece its own ~30-second request, and then saves the product naming the
+upload (`product_video_upload`). A failed piece is retried. A 64 MB clip takes
+about two minutes from Pakistan.
+
+Unfinished uploads live in `storage/app/video-uploads/` and are deleted after a
+day.
+
+### How product videos are processed
+
+The API **never transcodes a product video inside a request** — a phone clip
+takes minutes to convert, and the host ends every request at ~300 s. The save
+does only bounded work (at most 20 s of ffmpeg in total — in testing every save
+finished in 0.5–2.5 s), then answers:
 
 | Upload | What happens |
 |---|---|
@@ -220,9 +249,9 @@ served as uploaded, just not converted.
 
 Leftover `*.job.sh`, `*.part.mp4` or `*.cancel` files in `uploads/videos` mean
 a job was killed part-way (typically by the host's CPU/memory limits). They are
-safe to delete; the original keeps being served. Homepage reels still use the
-older in-request path (`VideoStorage::saveUpload`) and would hit the same 503 on
-a long clip.
+safe to delete; the original keeps being served. Homepage reels still upload in
+a single request and are transcoded inside it (`VideoStorage::saveUpload`), so a
+large reel can still hit the host's 300 s cut-off.
 
 ### The service worker
 
