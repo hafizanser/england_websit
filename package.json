@@ -15,6 +15,7 @@
     "framer-motion": "^11.11.9",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
+    "mediabunny": "^1.58.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.27.0"

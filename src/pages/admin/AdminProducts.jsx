@@ -51,9 +51,10 @@ const emptyProduct = () => ({
 // thing this number can do from the browser is set an expectation. The actual
 // rejection, if it comes, arrives as a 413 with a message naming the fix.
 // Matches SKIP_UNDER_BYTES in lib/videoCompress.js — the point above which a
-// clip is re-encoded in the browser rather than uploaded as-is. Said out loud in
-// the form because the conversion costs real time and the clip's audio, and
-// finding that out mid-save is worse than being told before starting.
+// clip's picture is re-encoded in the browser rather than uploaded as-is. Said
+// out loud in the form because the conversion takes a little time; the audio is
+// carried across untouched (or the original is uploaded instead), so that is the
+// only cost worth warning about.
 const COMPRESS_OVER_BYTES = 12 * 1024 * 1024
 
 const mb = (bytes) => (bytes / (1024 * 1024)).toFixed(1)
@@ -719,7 +720,7 @@ export default function AdminProducts() {
                         <p className={`text-xs ${editing.productVideo.size > COMPRESS_OVER_BYTES ? 'font-semibold text-saffron-700' : 'text-brand-400'}`}>
                           {mb(editing.productVideo.size)} MB
                           {editing.productVideo.size > COMPRESS_OVER_BYTES
-                            ? ' — save karte waqt chhoti ki jayegi (thora waqt lagega, awaaz nahi rahegi).'
+                            ? ' — save karte waqt chhoti ki jayegi, awaaz ke saath.'
                             : ''}
                         </p>
                       )}
@@ -753,7 +754,7 @@ export default function AdminProducts() {
                 />
                 <p className="mt-1.5 text-xs text-brand-400">
                   Is product ke card aur detail page par yehi video chalegi. Khali chhorein to koi video nahi dikhegi.
-                  {' '}Choti clip (12 MB tak) jaisi hai waisi hi jati hai; us se bari video browser mein chhoti ki jati hai — is mein awaaz nahi rehti.
+                  {' '}Choti clip (12 MB tak) jaisi hai waisi hi jati hai. Bari video browser mein chhoti ki jati hai aur awaaz bilkul wahi rehti hai — agar kisi video ki awaaz saath na reh sake to asal video hi upload hoti hai.
                 </p>
               </div>
             </section>

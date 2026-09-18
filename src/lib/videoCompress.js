@@ -1,89 +1,91 @@
-// Shrink a product clip in the browser, before it is uploaded.
+// Shrink a product clip in the browser before it is uploaded — WITHOUT ever
+// losing its sound.
 //
 // ---------------------------------------------------------------------------
-// Why
+// Why this exists
 // ---------------------------------------------------------------------------
-// A phone or a camera hands you a 64 MB .MOV for what the storefront renders
-// into a 64×64 badge and, at its very largest, a ~700px lightbox. Sending those
-// bytes is the single worst thing in the whole admin flow: minutes of uploading
-// on a Pakistani office uplink, and at the end of it PHP may refuse the file for
-// being over upload_max_filesize — which is exactly what was happening.
-//
-// Re-encoding here turns that into a few megabytes and a few seconds. The API
-// still transcodes what it receives with ffmpeg (App\Support\VideoStorage), so
-// this is not replacing that step; it is making sure the step is reachable.
+// A phone hands you a 64 MB .MOV for what the storefront renders into a 64×64
+// badge and, at its largest, a ~700px lightbox. Uploading those bytes from a
+// shop's connection takes minutes. Re-encoding the picture here turns it into a
+// few megabytes first. The API still runs ffmpeg over whatever it receives
+// (App\Support\VideoStorage), so this does not replace that step — it makes the
+// upload in front of it survivable.
 //
 // ---------------------------------------------------------------------------
-// How, and the honest cost
+// The one rule: the audio arrives, or the original does
 // ---------------------------------------------------------------------------
-// There is no fast path for this in a browser. MediaRecorder captures a canvas
-// in REAL TIME, so a 30-second clip takes about 30 seconds to convert — which is
-// still far quicker than uploading 64 MB, and the caller is given progress so it
-// never looks stalled.
+// An earlier version recorded a <canvas> with MediaRecorder. A canvas has no
+// audio track, so every clip it touched came out silent — a content change
+// nobody asked for. It is gone, and so is the approach: this module never plays
+// the clip, never draws it, and never records anything.
 //
-// IT DROPS THE AUDIO, and that is a deliberate trade rather than an oversight.
-// Capturing the element's audio needs an AudioContext graph, and an unmuted
-// element cannot be reliably auto-played from inside a promise chain — the
-// autoplay policy wants a fresh user gesture. A muted element always plays. The
-// badge renders the clip muted anyway, so the only loss is sound in the
-// lightbox; SKIP_UNDER_BYTES is set generously so that an ordinary short clip
-// goes up untouched, with its audio, and never reaches this code at all.
+// It REMUXES instead, with WebCodecs (through mediabunny):
 //
-// IT ONLY RUNS IN A VISIBLE TAB, and that is not a nicety either. MediaRecorder
-// records wall-clock, so the clip has to genuinely PLAY — and Chrome pauses
-// muted, video-only media the moment a page goes to the background, to save
-// power ("video-only background media was paused"). An encode started in a tab
-// the admin then switches away from would sit there drawing one frame forever.
-// So a hidden page skips the whole thing and uploads the original, and a tab
-// hidden MID-encode is caught by the stall watchdog and does the same.
+//   the file is demuxed          MP4 / MOV / WebM are read directly from the
+//                                File — no <video> element, no blob: URL
+//   the PICTURE is re-encoded    decoded, scaled to MAX_EDGE, encoded as H.264
+//   the SOUND is not touched     AAC — which is what virtually every phone,
+//                                iPhone .MOV included, records — is COPIED
+//                                packet for packet into the new MP4. It is the
+//                                same compressed bytes, not a re-encode of them,
+//                                so it cannot lose quality, cannot drift out of
+//                                sync, and cannot come out silent.
+//   anything else is converted   PCM, Opus, MP3 sources have no place in an MP4
+//                                as-is, so they are transcoded to AAC 128 kbps.
 //
-// Every failure path returns the ORIGINAL file. An undecodable container (a
-// ProRes .MOV, say), a browser without MediaRecorder, a codec nobody supports, a
-// backgrounded tab, a stall, a result that came out bigger — all of them fall
-// through to "upload what you were given", which is exactly what would have
-// happened without this module. It is an accelerator, never a gate.
+// and then it CHECKS rather than trusts. Every one of these returns the
+// original file, untouched, to be uploaded as it is:
+//
+//   - the browser has no WebCodecs, or cannot decode the picture (an iPhone
+//     HEVC clip on a machine without an HEVC decoder is the common case)
+//   - the conversion would drop ANY audio track, for ANY reason — the library
+//     reports this up front (discardedTracks) and it is treated as a veto, not
+//     a warning
+//   - the finished MP4 has a different number of audio tracks than the source,
+//     any of them is not AAC, or its duration does not match
+//   - a channel that had sound in the source is silent (or near it) in the
+//     result — measured on decoded samples, not inferred from metadata
+//   - the result is not actually smaller
+//   - anything throws
+//
+// A clip WITHOUT an audio track is compressed normally: there is nothing to
+// lose. And files at or under SKIP_UNDER_BYTES never reach any of this — they
+// upload exactly as picked, as they always have.
 
-// The longest edge worth keeping. The badge is 64px and the lightbox frame is
+const SKIP_UNDER_BYTES = 12 * 1024 * 1024
+
+// The longest edge worth keeping: the badge is 64px and the lightbox frame is
 // ~700px, so this is already generous for a high-density screen.
 const MAX_EDGE = 720
 
-const FPS = 30
-const BITS_PER_SECOND = 1_200_000
+const VIDEO_BITRATE = 1_500_000
 
-// Below this, leave it alone: it uploads fine as-is, and passing it through here
-// would cost real time AND its audio for no useful saving.
-const SKIP_UNDER_BYTES = 12 * 1024 * 1024
+// Only used when the source audio cannot be copied (PCM, Opus, MP3…). AAC at
+// 128 kbps is transparent for speech and product sound.
+const AUDIO_TRANSCODE_BITRATE = 128_000
 
-// A clip that never fires `ended` (a broken duration, a stalled decode) must not
-// hang the save forever. Generous, because the wait is bounded by the clip's own
-// length and long product clips are legitimate.
-// With the stall watchdog below doing the real work, this only has to stop a
-// pathological case from running forever.
-const HARD_CAP_MS = 10 * 60 * 1000
+// How much of each audio track the loudness check listens to.
+const LISTEN_SECONDS = 8
 
-// How long playback may make no progress before the encode is abandoned. This is
-// what catches a tab backgrounded mid-run, a decoder that gave up, and a clip
-// whose duration metadata lies about how much of it actually exists.
-const STALL_MS = 8000
+// Below this RMS a channel is treated as silence. -60 dBFS: far quieter than any
+// recorded room tone, far louder than the numerical noise of a silent encode.
+const SILENCE_RMS = 0.001
 
-// In preference order. The API accepts any of these extensions and re-encodes to
-// H.264 regardless, so an intermediate WebM is fine — mp4 is merely first
-// because it needs no conversion at all on the far end.
-const CANDIDATES = [
-  'video/mp4;codecs=avc1',
-  'video/mp4',
-  'video/webm;codecs=vp9',
-  'video/webm;codecs=vp8',
-  'video/webm',
-]
+// An output channel must keep at least this fraction of its source loudness.
+// A copied track keeps 1.0 exactly; a transcoded one stays within a few percent.
+const MIN_LOUDNESS_RATIO = 0.25
 
-const VIDEO_NAME = /\.(mp4|m4v|mov|webm|ogv|ogg|avi|mkv|3gp)$/i
+// Source and output audio durations must agree this closely. AAC encoder
+// priming can move the end by a frame or two (~20-40 ms); a truncated track
+// misses by far more.
+const DURATION_TOLERANCE_S = 0.5
+
+const VIDEO_NAME = /\.(mp4|m4v|mov|webm|mkv|3gp)$/i
 
 /**
- * Re-encode `file` smaller, or return it unchanged.
+ * Re-encode `file` smaller with its audio intact, or return it unchanged.
  *
- * `onProgress(fraction)` is called with 0..1 as the clip is processed — this is
- * real time passing, so the caller should show it.
+ * `onProgress(fraction)` is called with 0..1 while the picture is re-encoded.
  *
  * Never throws. The worst case is the file you passed in.
  */
@@ -91,167 +93,185 @@ export async function compressVideo(file, { onProgress } = {}) {
   if (!(file instanceof File)) return file
   if (!file.type.startsWith('video/') && !VIDEO_NAME.test(file.name)) return file
   if (file.size <= SKIP_UNDER_BYTES) return file
-  if (typeof MediaRecorder === 'undefined' || typeof document === 'undefined') return file
-  // See the note above: a hidden page cannot play video-only media, so there is
-  // nothing for the recorder to capture.
-  if (document.visibilityState && document.visibilityState !== 'visible') return file
+  if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') return file
 
-  const mimeType = CANDIDATES.find((t) => {
-    try {
-      return MediaRecorder.isTypeSupported(t)
-    } catch {
-      return false
-    }
-  })
-  if (!mimeType) return file
+  let mb
+  try {
+    // Loaded on demand: the library is only worth its weight for the rare save
+    // that carries a large clip, so it stays out of the admin bundle until then.
+    mb = await import('mediabunny')
+  } catch {
+    return file
+  }
 
-  const url = URL.createObjectURL(file)
-  const video = document.createElement('video')
+  const input = new mb.Input({ formats: mb.ALL_FORMATS, source: new mb.BlobSource(file) })
 
   try {
-    video.src = url
-    video.muted = true
-    video.playsInline = true
-    video.preload = 'auto'
+    const video = await input.getPrimaryVideoTrack()
+    if (!video || !(await video.canDecode())) return file
 
-    if (!(await settled(video, 'loadedmetadata', 20000))) return file
+    const sourceAudio = await input.getAudioTracks()
 
-    const { videoWidth: w, videoHeight: h, duration } = video
-    if (!w || !h || !Number.isFinite(duration) || duration <= 0) return file
+    // Display dimensions are AFTER the container's rotation matrix, so a
+    // portrait iPhone clip (stored landscape, flagged "rotate 90") is sized as
+    // the portrait picture it really is.
+    const dw = await video.getDisplayWidth()
+    const dh = await video.getDisplayHeight()
+    if (!dw || !dh) return file
+    const scale = Math.min(1, MAX_EDGE / Math.max(dw, dh))
+    const width = even(dw * scale)
+    const height = even(dh * scale)
 
-    const scale = Math.min(1, MAX_EDGE / Math.max(w, h))
-    // Even dimensions: H.264's 4:2:0 chroma sampling cannot represent an odd
-    // width or height, and encoders either refuse or quietly pad.
-    const cw = even(w * scale)
-    const ch = even(h * scale)
-
-    const canvas = document.createElement('canvas')
-    canvas.width = cw
-    canvas.height = ch
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return file
-
-    const stream = canvas.captureStream(FPS)
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: BITS_PER_SECOND })
-
-    const chunks = []
-    recorder.ondataavailable = (e) => {
-      if (e.data && e.data.size) chunks.push(e.data)
-    }
-    const recorded = new Promise((resolve) => {
-      recorder.onstop = resolve
-      recorder.onerror = resolve
+    const output = new mb.Output({
+      // moov atom up front, so the clip starts playing before it has fully
+      // downloaded.
+      format: new mb.Mp4OutputFormat({ fastStart: 'in-memory' }),
+      target: new mb.BufferTarget(),
     })
 
-    recorder.start(1000)
-    try {
-      await video.play()
-    } catch {
-      recorder.stop()
-      return file
+    const conversion = await mb.Conversion.init({
+      input,
+      output,
+      showWarnings: false,
+      video: {
+        width,
+        height,
+        fit: 'contain',
+        codec: 'avc',
+        quality: new mb.Quality({ bitrate: VIDEO_BITRATE }),
+        // The whole point is to shrink the picture, so never pass it through
+        // untouched even when the codec already matches.
+        forceTranscode: true,
+        // Bake any rotation into the pixels rather than carrying it as
+        // metadata, so every player — and the server's ffmpeg — sees an upright
+        // frame without having to honour a matrix.
+        allowTransformationMetadata: false,
+      },
+      audio: {
+        // No `forceTranscode`: with the default copy mode an AAC source is
+        // copied packet for packet. Only a codec MP4 cannot hold as AAC is
+        // converted.
+        codec: 'aac',
+        quality: new mb.Quality({ bitrate: AUDIO_TRANSCODE_BITRATE }),
+      },
+    })
+
+    // THE VETO. If the library has decided to leave any audio track out — no
+    // AAC encoder on this device, a codec it cannot decode, anything — the
+    // conversion is abandoned before a single frame is encoded.
+    if (!conversion.isValid) return file
+    if (conversion.discardedTracks.some((d) => d.track.isAudioTrack())) return file
+    if (!conversion.utilizedTracks.includes(video)) return file
+    if (!sourceAudio.every((t) => conversion.utilizedTracks.includes(t))) return file
+
+    conversion.onProgress = (fraction) => {
+      if (typeof onProgress !== 'function') return
+      try {
+        onProgress(Math.min(1, Math.max(0, fraction)))
+      } catch {
+        /* a broken progress handler must not take the encode down */
+      }
     }
 
-    // DRAWING is on rAF, because that is the only clock tied to frames actually
-    // being composited — there is no point copying pixels the compositor will
-    // not pick up.
-    let raf = 0
-    const paint = () => {
-      ctx.drawImage(video, 0, 0, cw, ch)
-      if (typeof onProgress === 'function') {
-        try {
-          onProgress(Math.min(1, video.currentTime / duration))
-        } catch {
-          /* a broken progress handler must not take the encode down */
-        }
-      }
-      raf = requestAnimationFrame(paint)
-    }
-    paint()
+    await conversion.execute()
 
-    // WATCHING is on a timer, and that split is load-bearing. rAF does not fire
-    // at all in a hidden tab — which is precisely the situation this watchdog
-    // exists to catch — so a stall check riding on the paint loop would go to
-    // sleep at the exact moment it was needed and leave the encode hanging until
-    // the hard cap. setInterval keeps ticking (throttled, but ticking).
-    let lastTime = -1
-    let lastMoved = Date.now()
-    let stalled = false
+    const buffer = output.target.buffer
+    if (!buffer || buffer.byteLength >= file.size) return file
 
-    const watchdog = setInterval(() => {
-      if (video.currentTime !== lastTime) {
-        lastTime = video.currentTime
-        lastMoved = Date.now()
-        return
-      }
-      // Chrome pauses muted video-only media when the page is backgrounded. Ask
-      // for it back; if it will not come, the stall below ends the attempt.
-      if (video.paused && !video.ended) video.play().catch(() => {})
-
-      if (Date.now() - lastMoved > STALL_MS) {
-        stalled = true
-        video.dispatchEvent(new Event('ended'))
-      }
-    }, 1000)
-
-    await settled(video, 'ended', HARD_CAP_MS)
-    cancelAnimationFrame(raf)
-    clearInterval(watchdog)
-
-    if (recorder.state !== 'inactive') recorder.stop()
-    await recorded
-
-    // A stalled run recorded a frozen frame for however long it lasted. That is
-    // worse than the original in every way, so it is discarded outright.
-    if (stalled) return file
-
-    const blob = new Blob(chunks, { type: mimeType })
-    // A re-encode that did not actually help is not worth the quality it cost.
-    if (!blob.size || blob.size >= file.size) return file
-
-    return new File([blob], rename(file.name, mimeType), {
-      type: blob.type || mimeType,
+    const result = new File([buffer], rename(file.name), {
+      type: 'video/mp4',
       lastModified: Date.now(),
     })
+
+    // Verify the file that will actually be uploaded, not the plan for it.
+    if (!(await audioSurvived(mb, sourceAudio, result))) return file
+
+    return result
   } catch {
     return file
   } finally {
-    try {
-      video.pause()
-    } catch {
-      /* ignore */
-    }
-    video.removeAttribute('src')
-    URL.revokeObjectURL(url)
+    input.dispose()
   }
 }
 
-/** True when `event` fired before `ms` elapsed (or the media errored out). */
-function settled(el, event, ms) {
-  return new Promise((resolve) => {
-    let done = false
-    const finish = (ok) => {
-      if (done) return
-      done = true
-      clearTimeout(timer)
-      el.removeEventListener(event, onEvent)
-      el.removeEventListener('error', onError)
-      resolve(ok)
+/**
+ * True when every source audio track reappears in `result` as AAC, with the same
+ * duration and channel count, and still audible wherever the source was.
+ */
+async function audioSurvived(mb, sourceTracks, result) {
+  const check = new mb.Input({ formats: mb.ALL_FORMATS, source: new mb.BlobSource(result) })
+  try {
+    const outTracks = await check.getAudioTracks()
+    if (outTracks.length !== sourceTracks.length) return false
+
+    for (let i = 0; i < sourceTracks.length; i += 1) {
+      const src = sourceTracks[i]
+      const out = outTracks[i]
+
+      if ((await out.getCodec()) !== 'aac') return false
+      const [srcChannels, outChannels] = await Promise.all([
+        src.getNumberOfChannels(),
+        out.getNumberOfChannels(),
+      ])
+      if (outChannels !== srcChannels) return false
+
+      const [srcDur, outDur] = await Promise.all([src.computeDuration(), out.computeDuration()])
+      if (!(outDur > 0) || Math.abs(outDur - srcDur) > DURATION_TOLERANCE_S) return false
+
+      const [srcLevels, outLevels] = await Promise.all([loudness(mb, src), loudness(mb, out)])
+      if (!srcLevels || !outLevels || srcLevels.length !== outLevels.length) return false
+
+      for (let c = 0; c < srcLevels.length; c += 1) {
+        // A channel that was silent in the source can stay silent; one that had
+        // sound must still have it.
+        if (srcLevels[c] > SILENCE_RMS && outLevels[c] < srcLevels[c] * MIN_LOUDNESS_RATIO) {
+          return false
+        }
+      }
     }
-    const onEvent = () => finish(true)
-    const onError = () => finish(false)
-    const timer = setTimeout(() => finish(false), ms)
-    el.addEventListener(event, onEvent, { once: true })
-    el.addEventListener('error', onError, { once: true })
-  })
+    return true
+  } catch {
+    return false
+  } finally {
+    check.dispose()
+  }
 }
 
+/** Per-channel RMS over the first LISTEN_SECONDS of `track`, or null. */
+async function loudness(mb, track) {
+  const sink = new mb.AudioSampleSink(track)
+  const start = await track.getFirstTimestamp()
+  let sums = null
+  let frames = 0
+
+  for await (const sample of sink.samples(start, start + LISTEN_SECONDS)) {
+    try {
+      const buf = sample.toAudioBuffer()
+      if (!sums) sums = new Float64Array(buf.numberOfChannels)
+      for (let c = 0; c < buf.numberOfChannels && c < sums.length; c += 1) {
+        const data = buf.getChannelData(c)
+        let s = 0
+        for (let i = 0; i < data.length; i += 1) s += data[i] * data[i]
+        sums[c] += s
+      }
+      frames += buf.length
+    } finally {
+      sample.close()
+    }
+  }
+
+  if (!sums || !frames) return null
+  return Array.from(sums, (s) => Math.sqrt(s / frames))
+}
+
+// Even dimensions: H.264's 4:2:0 chroma sampling cannot represent an odd width
+// or height, and encoders either refuse or quietly pad.
 const even = (n) => Math.max(2, Math.round(n / 2) * 2)
 
 // The API derives the stored extension from the filename it is handed
-// (VideoStorage::saveUpload validates it), so a WebM body under a .MOV name is
-// rejected outright. Keep the readable stem, correct the suffix.
-function rename(name, mime) {
-  const ext = mime.includes('mp4') ? 'mp4' : 'webm'
+// (VideoStorage::saveUpload validates it), so an MP4 body under a .MOV name would
+// be stored with the wrong suffix. Keep the readable stem, correct the suffix.
+function rename(name) {
   const stem = String(name || 'video').replace(/\.[^.]+$/, '')
-  return `${stem || 'video'}.${ext}`
+  return `${stem || 'video'}.mp4`
 }
