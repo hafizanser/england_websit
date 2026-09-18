@@ -147,13 +147,19 @@ export async function compressVideo(file, { onProgress } = {}) {
         // frame without having to honour a matrix.
         allowTransformationMetadata: false,
       },
-      audio: {
-        // No `forceTranscode`: with the default copy mode an AAC source is
-        // copied packet for packet. Only a codec MP4 cannot hold as AAC is
-        // converted.
-        codec: 'aac',
-        quality: new mb.Quality({ bitrate: AUDIO_TRANSCODE_BITRATE }),
-      },
+      // Per track, because the right options depend on what the track already
+      // is. An AAC source gets NOTHING but the codec: setting a quality (or a
+      // bitrate, or a sample rate) makes the library re-encode even when the
+      // codec already matches — which is exactly what happened the first time
+      // this was tested: 160 kbps in, 130 kbps out. With the codec alone, the
+      // default copy mode moves the AAC packets across byte for byte.
+      //
+      // Only a source MP4 cannot carry as AAC (PCM, Opus, MP3…) is given a
+      // bitrate, because only that one is actually being encoded.
+      audio: async (track) =>
+        (await track.getCodec()) === 'aac'
+          ? { codec: 'aac' }
+          : { codec: 'aac', quality: new mb.Quality({ bitrate: AUDIO_TRANSCODE_BITRATE }) },
     })
 
     // THE VETO. If the library has decided to leave any audio track out — no

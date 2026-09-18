@@ -43,7 +43,12 @@ function englandServiceWorker(apiBase) {
             !/admin/i.test(f) &&
             // html2canvas + jspdf are the invoice/PDF path — a few hundred KB
             // that only the admin panel and the order pages reach for.
-            !/(html2canvas|jspdf|purify|index\.es)/i.test(f),
+            !/(html2canvas|jspdf|purify|index\.es)/i.test(f) &&
+            // The in-browser video transcoder (~700 KB). Only an admin saving a
+            // large product clip ever loads it, and it is fetched on demand
+            // when they do — precaching it would spend every SHOPPER's data on
+            // a tool they will never touch.
+            !/mediabunny/i.test(f),
         ),
         // The loader's wordmark: this is the FIRST paint on every visit, so it
         // is the one image worth having before anything asks for it.
@@ -131,6 +136,13 @@ export default defineConfig(({ mode }) => {
             react: ['react', 'react-dom', 'react-router-dom'],
             motion: ['framer-motion'],
             icons: ['@phosphor-icons/react'],
+            // Named, not for caching reasons but so the service worker's precache
+            // filter above can recognise and skip it. Left to Rollup it is
+            // emitted as `index-[hash].js` — the same stem as the app's own
+            // entry chunk, so it cannot be excluded by name. It stays a lazy
+            // chunk: its only importer is a dynamic import() in
+            // lib/videoCompress.js.
+            mediabunny: ['mediabunny'],
           },
         },
       },
