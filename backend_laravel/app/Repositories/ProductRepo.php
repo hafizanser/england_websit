@@ -361,8 +361,13 @@ class ProductRepo extends BaseRepo
 
         // VideoStorage, not Uploads: clips live in their own folder and are served
         // by the range-aware GET /video route, which is what makes seeking work.
-        $row['product_video_url'] = VideoStorage::url($row['product_video'] ?? null);
+        //
+        // resolveProduct() swaps a transitional original (<stem>_src.<ext>) for
+        // the MP4 its background transcode produces, the moment that file exists
+        // — so the switch needs no database write and no job to report back.
+        $row['product_video_url'] = VideoStorage::url(VideoStorage::resolveProduct($row['product_video'] ?? null));
         $row['product_video_poster_url'] = VideoStorage::url($row['product_video_poster'] ?? null);
+        $row['product_video_pending'] = VideoStorage::isPendingProduct($row['product_video'] ?? null);
 
         foreach (['show_profit_breakdown', 'is_featured', 'is_active'] as $b) {
             $row[$b] = (int) ($row[$b] ?? 0);

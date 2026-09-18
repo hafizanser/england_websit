@@ -144,10 +144,13 @@ class ProductController extends Controller
         }
 
         if ($request->hasFile('product_video')) {
-            // Transcodes to web H.264 and cuts a poster from an early frame —
-            // the same pipeline the homepage reels use, so a product clip plays
-            // identically to one of those. Throws on a non-video extension.
-            $stored = VideoStorage::saveUpload($request->file('product_video'));
+            // Stored without transcoding in this request — see
+            // VideoStorage::storeProductUpload. Doing the full ffmpeg encode here
+            // is what produced the 503s: FastCGI kills a request that stays
+            // silent for ~40-60 s, and a phone clip takes minutes. A web-ready
+            // upload (what the admin panel's compressor produces) is kept as-is;
+            // anything else is finished by a detached background job.
+            $stored = VideoStorage::storeProductUpload($request->file('product_video'));
             $this->deleteVideo($existing);
 
             return [

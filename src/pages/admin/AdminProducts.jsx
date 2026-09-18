@@ -44,12 +44,6 @@ const emptyProduct = () => ({
   productVideo: null, removeVideo: false,
 })
 
-// The largest clip the API is configured to accept — matches
-// upload_max_filesize in backend_laravel/public/.user.ini. Shown as a warning
-// rather than enforced as a block: a host that ignores .user.ini has a smaller
-// real limit and one that grants more has a larger one, so the only honest
-// thing this number can do from the browser is set an expectation. The actual
-// rejection, if it comes, arrives as a 413 with a message naming the fix.
 // Matches SKIP_UNDER_BYTES in lib/videoCompress.js — the point above which a
 // clip's picture is re-encoded in the browser rather than uploaded as-is. Said
 // out loud in the form because the conversion takes a little time; the audio is
@@ -249,7 +243,7 @@ export default function AdminProducts() {
     setProgress(null)
     try {
       const isEdit = !!editing.id
-      await saveProduct(productPayload(editing), {
+      const saved = await saveProduct(productPayload(editing), {
         // Only worth showing when there is actually a file going up. A
         // fields-only save is a few hundred bytes and completes in one tick, so
         // flashing "0% → 100%" on it is noise, not information.
@@ -259,7 +253,15 @@ export default function AdminProducts() {
       })
       setEditing(null)
       await load()
-      success(isEdit ? 'Product update ho gaya' : 'Naya product add ho gaya')
+      // A clip the server could not use as-is (an iPhone HEVC original, say) is
+      // saved immediately and converted in the background. Say so, or the admin
+      // opens the storefront, sees the original still there, and assumes the
+      // save half-failed.
+      success(
+        saved?.product_video_pending
+          ? 'Product save ho gaya — video server par web ke liye tayar ho rahi hai (kuch minute).'
+          : isEdit ? 'Product update ho gaya' : 'Naya product add ho gaya',
+      )
     } catch (err) {
       error(err.message || 'Save nahi hua')
     } finally {

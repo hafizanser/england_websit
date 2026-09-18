@@ -32,6 +32,18 @@ class HomepageVideoController extends Controller
         $name = basename(rawurldecode((string) $request->query('file', '')));
         $path = VideoStorage::dir() . '/' . $name;
 
+        // A product clip is first published under its original upload name and
+        // replaced by a web MP4 when its background transcode lands (the job
+        // then deletes the original). A catalogue page cached before the switch
+        // still asks for the original: give it the finished MP4 instead of a 404.
+        if ($name !== '' && !is_file($path)) {
+            $resolved = VideoStorage::resolveProduct($name);
+            if ($resolved !== null && $resolved !== $name) {
+                $name = $resolved;
+                $path = VideoStorage::dir() . '/' . $name;
+            }
+        }
+
         if ($name === '' || !is_file($path)) {
             return response('Video not found', 404)->header('Content-Type', 'text/plain');
         }
@@ -50,9 +62,16 @@ class HomepageVideoController extends Controller
         // No isNotModified() here on purpose: a conditional check against a Range
         // request is where video seeking goes wrong, and `immutable` means the
         // browser will not send one anyway.
+        //
+        // EXCEPT a transitional product original, which is about to be replaced
+        // by its MP4 under a different name: cached for a year it would pin the
+        // heavy original in every browser that saw it. Five minutes covers the
+        // gap without outliving it.
         $response = response()->file($path, [
             'Content-Type'  => VideoStorage::MIME[$ext] ?? 'application/octet-stream',
-            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'Cache-Control' => VideoStorage::isProductSource($name)
+                ? 'public, max-age=300'
+                : 'public, max-age=31536000, immutable',
         ]);
         $response->setAutoLastModified();
 

@@ -1,6 +1,0 @@
-{
-  "version": "0.0.1",
-  "configurations": [
-    { "name": "eng-av-harness", "runtimeExecutable": "node", "runtimeArgs": ["C:/Users/SHAN-E~1/AppData/Local/Temp/claude/C--Users-shan-e-ulfat-Documents-GitHub-england-websit/c4c44e8e-5fc2-4149-81f6-f5a58215e9eb/scratchpad/av-harness.mjs"], "port": 8790 }
-  ]
-}
