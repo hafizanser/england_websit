@@ -29,10 +29,19 @@
 // lightbox; SKIP_UNDER_BYTES is set generously so that an ordinary short clip
 // goes up untouched, with its audio, and never reaches this code at all.
 //
+// IT ONLY RUNS IN A VISIBLE TAB, and that is not a nicety either. MediaRecorder
+// records wall-clock, so the clip has to genuinely PLAY — and Chrome pauses
+// muted, video-only media the moment a page goes to the background, to save
+// power ("video-only background media was paused"). An encode started in a tab
+// the admin then switches away from would sit there drawing one frame forever.
+// So a hidden page skips the whole thing and uploads the original, and a tab
+// hidden MID-encode is caught by the stall watchdog and does the same.
+//
 // Every failure path returns the ORIGINAL file. An undecodable container (a
 // ProRes .MOV, say), a browser without MediaRecorder, a codec nobody supports, a
-// result that came out bigger — all of them fall through to "upload what you
-// were given", which is what would have happened without this module.
+// backgrounded tab, a stall, a result that came out bigger — all of them fall
+// through to "upload what you were given", which is exactly what would have
+// happened without this module. It is an accelerator, never a gate.
 
 // The longest edge worth keeping. The badge is 64px and the lightbox frame is
 // ~700px, so this is already generous for a high-density screen.
@@ -48,7 +57,14 @@ const SKIP_UNDER_BYTES = 12 * 1024 * 1024
 // A clip that never fires `ended` (a broken duration, a stalled decode) must not
 // hang the save forever. Generous, because the wait is bounded by the clip's own
 // length and long product clips are legitimate.
+// With the stall watchdog below doing the real work, this only has to stop a
+// pathological case from running forever.
 const HARD_CAP_MS = 10 * 60 * 1000
+
+// How long playback may make no progress before the encode is abandoned. This is
+// what catches a tab backgrounded mid-run, a decoder that gave up, and a clip
+// whose duration metadata lies about how much of it actually exists.
+const STALL_MS = 8000
 
 // In preference order. The API accepts any of these extensions and re-encodes to
 // H.264 regardless, so an intermediate WebM is fine — mp4 is merely first
@@ -76,6 +92,9 @@ export async function compressVideo(file, { onProgress } = {}) {
   if (!file.type.startsWith('video/') && !VIDEO_NAME.test(file.name)) return file
   if (file.size <= SKIP_UNDER_BYTES) return file
   if (typeof MediaRecorder === 'undefined' || typeof document === 'undefined') return file
+  // See the note above: a hidden page cannot play video-only media, so there is
+  // nothing for the recorder to capture.
+  if (document.visibilityState && document.visibilityState !== 'visible') return file
 
   const mimeType = CANDIDATES.find((t) => {
     try {
@@ -132,6 +151,9 @@ export async function compressVideo(file, { onProgress } = {}) {
       return file
     }
 
+    // DRAWING is on rAF, because that is the only clock tied to frames actually
+    // being composited — there is no point copying pixels the compositor will
+    // not pick up.
     let raf = 0
     const paint = () => {
       ctx.drawImage(video, 0, 0, cw, ch)
@@ -146,11 +168,41 @@ export async function compressVideo(file, { onProgress } = {}) {
     }
     paint()
 
+    // WATCHING is on a timer, and that split is load-bearing. rAF does not fire
+    // at all in a hidden tab — which is precisely the situation this watchdog
+    // exists to catch — so a stall check riding on the paint loop would go to
+    // sleep at the exact moment it was needed and leave the encode hanging until
+    // the hard cap. setInterval keeps ticking (throttled, but ticking).
+    let lastTime = -1
+    let lastMoved = Date.now()
+    let stalled = false
+
+    const watchdog = setInterval(() => {
+      if (video.currentTime !== lastTime) {
+        lastTime = video.currentTime
+        lastMoved = Date.now()
+        return
+      }
+      // Chrome pauses muted video-only media when the page is backgrounded. Ask
+      // for it back; if it will not come, the stall below ends the attempt.
+      if (video.paused && !video.ended) video.play().catch(() => {})
+
+      if (Date.now() - lastMoved > STALL_MS) {
+        stalled = true
+        video.dispatchEvent(new Event('ended'))
+      }
+    }, 1000)
+
     await settled(video, 'ended', HARD_CAP_MS)
     cancelAnimationFrame(raf)
+    clearInterval(watchdog)
 
     if (recorder.state !== 'inactive') recorder.stop()
     await recorded
+
+    // A stalled run recorded a frozen frame for however long it lasted. That is
+    // worse than the original in every way, so it is discarded outright.
+    if (stalled) return file
 
     const blob = new Blob(chunks, { type: mimeType })
     // A re-encode that did not actually help is not worth the quality it cost.
