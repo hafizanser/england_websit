@@ -720,7 +720,7 @@ export default function AdminProducts() {
                         <p className={`text-xs ${editing.productVideo.size > COMPRESS_OVER_BYTES ? 'font-semibold text-saffron-700' : 'text-brand-400'}`}>
                           {mb(editing.productVideo.size)} MB
                           {editing.productVideo.size > COMPRESS_OVER_BYTES
-                            ? ' — save karte waqt chhoti ki jayegi, awaaz ke saath.'
+                            ? ' — save karte waqt chhoti karne ki koshish hogi; awaaz har haal mein saath rahegi.'
                             : ''}
                         </p>
                       )}
