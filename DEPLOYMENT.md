@@ -112,6 +112,15 @@ exists.
 The app uses **HashRouter** + relative asset paths, so deep links and refreshes
 work with no `.htaccess` rewrites.
 
+The two homepage downloads — `england-wholesale-price-list.pdf` and
+`england-product-catalogue-2026.pdf` — live in `public/`, so a build copies
+them into `dist/` next to `index.html` and they upload with everything else.
+They are linked relative to the page and saved with the `download` attribute,
+which browsers only honour for same-origin files: keep them on the storefront
+host, not on the API. To publish new prices, overwrite the file in `public/`
+under the **same name**, rebuild, and upload; the `.htaccess` rule below makes
+browsers revalidate PDFs on every download, so nobody keeps an old rate list.
+
 > **Include the dotfile.** `dist/.htaccess` carries the static-asset caching
 > policy (below). File Manager hides dotfiles by default — *Settings → Show
 > Hidden Files* — and a zip made on Windows will skip it unless you ask for it.
@@ -148,6 +157,7 @@ change one, read this first; they are designed together.
 | `dist/.htaccess` | hashed JS/CSS under `/assets/` | 1 year, `immutable` | a build emits a new filename |
 | `dist/.htaccess` | `banner.jpg`, logos, icons | 1 week | ETag → `304` |
 | `dist/.htaccess` | `/videos/*` reels | 1 month | ETag → `304` |
+| `dist/.htaccess` | `*.pdf` homepage downloads (rate list, catalogue) | **always revalidated** | replace the file in `public/` under the same name, rebuild, upload `dist/` |
 | `dist/.htaccess` | `index.html`, `site.webmanifest`, `sw.js` | **never cached** | picked up on the next load |
 | API (`ImageController`, `HomepageVideoController`) | product photos + uploaded reels | 1 year, `immutable` | a re-upload gets a new filename, so a new URL |
 | API (`cache.public`) | catalogue JSON | 15 s, then a conditional GET | ETag changes on any write |

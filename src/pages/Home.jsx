@@ -26,6 +26,23 @@ const Pin = (p) => (<svg viewBox="0 0 24 24" width="14" height="14" fill="none" 
 const Arrow = (p) => (<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="m9 18 6-6-6-6" /></svg>)
 const Chat = (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>)
 const TrendUp = (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>)
+const FileIcon = (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h6" /></svg>)
+const DownArrow = (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 4v12" /><path d="m6 11 6 6 6-6" /><path d="M4 20h16" /></svg>)
+
+// The two PDFs a shopkeeper asks for before anything else: the rate list and the
+// catalogue. They ship from public/, so they sit beside index.html in dist/ and
+// come from the SAME origin as the page — the condition under which browsers
+// honour the `download` attribute and save the file instead of opening a viewer
+// tab. The size is printed on the button because most of these taps happen on
+// mobile data; update it when the file in public/ is replaced. `ur` is the one
+// line a small-shop customer needs: what the file is FOR, in plain Urdu.
+const HOME_DOWNLOADS = [
+  { file: 'england-wholesale-price-list.pdf', saveAs: 'England Wholesale Rate List.pdf', title: 'Rate List', ur: 'ہر چیز کا تھوک ریٹ', size: '7.6 MB' },
+  { file: 'england-product-catalogue-2026.pdf', saveAs: 'England Product Catalogue 2026.pdf', title: 'Catalogue 2026', ur: 'تصویروں والا مکمل کیٹلاگ', size: '9.4 MB' },
+]
+// BASE_URL is "/" under the dev server and "./" in a build (vite.config.js sets
+// base './'), so the link resolves next to index.html wherever dist/ is hosted.
+const publicUrl = (file) => `${import.meta.env.BASE_URL}${file}`
 
 const heroStats = [
   { n: '12,400', s: '+', l: 'Active dukaandaar', ur: 'دکاندار' },
@@ -287,6 +304,30 @@ export default function Home() {
               <span className="t"><Check /> Asli maal guarantee</span>
               <span className="t"><Check /> Rs. 5,000+ order pe free delivery</span>
               <span className="t"><Check /> Agle din delivery</span>
+            </div>
+
+            {/* Downloads — the rate list + catalogue as direct saves. Kept visually
+                quieter than the two CTAs above so "Order on WhatsApp" stays the
+                one thing the eye lands on. */}
+            <div className="hero-downloads">
+              {HOME_DOWNLOADS.map((d) => (
+                <a
+                  key={d.file}
+                  className="dl-btn"
+                  href={publicUrl(d.file)}
+                  download={d.saveAs}
+                  type="application/pdf"
+                  aria-label={`Download ${d.title} — ${d.ur} (PDF, ${d.size})`}
+                >
+                  <span className="dl-ic" aria-hidden="true"><FileIcon /></span>
+                  <span className="dl-txt">
+                    <span className="dl-t">{d.title}</span>
+                    <span className="dl-ur" lang="ur" dir="rtl">{d.ur}</span>
+                    <span className="dl-m">PDF · {d.size}</span>
+                  </span>
+                  <span className="dl-arrow" aria-hidden="true"><DownArrow /></span>
+                </a>
+              ))}
             </div>
           </Reveal>
 

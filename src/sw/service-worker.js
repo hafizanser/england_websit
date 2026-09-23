@@ -246,6 +246,15 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.includes('/videos/') || request.destination === 'video') return
   if (request.headers.has('range')) return
 
+  // THE PDF DOWNLOADS ARE LEFT ALONE AS WELL. The rate list and catalogue in
+  // public/ are reached through <a download>, which the browser issues as a
+  // navigation. Letting handleNavigate() see one would do two wrong things:
+  // race a 7–9 MB response against the shell's 2.5 s timeout and, on a slow
+  // connection, hand back index.html — which the browser would then save to
+  // disk under a .pdf name; and, when the fetch did win, store the PDF as the
+  // cached app shell. Neither can be recovered from inside the page.
+  if (/\.pdf$/i.test(url.pathname)) return
+
   if (request.mode === 'navigate') {
     event.respondWith(handleNavigate(request))
     return

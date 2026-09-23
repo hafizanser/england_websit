@@ -26,6 +26,11 @@
 #   /videos/*        Reels. Same stable-name situation but far heavier and far
 #                    less likely to be swapped, so a month.
 #
+#   *.pdf            The rate list and the catalogue (homepage downloads).
+#                    Replaced IN PLACE under stable names whenever prices
+#                    change, so a week-old copy is a wrong price list: always
+#                    revalidated. The ETag makes an unchanged file a 304.
+#
 #   index.html       NEVER cached. It is the file that names the hashed bundles,
 #                    so a stale copy pins a visitor to the previous deploy no
 #                    matter how correct everything else is. `no-cache` still
@@ -75,6 +80,12 @@ FileETag MTime Size
     SetEnvIf Request_URI "/assets/" !ENG_MEDIA
     SetEnvIf Request_URI "/videos/" !ENG_MEDIA
     Header set Cache-Control "public, max-age=604800" env=ENG_MEDIA
+
+    # --- 3b. downloadable PDFs -> always revalidate ---------------------------
+    # Same directive shapes as the rules above (SetEnvIf + Header env=), so a
+    # server that accepts those accepts this.
+    SetEnvIf Request_URI "\.pdf$" ENG_PDF=1
+    Header set Cache-Control "no-cache, must-revalidate" env=ENG_PDF
   </IfModule>
 
   # --- 4. the entry document + manifest -> always revalidate ----------------
@@ -107,6 +118,7 @@ FileETag MTime Size
   ExpiresByType font/woff               "access plus 1 year"
   ExpiresByType video/mp4               "access plus 1 month"
   ExpiresByType video/webm              "access plus 1 month"
+  ExpiresByType application/pdf         "access plus 0 seconds"
   ExpiresByType text/html               "access plus 0 seconds"
 </IfModule>
 

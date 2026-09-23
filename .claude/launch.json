@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "C:/xampp/php/php.exe",
+      "runtimeArgs": ["backend_laravel/artisan", "serve", "--host=localhost", "--port=8001"],
+      "port": 8001
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set VITE_API_BASE=http://localhost:8001&& npm run dev -- --port 5174 --strictPort"],
+      "port": 5174
+    }
+  ]
+}
