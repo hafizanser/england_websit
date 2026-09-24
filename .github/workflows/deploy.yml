@@ -22,16 +22,18 @@ name: Deploy to Bluehost (englandwaly)
 #   DEPLOY_PATH      absolute path to the folder,
 #                    e.g.  /home1/codelpsc/public_html/englandwaly
 #
-# ---- Why every remote step is wrapped in `retry` ----
-# The host drops SSH connections at random (runs #34 and #35, 2026-09-24: one
-# died on its third connection, the next on its very first, while the rollback
-# connection a few seconds later went through both times — "Process completed
-# with exit code 255", ssh's code for a connection that never got established).
-# Shared cPanel hosts rate-limit bursts of SSH connections from one address, and
-# a deploy opens half a dozen in under a minute. So: no ssh-keyscan burst
-# (accept-new pins the host key on first contact anyway), keep-alives on every
-# session, and each remote step is tried up to five times, 30 s apart. Every
-# step is idempotent, so a retry can never double-apply anything.
+# ---- ONE SSH CONNECTION PER DEPLOY (read before adding a remote step) ----
+# The host drops SSH connections that arrive in a burst from one address.
+# Measured on 2026-09-24: four quick connection rounds from a single IP got
+# through, everything after that was refused, and runs #34, #35 and #36 each
+# died with ssh exit code 255 on whichever connection happened to be the one
+# over the limit — plain retries made it worse, because every retry was one more
+# connection. So this workflow opens ONE ssh master connection and multiplexes
+# every later ssh / rsync through it (ControlMaster + ControlPersist, see the
+# `deploy` host alias written below). Only that first connection is subject to
+# the limit, and it is retried with a patient back-off so the host's window can
+# clear. If you add a remote step, use the `deploy` alias so it rides the same
+# connection — never a fresh `ssh user@host`.
 
 on:
   push:
@@ -50,10 +52,6 @@ jobs:
       SSH_USER: ${{ secrets.SSH_USER }}
       SSH_PORT: ${{ secrets.SSH_PORT }}
       DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-      # One place for the ssh options every step uses. ConnectTimeout stops a
-      # refused connection from hanging; the keep-alives stop an idle-looking
-      # long rsync from being cut by the host.
-      SSH_OPTS: -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 -o ServerAliveInterval=20 -o ServerAliveCountMax=3
 
     steps:
       - name: Checkout
@@ -73,32 +71,65 @@ jobs:
         env:
           VITE_API_BASE: /api        # same-origin API (works on .com and .online)
 
-      # ---------- SSH key + the retry helper ----------
+      # ---------- SSH: key, the `deploy` alias, the retry helper, ONE master ----------
       - name: Configure SSH
         env:
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          # retry <command...>: run it, and on failure wait 30 s and try again,
-          # up to five attempts. Sourced by every remote step below.
+
+          # Every ssh/rsync below talks to `deploy`: one alias carrying the
+          # host, port, user, key, keep-alives and the connection sharing.
+          cat > ~/.ssh/config <<EOF
+          Host deploy
+            HostName $SSH_HOST
+            Port $SSH_PORT
+            User $SSH_USER
+            IdentityFile ~/.ssh/id_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 25
+            ServerAliveInterval 20
+            ServerAliveCountMax 3
+            ControlMaster auto
+            ControlPath ~/.ssh/ctl-%C
+            ControlPersist 20m
+          EOF
+          chmod 600 ~/.ssh/config
+
+          # retry <command...>: on failure wait, then try again — waits grow
+          # (20 s, 45 s, 90 s, 150 s, 240 s) so a rate-limited host gets a quiet
+          # window to forget us instead of being poked every half minute.
           cat > ~/retry.sh <<'EOF'
           retry() {
-            local attempt=1 max=5 rc
+            local attempt=1 rc
+            local waits=(20 45 90 150 240)
             while true; do
               "$@" && return 0
               rc=$?
-              if [ "$attempt" -ge "$max" ]; then
+              if [ "$attempt" -gt "${#waits[@]}" ]; then
                 echo "::error::$1 failed $attempt times (last exit code $rc)"
                 return "$rc"
               fi
-              echo "attempt $attempt failed (exit code $rc) - retrying in 30s"
+              local wait=${waits[$((attempt - 1))]}
+              echo "attempt $attempt failed (exit code $rc) - retrying in ${wait}s"
               attempt=$((attempt + 1))
-              sleep 30
+              sleep "$wait"
             done
           }
           EOF
+
+          # Open THE connection. -N runs no command, -f backgrounds it once
+          # authenticated; ControlPersist keeps it alive across the steps below.
+          # Its stdio is detached from this step so the backgrounded master can
+          # never hold the step's output pipes open.
+          open_master() { ssh -fN deploy </dev/null >/dev/null 2>&1; }
+          source ~/retry.sh
+          retry open_master
+          ssh -O check deploy
 
       # ---------- Backup the current live version (for rollback) ----------
       # Snapshots the code that this deploy will change (frontend + api_app app
@@ -108,8 +139,7 @@ jobs:
       - name: Backup current deployment
         run: |
           source ~/retry.sh
-          retry ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" $SSH_OPTS \
-            "$SSH_USER@$SSH_HOST" "
+          retry ssh deploy "
               set -e
               mkdir -p ~/englandwaly_backups
               STAMP=\$(date +%Y%m%d-%H%M%S)
@@ -130,14 +160,13 @@ jobs:
       #    bundles are cleaned up (safe: assets/ only holds build files).
       # 2) the rest of dist (index.html, the PDFs, images, manifest) -> copy
       #    without --delete, and NEVER touch api/, api_app/ or videos/.
-      # --partial keeps what a cut connection already transferred, so a retry
-      # resumes the 17 MB of PDFs instead of starting them over.
+      # --partial keeps what a cut transfer already moved, so a retry resumes
+      # the 17 MB of PDFs instead of starting them over.
       - name: Deploy frontend (assets, mirrored)
         run: |
           source ~/retry.sh
           retry rsync -az --delete --partial --timeout=120 \
-            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT $SSH_OPTS" \
-            dist/assets/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/assets/"
+            dist/assets/ "deploy:$DEPLOY_PATH/assets/"
 
       - name: Deploy frontend (root files)
         run: |
@@ -145,8 +174,7 @@ jobs:
           retry rsync -az --partial --timeout=120 \
             --exclude 'assets/' \
             --exclude 'videos/' \
-            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT $SSH_OPTS" \
-            dist/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
+            dist/ "deploy:$DEPLOY_PATH/"
 
       # ---------- Deploy backend PHP code (api_app) ----------
       # Ships only app source. Excludes vendor, .env, uploads, storage, cache,
@@ -169,8 +197,7 @@ jobs:
             --exclude 'tests/' \
             --exclude 'node_modules/' \
             --exclude 'database/*.sql' \
-            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT $SSH_OPTS" \
-            backend_laravel/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/api_app/"
+            backend_laravel/ "deploy:$DEPLOY_PATH/api_app/"
 
       # ---------- Post-deploy: clear the Laravel config/route cache ----------
       # (No PHP/Composer/migrations — just drop stale compiled cache so the new
@@ -178,8 +205,7 @@ jobs:
       - name: Clear config cache
         run: |
           source ~/retry.sh
-          retry ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" $SSH_OPTS \
-            "$SSH_USER@$SSH_HOST" "rm -f '$DEPLOY_PATH/api_app/bootstrap/cache/'*.php || true"
+          retry ssh deploy "rm -f '$DEPLOY_PATH/api_app/bootstrap/cache/'*.php || true"
 
       # ---------- Auto-rollback if ANY step above failed ----------
       # Restores the pre-deploy snapshot, returning the site to the last working
@@ -188,8 +214,7 @@ jobs:
         if: failure()
         run: |
           source ~/retry.sh
-          retry ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" $SSH_OPTS \
-            "$SSH_USER@$SSH_HOST" "
+          retry ssh deploy "
               if [ -f ~/englandwaly_backups/predeploy.tar.gz ]; then
                 echo 'Deploy failed - restoring previous version...'
                 tar -xzf ~/englandwaly_backups/predeploy.tar.gz -C '$DEPLOY_PATH'
@@ -199,6 +224,11 @@ jobs:
                 echo 'No backup found; nothing to roll back.'
               fi
             "
+
+      # ---------- Close the shared connection ----------
+      - name: Close SSH connection
+        if: always()
+        run: ssh -O exit deploy 2>/dev/null || true
 
       - name: Done
         run: echo "Deployed to $DEPLOY_PATH"
