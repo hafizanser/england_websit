@@ -1,0 +1,2 @@
+# PDFs are binary: never normalise line endings or diff them as text.
+*.pdf binary

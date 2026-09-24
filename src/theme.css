@@ -149,50 +149,82 @@
 .eng .trust-row{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:20px}
 .eng .trust-row .t{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink)}
 .eng .check{width:18px;height:18px;color:var(--wa-dark);flex:0 0 auto}
-/* hero downloads — the rate list + catalogue as "tray" cards. A gold-tinted
-   outer shell holds a lighter inner plate (concentric radii, 22px → 17px), the
-   icon sits in its own gold tile, and the trailing arrow is a button-in-button
-   that fills espresso on hover. Three lines of copy: the English name, a short
-   Urdu line saying what the file is FOR, then format + size so nobody on mobile
-   data is surprised. Stacked full-width on phones; a pair only where the hero
-   column is wide enough for both names to stay on one line. */
-.eng .hero-downloads{display:grid;grid-template-columns:1fr;gap:12px;margin-top:20px}
+/* downloads — the rate list + catalogue PDFs as their own section. An espresso
+   panel inside the page column (not full-bleed, so the light rhythm around it
+   holds): copy on the left, the two "tray" cards on the right. Each card is a
+   gold-tinted shell holding a lighter plate (22px → 17px concentric radii), an
+   icon tile, three lines of copy — the English name, a plain-Urdu line saying
+   what the file is FOR, then format + size — and a trailing arrow that fills on
+   hover. Stacked on phones, a pair on tablets, a right-hand column on desktop. */
+.eng .downloads{padding-top:0}
+.eng .dl-panel{
+  position:relative;isolation:isolate;overflow:hidden;display:grid;gap:26px;
+  padding:28px 20px 24px;border-radius:26px;color:var(--cream);
+  background:radial-gradient(70% 80% at 100% 0%,rgba(203,164,92,.22),transparent 60%),linear-gradient(160deg,var(--brown-2),var(--brown) 60%,#1c140c);
+  box-shadow:0 0 0 1px rgba(203,164,92,.22),inset 0 1px 0 rgba(255,255,255,.06),0 30px 60px -36px rgba(39,28,18,.7)}
+.eng .dl-panel::after{content:"";position:absolute;right:-90px;bottom:-140px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(203,164,92,.16),transparent 65%);pointer-events:none;z-index:-1}
+.eng .downloads h2.title{color:#fff}
+.eng .downloads .title-ur{color:var(--gold-2)}
+.eng .downloads .lead{color:rgba(255,255,255,.68)}
+/* block, not flex: the note is one sentence with a <b> inside it, and flex would
+   turn each text run into its own item and scatter them across the line */
+.eng .dl-note{display:block;position:relative;padding-left:24px;margin-top:16px;font-size:13.5px;font-weight:600;line-height:1.5;color:rgba(255,255,255,.72)}
+.eng .dl-note .check{position:absolute;left:0;top:2px;width:16px;height:16px;color:var(--gold-2)}
+.eng .dl-note b{color:#fff}
+.eng .dl-grid{display:grid;gap:12px}
 .eng .dl-btn{
-  position:relative;isolation:isolate;display:flex;align-items:center;gap:11px;
-  min-height:92px;padding:5px;border-radius:22px;color:var(--ink);
-  background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(233,219,188,.38));
-  box-shadow:0 0 0 1px rgba(185,143,67,.20),0 14px 34px -22px rgba(60,42,18,.35);
+  position:relative;isolation:isolate;display:flex;align-items:center;gap:12px;
+  min-height:96px;padding:5px;border-radius:22px;color:var(--ink);
+  background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));
+  box-shadow:0 0 0 1px rgba(203,164,92,.32),0 18px 40px -26px rgba(0,0,0,.7);
   transition:transform .55s var(--ease-out),box-shadow .45s var(--ease-out);will-change:transform}
 .eng .dl-btn::before{
   content:"";position:absolute;inset:5px;z-index:-1;border-radius:17px;
   background:linear-gradient(180deg,#fff,#fbf7ee);
-  box-shadow:0 0 0 1px rgba(185,143,67,.14),inset 0 1px 0 rgba(255,255,255,.95),0 1px 2px rgba(60,42,18,.04);
+  box-shadow:0 0 0 1px rgba(185,143,67,.14),inset 0 1px 0 rgba(255,255,255,.95);
   transition:box-shadow .45s var(--ease-out),background .4s ease}
-.eng .dl-btn:hover{
-  transform:translateY(-3px);
-  box-shadow:0 0 0 1px rgba(185,143,67,.42),0 26px 48px -24px rgba(185,143,67,.55),0 0 24px -8px rgba(185,143,67,.35)}
-.eng .dl-btn:hover::before{background:#fff;box-shadow:0 0 0 1px rgba(185,143,67,.26),inset 0 1px 0 #fff,0 2px 6px rgba(60,42,18,.06)}
+.eng .dl-btn:hover{transform:translateY(-3px);box-shadow:0 0 0 1px rgba(203,164,92,.6),0 30px 56px -26px rgba(0,0,0,.75),0 0 30px -8px rgba(203,164,92,.45)}
+.eng .dl-btn:hover::before{background:#fff;box-shadow:0 0 0 1px rgba(185,143,67,.26),inset 0 1px 0 #fff}
 .eng .dl-btn:active{transform:translateY(-1px) scale(.988)}
-.eng .dl-btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.eng .dl-btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:3px}
 .eng .dl-btn .dl-ic{
-  flex:0 0 auto;width:42px;height:42px;margin-left:10px;border-radius:14px;display:grid;place-items:center;color:#7d5f26;
+  flex:0 0 auto;width:42px;height:42px;margin-left:11px;border-radius:14px;display:grid;place-items:center;color:#7d5f26;
   background:linear-gradient(160deg,#f7efdd,#e7d7b3);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 0 0 1px rgba(185,143,67,.18);
   transition:transform .5s var(--ease-spring)}
 .eng .dl-btn:hover .dl-ic{transform:rotate(-5deg) scale(1.06)}
 .eng .dl-btn .dl-ic svg{width:20px;height:20px}
-.eng .dl-btn .dl-txt{display:grid;gap:1px;min-width:0;flex:1 1 auto;text-align:left;padding-block:11px}
-.eng .dl-btn .dl-t{font-size:15px;font-weight:700;line-height:1.2;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.eng .dl-btn .dl-ur{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;text-align:left;font-size:13.5px;line-height:1.9;color:#5b4a2c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eng .dl-btn .dl-txt{display:grid;gap:1px;min-width:0;flex:1 1 auto;text-align:left;padding-block:12px}
+.eng .dl-btn .dl-t{font-size:15.5px;font-weight:700;line-height:1.2;letter-spacing:-.01em;text-wrap:balance}
+.eng .dl-btn .dl-ur{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;text-align:left;font-size:13.5px;line-height:1.9;color:#5b4a2c}
 .eng .dl-btn .dl-m{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .eng .dl-btn .dl-arrow{
-  flex:0 0 auto;width:34px;height:34px;margin-right:10px;border-radius:999px;display:grid;place-items:center;color:var(--brown);
+  flex:0 0 auto;width:36px;height:36px;margin-right:11px;border-radius:999px;display:grid;place-items:center;color:var(--brown);
   background:#fff;box-shadow:0 0 0 1px rgba(185,143,67,.22),0 6px 14px -8px rgba(60,42,18,.35);
   transition:transform .5s var(--ease-spring),background .3s ease,color .3s ease,box-shadow .3s ease}
-.eng .dl-btn .dl-arrow svg{width:15px;height:15px;transition:transform .5s var(--ease-spring)}
-.eng .dl-btn:hover .dl-arrow{background:var(--brown);color:var(--cream);box-shadow:0 0 0 1px var(--brown),0 10px 20px -8px rgba(39,28,18,.6)}
+.eng .dl-btn .dl-arrow svg{width:16px;height:16px;transition:transform .5s var(--ease-spring)}
+.eng .dl-btn:hover .dl-arrow{background:var(--brown);color:var(--cream);box-shadow:0 0 0 1px var(--brown),0 10px 20px -8px rgba(0,0,0,.6)}
 .eng .dl-btn:hover .dl-arrow svg{transform:translateY(2px)}
-@media (min-width:900px){.eng .hero-downloads{grid-template-columns:1fr 1fr;max-width:540px;margin-top:18px;gap:12px}}
+/* phones: a touch tighter so both names stay on one line at 375px wide */
+@media (max-width:679px){
+  .eng .dl-btn{gap:11px}
+  .eng .dl-btn .dl-ic{width:40px;height:40px;margin-left:10px}
+  .eng .dl-btn .dl-arrow{width:32px;height:32px;margin-right:10px}
+  .eng .dl-btn .dl-t{font-size:15px}
+}
+@media (min-width:680px){
+  .eng .dl-panel{padding:36px 32px 32px}
+  .eng .dl-grid{grid-template-columns:1fr 1fr}
+}
+@media (min-width:900px){
+  .eng .dl-panel{grid-template-columns:1.05fr .95fr;align-items:center;gap:44px;padding:46px 46px 44px;border-radius:30px}
+  .eng .dl-grid{grid-template-columns:1fr;gap:14px}
+  .eng .dl-btn .dl-ic{width:46px;height:46px;border-radius:15px}
+  .eng .dl-btn .dl-ic svg{width:22px;height:22px}
+  .eng .dl-btn .dl-t{font-size:16px}
+  .eng .dl-btn .dl-ur{font-size:14px}
+  .eng .downloads .lead{max-width:46ch}
+}
 @media (prefers-reduced-motion:reduce){.eng .dl-btn,.eng .dl-btn::before,.eng .dl-btn .dl-ic,.eng .dl-btn .dl-arrow,.eng .dl-btn .dl-arrow svg{transition:none}}
 /* Hero image — NO card/border/frame/shadow/background/container. It sits flat in
    the hero, blends with clean edges, and scales responsively at its own natural
@@ -1064,4 +1096,25 @@ body.vs-focus .video-strip{ -webkit-mask-image:none; mask-image:none; }
 
 @media (prefers-reduced-motion:reduce){
   .eng :where(.stats,.prod-grid,.cat-grid,.steps,.why-grid,.offer-grid,.pas .grid)>*{opacity:1;animation:none}
+}
+
+/* ---- polish pass 2 -------------------------------------------------------- */
+/* the downloads pair joins the staggered reveals */
+.eng .reveal:where(.dl-grid){transform:none;transition:opacity .3s var(--ease-out)}
+.eng :where(.dl-grid):not(.in)>*{opacity:0}
+.eng :where(.dl-grid).in>*{animation:engRise .7s var(--ease-out) backwards}
+.eng :where(.dl-grid).in>:nth-child(2){animation-delay:.09s}
+/* section titles: the gold phrase gets a marker highlight that wipes in once
+   the header has revealed — a quiet cue for where the eye should land */
+.eng h2.title .g{background-image:linear-gradient(transparent 64%,rgba(203,164,92,.22) 64%,rgba(203,164,92,.22) 92%,transparent 92%);background-repeat:no-repeat;background-size:0% 100%;-webkit-box-decoration-break:clone;box-decoration-break:clone;transition:background-size 1s var(--ease-out) .35s}
+.eng .in h2.title .g{background-size:100% 100%}
+/* the eyebrow dot breathes; the hero product cluster floats very slowly */
+@keyframes engDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.72)}}
+.eng .eyebrow::before{animation:engDot 2.8s ease-in-out infinite}
+@keyframes engFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.eng .hero-visual>img{animation:engFloat 7s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){
+  .eng .eyebrow::before,.eng .hero-visual>img{animation:none}
+  .eng :where(.dl-grid)>*{opacity:1;animation:none}
+  .eng h2.title .g{background-size:100% 100%}
 }

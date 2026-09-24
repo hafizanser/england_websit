@@ -37,8 +37,8 @@ const DownArrow = (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 // mobile data; update it when the file in public/ is replaced. `ur` is the one
 // line a small-shop customer needs: what the file is FOR, in plain Urdu.
 const HOME_DOWNLOADS = [
-  { file: 'england-wholesale-price-list.pdf', saveAs: 'England Wholesale Rate List.pdf', title: 'Rate List', ur: 'ہر چیز کا تھوک ریٹ', size: '7.6 MB' },
-  { file: 'england-product-catalogue-2026.pdf', saveAs: 'England Product Catalogue 2026.pdf', title: 'Catalogue 2026', ur: 'تصویروں والا مکمل کیٹلاگ', size: '9.4 MB' },
+  { file: 'england-wholesale-price-list.pdf', saveAs: 'England Wholesale Rate List.pdf', title: 'Wholesale Rate List', ur: 'ہر پروڈکٹ کا تھوک ریٹ', size: '7.6 MB' },
+  { file: 'england-product-catalogue-2026.pdf', saveAs: 'England Product Catalogue 2026.pdf', title: 'Product Catalogue 2026', ur: 'تصویروں والا مکمل کیٹلاگ', size: '9.4 MB' },
 ]
 // BASE_URL is "/" under the dev server and "./" in a build (vite.config.js sets
 // base './'), so the link resolves next to index.html wherever dist/ is hosted.
@@ -305,30 +305,6 @@ export default function Home() {
               <span className="t"><Check /> Rs. 5,000+ order pe free delivery</span>
               <span className="t"><Check /> Agle din delivery</span>
             </div>
-
-            {/* Downloads — the rate list + catalogue as direct saves. Kept visually
-                quieter than the two CTAs above so "Order on WhatsApp" stays the
-                one thing the eye lands on. */}
-            <div className="hero-downloads">
-              {HOME_DOWNLOADS.map((d) => (
-                <a
-                  key={d.file}
-                  className="dl-btn"
-                  href={publicUrl(d.file)}
-                  download={d.saveAs}
-                  type="application/pdf"
-                  aria-label={`Download ${d.title} — ${d.ur} (PDF, ${d.size})`}
-                >
-                  <span className="dl-ic" aria-hidden="true"><FileIcon /></span>
-                  <span className="dl-txt">
-                    <span className="dl-t">{d.title}</span>
-                    <span className="dl-ur" lang="ur" dir="rtl">{d.ur}</span>
-                    <span className="dl-m">PDF · {d.size}</span>
-                  </span>
-                  <span className="dl-arrow" aria-hidden="true"><DownArrow /></span>
-                </a>
-              ))}
-            </div>
           </Reveal>
 
           <Reveal className="hero-visual">
@@ -372,6 +348,46 @@ export default function Home() {
             )}
             {topReady && top.map((p) => (p ? <HomeProduct key={p.id} p={p} /> : null))}
           </Reveal>
+        </div>
+      </section>
+
+      {/* ===== DOWNLOADS — rate list + catalogue PDFs ===== */}
+      {/* Placed right after the top sellers on purpose: a shopkeeper who has just
+          seen four products is at the exact moment of asking "aur baaki sab ka
+          rate?" — this answers it with the full list and the picture catalogue.
+          The links are the same direct saves as before (public/ files + the
+          download attribute); only where they live on the page has changed. */}
+      <section className="section downloads" id="downloads">
+        <div className="wrap">
+          <div className="dl-panel">
+            <Reveal className="dl-copy">
+              <span className="eyebrow on-dark">Free downloads</span>
+              <h2 className="title">Poori rate list aur catalogue, <span className="g">ek tap mein</span></h2>
+              <div className="title-ur ur">پوری ریٹ لسٹ اور کیٹلاگ، ایک ٹیپ میں</div>
+              <p className="lead">Dono PDF bilkul free hain — phone mein save karein, staff ko WhatsApp pe forward karein, aur order se pehle har rate khud check karein.</p>
+              <p className="dl-note"><Check /> Download ke baad file aapke phone ke <b>Downloads</b> folder mein milegi</p>
+            </Reveal>
+            <Reveal className="dl-grid">
+              {HOME_DOWNLOADS.map((d) => (
+                <a
+                  key={d.file}
+                  className="dl-btn"
+                  href={publicUrl(d.file)}
+                  download={d.saveAs}
+                  type="application/pdf"
+                  aria-label={`Download ${d.title} — ${d.ur} (PDF, ${d.size})`}
+                >
+                  <span className="dl-ic" aria-hidden="true"><FileIcon /></span>
+                  <span className="dl-txt">
+                    <span className="dl-t">{d.title}</span>
+                    <span className="dl-ur" lang="ur" dir="rtl">{d.ur}</span>
+                    <span className="dl-m">PDF · {d.size} · Download</span>
+                  </span>
+                  <span className="dl-arrow" aria-hidden="true"><DownArrow /></span>
+                </a>
+              ))}
+            </Reveal>
+          </div>
         </div>
       </section>
 
