@@ -225,19 +225,19 @@
   .eng .dl-btn .dl-ur{font-size:14px}
   .eng .downloads .lead{max-width:46ch}
 }
+/* one visible card (the rate list is hidden for now): full width at every size,
+   never a lone half-width tile in the 2-up tablet grid */
+.eng .dl-grid.is-single{grid-template-columns:1fr}
 @media (prefers-reduced-motion:reduce){.eng .dl-btn,.eng .dl-btn::before,.eng .dl-btn .dl-ic,.eng .dl-btn .dl-arrow,.eng .dl-btn .dl-arrow svg{transition:none}}
 /* Hero image — NO card/border/frame/shadow/background/container. It sits flat in
    the hero, blends with clean edges, and scales responsively at its own natural
    aspect ratio (no crop), preserving image quality on desktop/tablet/mobile. */
 .eng .hero-visual{position:relative;background:none;border:0;border-radius:0;box-shadow:none;overflow:visible;display:block}
-/* No card/box — the products sit straight on the hero. A soft radial mask fades
-   the outer rim so the rectangular edge dissolves into the cream background (the
-   studio backdrop is already near-cream), giving a "transparent-PNG" merge with
-   clean soft edges. The product cluster (centre) stays fully sharp. */
+/* No card/box — the products sit straight on the hero. The image is a real
+   transparent cut-out (hero-products.webp: studio backdrop removed, floor shadow
+   kept as a soft translucent shadow), so it needs no edge mask to blend. */
 .eng .hero-visual>img{
   position:static;display:block;width:100%;height:auto;max-width:100%;
-  -webkit-mask-image:radial-gradient(135% 125% at 52% 55%, #000 82%, transparent 100%);
-  mask-image:radial-gradient(135% 125% at 52% 55%, #000 82%, transparent 100%);
 }
 .eng .ph{display:grid;place-items:center;gap:10px;color:#a48a55;text-align:center;padding:20px}
 .eng .ph svg{width:64px;height:64px;opacity:.65}

@@ -36,10 +36,12 @@ const DownArrow = (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 // tab. The size is printed on the button because most of these taps happen on
 // mobile data; update it when the file in public/ is replaced. `ur` is the one
 // line a small-shop customer needs: what the file is FOR, in plain Urdu.
+// `hidden` keeps a card (and its file in public/) without showing it; flip it
+// back to show the card again.
 const HOME_DOWNLOADS = [
-  { file: 'england-wholesale-price-list.pdf', saveAs: 'England Wholesale Rate List.pdf', title: 'Wholesale Rate List', ur: 'ہر پروڈکٹ کا تھوک ریٹ', size: '7.6 MB' },
-  { file: 'england-product-catalogue-2026.pdf', saveAs: 'England Product Catalogue 2026.pdf', title: 'Product Catalogue 2026', ur: 'تصویروں والا مکمل کیٹلاگ', size: '9.4 MB' },
-]
+  { file: 'england-wholesale-price-list.pdf', saveAs: 'England Wholesale Rate List.pdf', title: 'Wholesale Rate List', ur: 'ہر پروڈکٹ کا تھوک ریٹ', size: '7.6 MB', hidden: true },
+  { file: 'england-product-catalogue-2026.pdf', saveAs: 'England Product Catalogue 2026.pdf', title: 'Product Catalogue 2026', ur: 'تصویروں والا مکمل کیٹلاگ', size: '9.5 MB' },
+].filter((d) => !d.hidden)
 // BASE_URL is "/" under the dev server and "./" in a build (vite.config.js sets
 // base './'), so the link resolves next to index.html wherever dist/ is hosted.
 const publicUrl = (file) => `${import.meta.env.BASE_URL}${file}`
@@ -308,7 +310,7 @@ export default function Home() {
           </Reveal>
 
           <Reveal className="hero-visual">
-            <img src="/hero-products.jpg?v=4" alt="England product range" loading="eager" width="1463" height="1075" />
+            <img src="/hero-products.webp?v=5" alt="England product range" loading="eager" width="1463" height="1075" />
           </Reveal>
         </div>
       </section>
@@ -362,12 +364,12 @@ export default function Home() {
           <div className="dl-panel">
             <Reveal className="dl-copy">
               <span className="eyebrow on-dark">Free downloads</span>
-              <h2 className="title">Poori rate list aur catalogue, <span className="g">ek tap mein</span></h2>
-              <div className="title-ur ur">پوری ریٹ لسٹ اور کیٹلاگ، ایک ٹیپ میں</div>
-              <p className="lead">Dono PDF bilkul free hain — phone mein save karein, staff ko WhatsApp pe forward karein, aur order se pehle har rate khud check karein.</p>
+              <h2 className="title">Poora product catalogue, <span className="g">ek tap mein</span></h2>
+              <div className="title-ur ur">پورا پروڈکٹ کیٹلاگ، ایک ٹیپ میں</div>
+              <p className="lead">Catalogue PDF bilkul free hai — phone mein save karein, staff ko WhatsApp pe forward karein, aur order se pehle har product khud dekh lein.</p>
               <p className="dl-note"><Check /> Download ke baad file aapke phone ke <b>Downloads</b> folder mein milegi</p>
             </Reveal>
-            <Reveal className="dl-grid">
+            <Reveal className={`dl-grid${HOME_DOWNLOADS.length === 1 ? ' is-single' : ''}`}>
               {HOME_DOWNLOADS.map((d) => (
                 <a
                   key={d.file}
