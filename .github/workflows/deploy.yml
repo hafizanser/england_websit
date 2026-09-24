@@ -21,6 +21,17 @@ name: Deploy to Bluehost (englandwaly)
 #                    cPanel -> SSH Access -> Manage SSH Keys (full key text)
 #   DEPLOY_PATH      absolute path to the folder,
 #                    e.g.  /home1/codelpsc/public_html/englandwaly
+#
+# ---- Why every remote step is wrapped in `retry` ----
+# The host drops SSH connections at random (runs #34 and #35, 2026-09-24: one
+# died on its third connection, the next on its very first, while the rollback
+# connection a few seconds later went through both times — "Process completed
+# with exit code 255", ssh's code for a connection that never got established).
+# Shared cPanel hosts rate-limit bursts of SSH connections from one address, and
+# a deploy opens half a dozen in under a minute. So: no ssh-keyscan burst
+# (accept-new pins the host key on first contact anyway), keep-alives on every
+# session, and each remote step is tried up to five times, 30 s apart. Every
+# step is idempotent, so a retry can never double-apply anything.
 
 on:
   push:
@@ -39,6 +50,10 @@ jobs:
       SSH_USER: ${{ secrets.SSH_USER }}
       SSH_PORT: ${{ secrets.SSH_PORT }}
       DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      # One place for the ssh options every step uses. ConnectTimeout stops a
+      # refused connection from hanging; the keep-alives stop an idle-looking
+      # long rsync from being cut by the host.
+      SSH_OPTS: -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 -o ServerAliveInterval=20 -o ServerAliveCountMax=3
 
     steps:
       - name: Checkout
@@ -58,7 +73,7 @@ jobs:
         env:
           VITE_API_BASE: /api        # same-origin API (works on .com and .online)
 
-      # ---------- SSH key ----------
+      # ---------- SSH key + the retry helper ----------
       - name: Configure SSH
         env:
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -66,7 +81,24 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          # retry <command...>: run it, and on failure wait 30 s and try again,
+          # up to five attempts. Sourced by every remote step below.
+          cat > ~/retry.sh <<'EOF'
+          retry() {
+            local attempt=1 max=5 rc
+            while true; do
+              "$@" && return 0
+              rc=$?
+              if [ "$attempt" -ge "$max" ]; then
+                echo "::error::$1 failed $attempt times (last exit code $rc)"
+                return "$rc"
+              fi
+              echo "attempt $attempt failed (exit code $rc) - retrying in 30s"
+              attempt=$((attempt + 1))
+              sleep 30
+            done
+          }
+          EOF
 
       # ---------- Backup the current live version (for rollback) ----------
       # Snapshots the code that this deploy will change (frontend + api_app app
@@ -75,7 +107,8 @@ jobs:
       # BEFORE anything is overwritten — so we never deploy without a safety net.
       - name: Backup current deployment
         run: |
-          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" -o StrictHostKeyChecking=accept-new \
+          source ~/retry.sh
+          retry ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" $SSH_OPTS \
             "$SSH_USER@$SSH_HOST" "
               set -e
               mkdir -p ~/englandwaly_backups
@@ -95,20 +128,24 @@ jobs:
       # ---------- Deploy frontend ----------
       # 1) assets/ is pure build output -> mirror with --delete so old hashed
       #    bundles are cleaned up (safe: assets/ only holds build files).
-      # 2) the rest of dist (index.html, images, manifest) -> copy without
-      #    --delete, and NEVER touch api/, api_app/ or videos/.
+      # 2) the rest of dist (index.html, the PDFs, images, manifest) -> copy
+      #    without --delete, and NEVER touch api/, api_app/ or videos/.
+      # --partial keeps what a cut connection already transferred, so a retry
+      # resumes the 17 MB of PDFs instead of starting them over.
       - name: Deploy frontend (assets, mirrored)
         run: |
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT -o StrictHostKeyChecking=accept-new" \
+          source ~/retry.sh
+          retry rsync -az --delete --partial --timeout=120 \
+            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT $SSH_OPTS" \
             dist/assets/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/assets/"
 
       - name: Deploy frontend (root files)
         run: |
-          rsync -az \
+          source ~/retry.sh
+          retry rsync -az --partial --timeout=120 \
             --exclude 'assets/' \
             --exclude 'videos/' \
-            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT -o StrictHostKeyChecking=accept-new" \
+            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT $SSH_OPTS" \
             dist/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
 
       # ---------- Deploy backend PHP code (api_app) ----------
@@ -117,7 +154,8 @@ jobs:
       # exactly as they are on the server. No --delete.
       - name: Deploy backend (api_app)
         run: |
-          rsync -az \
+          source ~/retry.sh
+          retry rsync -az --partial --timeout=120 \
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude 'vendor/' \
@@ -131,7 +169,7 @@ jobs:
             --exclude 'tests/' \
             --exclude 'node_modules/' \
             --exclude 'database/*.sql' \
-            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT -o StrictHostKeyChecking=accept-new" \
+            -e "ssh -i ~/.ssh/id_deploy -p $SSH_PORT $SSH_OPTS" \
             backend_laravel/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/api_app/"
 
       # ---------- Post-deploy: clear the Laravel config/route cache ----------
@@ -139,7 +177,8 @@ jobs:
       #  code + existing .env take effect on the next request.)
       - name: Clear config cache
         run: |
-          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" -o StrictHostKeyChecking=accept-new \
+          source ~/retry.sh
+          retry ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" $SSH_OPTS \
             "$SSH_USER@$SSH_HOST" "rm -f '$DEPLOY_PATH/api_app/bootstrap/cache/'*.php || true"
 
       # ---------- Auto-rollback if ANY step above failed ----------
@@ -148,7 +187,8 @@ jobs:
       - name: Roll back on failure
         if: failure()
         run: |
-          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" -o StrictHostKeyChecking=accept-new \
+          source ~/retry.sh
+          retry ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" $SSH_OPTS \
             "$SSH_USER@$SSH_HOST" "
               if [ -f ~/englandwaly_backups/predeploy.tar.gz ]; then
                 echo 'Deploy failed - restoring previous version...'
