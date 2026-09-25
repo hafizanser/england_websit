@@ -302,12 +302,29 @@
   min-height:74px;padding:12px 18px 14px 12px;border-radius:20px;text-decoration:none;color:var(--ink);
   background:linear-gradient(180deg,#fff,#f8f1e2);
   box-shadow:0 0 0 1px rgba(203,164,92,.55),0 22px 44px -22px rgba(0,0,0,.8),0 0 34px -12px rgba(203,164,92,.5);
-  animation:catDlBreath 3.6s var(--ease-out) infinite;
+  /* A slow "I'm tappable" pulse: the plate swells a hair, its gold glow
+     warms, and a soft halo ring ripples outward and fades. 2.8s, eased, so it
+     reads as breathing rather than blinking. Hover takes over (below). */
+  animation:catDlPulse 2.8s cubic-bezier(.45,0,.35,1) infinite;
   transition:transform .35s var(--ease-spring),box-shadow .35s ease}
-.eng .cat-dl:hover{box-shadow:0 0 0 1px rgba(203,164,92,.9),0 28px 50px -22px rgba(0,0,0,.85),0 0 44px -10px rgba(203,164,92,.65)}
+.eng .cat-dl:hover{
+  animation:none;transform:translateY(-3px) scale(1.015);
+  box-shadow:0 0 0 1.5px rgba(203,164,92,1),0 32px 56px -22px rgba(0,0,0,.9),0 0 56px -8px rgba(203,164,92,.85),0 0 0 6px rgba(203,164,92,.16)}
 .eng .cat-dl:active{transform:scale(.965);animation:none}
 .eng .cat-dl:focus-visible{outline:2px solid var(--gold-2);outline-offset:3px}
-@keyframes catDlBreath{0%,100%{transform:scale(1)}55%{transform:scale(.978)}72%{transform:scale(1.006)}86%{transform:scale(1)}}
+@keyframes catDlPulse{
+  0%,100%{transform:scale(1);
+    box-shadow:0 0 0 1px rgba(203,164,92,.55),0 22px 44px -22px rgba(0,0,0,.8),0 0 30px -12px rgba(203,164,92,.45),0 0 0 0 rgba(203,164,92,.38)}
+  50%{transform:scale(1.012);
+    box-shadow:0 0 0 1px rgba(203,164,92,.85),0 24px 46px -22px rgba(0,0,0,.82),0 0 46px -8px rgba(203,164,92,.7),0 0 0 9px rgba(203,164,92,0)}
+}
+/* the icon tile glows in time with the plate */
+.eng .cat-dl.is-idle .cat-dl__ic{animation:catDlIcon 2.8s cubic-bezier(.45,0,.35,1) infinite}
+.eng .cat-dl:hover .cat-dl__ic{animation:none}
+@keyframes catDlIcon{
+  0%,100%{box-shadow:0 8px 16px -8px rgba(39,28,18,.7),inset 0 1px 0 rgba(255,255,255,.12),0 0 0 0 rgba(203,164,92,0)}
+  50%{box-shadow:0 8px 16px -8px rgba(39,28,18,.7),inset 0 1px 0 rgba(255,255,255,.12),0 0 18px 2px rgba(203,164,92,.55)}
+}
 .eng .cat-dl__ic{flex:0 0 auto;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--cream);
   background:linear-gradient(160deg,var(--brown-2),var(--brown));box-shadow:0 8px 16px -8px rgba(39,28,18,.7),inset 0 1px 0 rgba(255,255,255,.12);
   transition:transform .45s var(--ease-spring)}
@@ -342,7 +359,7 @@
   .eng .dl-cat{max-width:440px;margin-right:0}
 }
 @media (prefers-reduced-motion:reduce){
-  .eng .cat-dl,.eng .cat-dl__bar i,.eng .cat-win__live.is-on::before{animation:none}
+  .eng .cat-dl,.eng .cat-dl__ic,.eng .cat-dl__bar i,.eng .cat-win__live.is-on::before{animation:none}
   .eng .cat-dl.is-busy .cat-dl__fill{animation-duration:.01s}
 }
 @media (prefers-reduced-motion:reduce){.eng .dl-btn,.eng .dl-btn::before,.eng .dl-btn .dl-ic,.eng .dl-btn .dl-arrow,.eng .dl-btn .dl-arrow svg{transition:none}}
