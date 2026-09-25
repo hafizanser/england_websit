@@ -10,6 +10,8 @@ import { initSafeAreaVars } from './lib/viewport'
 import { initServiceWorker } from './lib/serviceWorker'
 import './index.css'
 import './theme.css'
+// The Sep 2026 redesign layer — restyles everything except the hero.
+import './redesign.css'
 // Loaded LAST so the iOS/Safari parity layer can correct both stylesheets above.
 import './ios.css'
 

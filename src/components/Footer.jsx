@@ -51,9 +51,33 @@ export default function Footer() {
   const categoryList = (!catsLoading && Array.isArray(cats) ? cats : []).filter((c) => (c.items ?? 1) > 0)
 
   return (
-    <footer className="bg-brand-950 text-[#c9b89f]">
-      <div className="container-page py-14 sm:py-16">
-        <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr_1.9fr_1.3fr]">
+    <footer className="relative overflow-hidden bg-[#140E07] text-[#c9b89f]">
+      <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 h-[28rem] w-[28rem] rounded-full bg-saffron-400/10 blur-3xl" />
+      <div className="container-page relative py-14 sm:py-20">
+        {/* statement band — the reference's closing line, in England's words */}
+        <div className="flex flex-col gap-7 border-b border-white/10 pb-10 sm:pb-14 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="flex items-center gap-3 font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
+              <span aria-hidden className="h-[2px] w-5 rounded-full bg-saffron-400" /> Aaj order, kal maal
+            </p>
+            <p className="mt-4 font-grotesk text-[34px] font-extrabold uppercase leading-[0.95] tracking-[-0.035em] text-white sm:text-5xl lg:text-6xl">
+              Aapki dukaan ka<br />
+              <span className="text-saffron-400">poora saaman.</span>
+            </p>
+            <p className="urdu mt-3 text-lg text-saffron-300/80 sm:text-xl" dir="rtl" style={{ width: 'fit-content' }}>{brand.trustUrdu}</p>
+          </div>
+          <a
+            href={waHref}
+            target="_blank"
+            rel="noreferrer"
+            className="group inline-flex w-full items-center justify-center gap-2.5 self-start rounded-2xl bg-wa-500 px-6 py-4 text-base font-bold text-white shadow-[0_18px_36px_-14px_rgba(31,168,85,0.85)] ring-1 ring-wa-400/50 transition-all hover:-translate-y-0.5 hover:bg-wa-600 active:translate-y-0 sm:w-auto lg:self-end"
+          >
+            <WhatsappLogo size={20} weight="fill" className="shrink-0" /> <span className="whitespace-nowrap">Order on WhatsApp</span>
+            <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+          </a>
+        </div>
+
+        <div className="grid gap-10 pt-10 sm:pt-12 lg:grid-cols-[1.5fr_1fr_1.9fr_1.3fr]">
           {/* brand */}
           <div>
             <Link to="/" aria-label={brand.full} className="inline-flex items-center">
@@ -63,8 +87,6 @@ export default function Footer() {
               Pakistan ka apna FMCG wholesale partner. Tissue, agarbatti, razor, hair color, soap aur
               bohot kuch — asli maal, wholesale rate, 40+ cities mein delivery.
             </p>
-            <p className="urdu mt-3 text-base text-[#a8967e]" dir="rtl">{brand.trustUrdu}</p>
-
             <div className="mt-6 flex flex-wrap items-center gap-2.5">
               {[
                 { icon: WhatsappLogo, href: waHref, label: 'WhatsApp' },
@@ -89,7 +111,7 @@ export default function Footer() {
 
           {/* company */}
           <div>
-            <h5 className="text-[13px] font-bold uppercase tracking-[0.1em] text-white">Company</h5>
+            <h5 className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-white/50">Company</h5>
             <ul className="mt-4 space-y-2.5">
               {navLinks.map((l) => (
                 <li key={l.label}>
@@ -107,7 +129,7 @@ export default function Footer() {
               footer columns and never over-stretches the footer. Columns:
               2 on mobile/tablet, 2 in the narrower lg slot, 3 from xl up. */}
           <div>
-            <h5 className="text-[13px] font-bold uppercase tracking-[0.1em] text-white">Categories</h5>
+            <h5 className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-white/50">Categories</h5>
             <ul className="mt-3 -ml-2 grid grid-cols-2 gap-x-2 gap-y-0.5 xl:grid-cols-3">
               {catsLoading && Array.from({ length: 12 }).map((_, i) => (
                 <li key={i} className="min-w-0 px-2 py-1.5">
@@ -134,7 +156,7 @@ export default function Footer() {
 
           {/* contact */}
           <div>
-            <h5 className="text-[13px] font-bold uppercase tracking-[0.1em] text-white">Raabta</h5>
+            <h5 className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-white/50">Raabta</h5>
             <ul className="mt-4 space-y-3.5 text-[14px] text-[#bdab93]">
               <li className="flex items-start gap-3">
                 <Phone size={18} weight="fill" className="mt-0.5 shrink-0 text-saffron-300" />
@@ -156,21 +178,14 @@ export default function Footer() {
                 <span>{brand.address}</span>
               </li>
             </ul>
-            <a
-              href={waHref}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-wa-500 px-5 py-3 text-sm font-bold text-white shadow-[0_14px_28px_-12px_rgba(31,168,85,0.9)] ring-1 ring-wa-400/50 transition-all hover:-translate-y-0.5 hover:bg-wa-600 active:translate-y-0"
-            >
-              <WhatsappLogo size={18} weight="fill" className="shrink-0" /> <span className="whitespace-nowrap">Order on WhatsApp</span>
-            </a>
           </div>
         </div>
       </div>
 
       <div className="border-t border-white/10">
-        <div className="container-page flex flex-col items-center justify-center gap-3 py-6 text-center text-[13px] text-[#8a7866]">
+        <div className="container-page flex flex-col items-center justify-between gap-3 py-6 text-center font-mono text-[11px] uppercase tracking-[0.14em] text-[#8a7866] sm:flex-row sm:text-left">
           <p>© 2026 {brand.full} · MT Traders. Tamaam haqooq mehfooz.</p>
+          <p className="text-[#6f604f]">Asli maal · Wholesale rate · Agle din delivery</p>
         </div>
       </div>
     </footer>

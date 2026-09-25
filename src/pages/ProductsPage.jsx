@@ -200,9 +200,9 @@ export default function ProductsPage() {
       >
         <Link
           to="/offers"
-          className="inline-flex items-center gap-2 rounded-full bg-saffron-400 px-5 py-3 text-sm font-bold text-brand-950 shadow-glow transition-all hover:bg-saffron-300 active:translate-y-px"
+          className="group inline-flex items-center gap-2.5 rounded-xl bg-[#1C140B] px-5 py-3.5 text-sm font-bold text-white shadow-[0_18px_34px_-18px_rgba(28,20,11,0.7)] transition-all hover:-translate-y-0.5 hover:bg-brand-800 active:translate-y-px"
         >
-          Aaj ki offers dekhein <ArrowRight size={16} weight="bold" />
+          Aaj ki offers dekhein <ArrowRight size={16} weight="bold" className="text-saffron-300 transition-transform duration-300 group-hover:translate-x-1" />
         </Link>
       </PageBanner>
 

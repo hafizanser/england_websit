@@ -9,6 +9,10 @@ export default {
         // Display / headings — expressive editorial grotesque
         display: ['"Bricolage Grotesque"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
         urdu: ['"Noto Nastaliq Urdu"', 'serif'],
+        // Redesign (Sep 2026): the heavy uppercase display face and the mono
+        // label face shared with the homepage's redesign.css.
+        grotesk: ['"Cabinet Grotesk"', 'Outfit', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
         // Primary dark — warm brown → ink. Used for headings, body text,

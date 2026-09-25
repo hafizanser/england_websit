@@ -2,18 +2,19 @@ import { motion } from 'framer-motion'
 import { Star } from '@phosphor-icons/react'
 import { fadeUp, viewportOnce } from '../lib/motion'
 
-// Small eyebrow label used above section headings
+// Small eyebrow label used above section headings. Redesign (Sep 2026): a
+// mono label led by a short gold dash, the same as the homepage sections.
 export function Eyebrow({ children, tone = 'brand' }) {
   const tones = {
-    brand: 'bg-brand-50 text-brand-700 ring-brand-100',
-    saffron: 'bg-saffron-50 text-saffron-700 ring-saffron-100',
-    light: 'bg-white/10 text-white ring-white/15',
+    brand: 'text-brand-500',
+    saffron: 'text-saffron-700',
+    light: 'text-white/65',
   }
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] ring-1 ${tones[tone]}`}
+      className={`inline-flex items-center gap-3 font-mono text-[11px] font-medium uppercase leading-none tracking-[0.2em] ${tones[tone] || tones.brand}`}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      <span aria-hidden className="h-[2px] w-5 rounded-full bg-saffron-400" />
       {children}
     </span>
   )
@@ -32,11 +33,11 @@ export function SectionHeading({ eyebrow, tone, title, accent, urdu, desc, align
       }`}
     >
       {eyebrow && <Eyebrow tone={tone}>{eyebrow}</Eyebrow>}
-      <h2 className="max-w-3xl text-balance text-3xl font-extrabold leading-[1.05] tracking-tight text-brand-950 sm:text-4xl md:text-5xl">
+      <h2 className="max-w-3xl text-balance font-grotesk text-[31px] font-extrabold uppercase leading-[0.95] tracking-[-0.035em] text-brand-950 sm:text-5xl md:text-[56px]">
         {title} {accent && <span className="text-saffron-500">{accent}</span>}
       </h2>
       {urdu && (
-        <p className="urdu text-lg text-brand-600 sm:text-xl" dir="rtl">
+        <p className="urdu text-lg text-saffron-600 sm:text-2xl" dir="rtl" style={{ width: 'fit-content', maxWidth: '100%' }}>
           {urdu}
         </p>
       )}
@@ -71,7 +72,7 @@ export function Stars({ rating = 5, size = 14 }) {
 // Skeleton placeholder matching the product card layout (loading state)
 export function ProductSkeleton() {
   return (
-    <div className="overflow-hidden rounded-3xl border border-brand-100 bg-white shadow-soft">
+    <div className="overflow-hidden rounded-[22px] border border-brand-900/[0.08] bg-white shadow-[0_12px_30px_-24px_rgba(40,28,14,0.3)]">
       <div className="relative aspect-square overflow-hidden bg-sand-100">
         <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
       </div>

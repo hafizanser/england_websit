@@ -46,7 +46,7 @@ function ProfileButton() {
       type="button"
       onClick={() => navigate(isLoggedIn ? '/profile' : '/login')}
       aria-label={isLoggedIn ? 'My Profile kholein' : 'Login karein'}
-      className="grid h-10 w-10 place-items-center rounded-full border border-brand-200 bg-white text-brand-800 transition-all hover:border-saffron-400 hover:text-saffron-700 active:translate-y-px"
+      className="grid h-10 w-10 place-items-center rounded-xl border border-brand-900/10 bg-white text-brand-800 transition-all hover:border-saffron-400 hover:text-saffron-700 active:translate-y-px"
     >
       <User size={19} weight="bold" />
     </button>
@@ -59,6 +59,16 @@ export default function Navbar() {
   // Hero and slides back when the Hero returns to view. Pages without a Hero
   // (everything but Home) keep the bar shown — see the effect below.
   const [hideAnnouncement, setHideAnnouncement] = useState(false)
+  // Once the page has moved, the bar lifts off it with a soft shadow — the
+  // reference's "scrolled" header. Only flips at the threshold, so scrolling
+  // does not re-render the navbar on every frame.
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
   const navigate = useNavigate()
   const [, startTransition] = useTransition()
   const { pathname, search } = useLocation()
@@ -601,29 +611,33 @@ export default function Navbar() {
       </div>
 
       {/* Main bar */}
-      <div className="border-b border-brand-100 bg-sand-50">
-        <nav className="container-page flex items-center gap-6 py-3.5">
+      <div
+        className={`border-b bg-sand-50 transition-[box-shadow,border-color] duration-300 ${
+          scrolled ? 'border-brand-900/[0.08] shadow-[0_14px_34px_-24px_rgba(40,28,14,0.45)]' : 'border-brand-900/[0.06]'
+        }`}
+      >
+        <nav className="container-page flex items-center gap-7 py-3">
           <Logo />
 
-          <ul className="hidden items-center gap-6 lg:flex">
+          <ul className="hidden items-center gap-7 lg:flex">
             {navLinks.map((link) => {
               const active = isNavActive(link.to)
               return (
                 <li key={link.label}>
                   <Link
                     to={link.to}
-                    className={`group relative inline-block py-1 text-sm font-semibold transition-colors ${active ? 'text-saffron-700' : 'text-brand-600 hover:text-saffron-700'}`}
+                    className={`group relative inline-block py-1.5 text-[14.5px] transition-colors ${active ? 'font-semibold text-brand-950' : 'font-medium text-brand-600 hover:text-brand-950'}`}
                   >
                     {link.label}
                     {/* hover underline for inactive items */}
                     {!active && (
-                      <span className="absolute -bottom-0.5 left-0 h-0.5 w-full origin-left scale-x-0 rounded-full bg-saffron-300 transition-transform duration-300 ease-out group-hover:scale-x-100" />
+                      <span className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 rounded-full bg-saffron-300 transition-transform duration-300 ease-out group-hover:scale-x-100" />
                     )}
                     {/* animated active indicator — slides smoothly between pages */}
                     {active && (
                       <motion.span
                         layoutId="nav-underline"
-                        className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full bg-saffron-500"
+                        className="absolute -bottom-0.5 left-0 right-0 h-[2px] rounded-full bg-saffron-500"
                         transition={spring}
                       />
                     )}
@@ -640,7 +654,7 @@ export default function Navbar() {
               onSubmit={runSearch}
               role="search"
               action="/products"
-              className="hidden min-w-0 flex-1 items-center gap-2.5 rounded-full border border-brand-100 bg-white px-4 py-2.5 transition-colors focus-within:border-saffron-400 hover:border-brand-200 sm:flex lg:mx-1 lg:max-w-2xl"
+              className="hidden min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-brand-900/[0.09] bg-white px-4 py-2.5 shadow-[inset_0_1px_2px_rgba(40,28,14,0.04)] transition-[border-color,box-shadow] duration-200 focus-within:border-saffron-400 focus-within:shadow-[0_0_0_4px_rgba(199,160,91,0.14)] hover:border-brand-900/[0.16] sm:flex lg:mx-1 lg:max-w-2xl"
             >
               <button type="submit" aria-label="Search" className="shrink-0 text-brand-400 transition-colors hover:text-brand-700">
                 <MagnifyingGlass size={16} weight="bold" />
@@ -665,7 +679,7 @@ export default function Navbar() {
               type="button"
               aria-label="Maal dhoondein"
               onClick={() => openDrawer({ focusSearch: true })}
-              className="grid h-11 w-11 place-items-center rounded-full border border-brand-200 bg-white text-brand-800 transition-all active:scale-95 sm:hidden"
+              className="grid h-11 w-11 place-items-center rounded-xl border border-brand-900/10 bg-white text-brand-800 transition-all active:scale-95 sm:hidden"
             >
               <MagnifyingGlass size={19} weight="bold" />
             </button>
@@ -676,7 +690,7 @@ export default function Navbar() {
               target="_blank"
               rel="noreferrer"
               aria-label="Order on WhatsApp"
-              className="hidden shrink-0 items-center gap-2 rounded-full bg-[#25D366] px-3 py-2.5 text-sm font-bold text-white shadow-md ring-1 ring-inset ring-white/25 transition-all duration-200 hover:bg-[#20bd5a] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98] sm:flex sm:px-5"
+              className="hidden shrink-0 items-center gap-2 rounded-xl bg-[#25D366] px-3 py-2.5 text-sm font-bold text-white shadow-[0_12px_24px_-12px_rgba(37,211,102,0.75)] ring-1 ring-inset ring-white/25 transition-all duration-200 hover:bg-[#20bd5a] hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-12px_rgba(37,211,102,0.7)] active:translate-y-0 active:scale-[0.98] sm:flex sm:px-5"
             >
               <WhatsappLogo size={18} weight="fill" className="shrink-0 text-white" />
               <span className="hidden whitespace-nowrap sm:inline">Order on WhatsApp</span>
@@ -688,7 +702,7 @@ export default function Navbar() {
               type="button"
               aria-label="Menu kholein"
               onClick={() => openDrawer()}
-              className="grid h-11 w-11 place-items-center rounded-xl border border-brand-200 bg-white text-brand-800 transition-all active:scale-95 lg:hidden"
+              className="grid h-11 w-11 place-items-center rounded-xl border border-brand-900/10 bg-white text-brand-800 transition-all active:scale-95 lg:hidden"
             >
               <List size={20} weight="bold" />
             </button>

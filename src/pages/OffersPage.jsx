@@ -289,7 +289,7 @@ function HeroActions({ reduce }) {
       <button
         type="button"
         onClick={scrollToDeals}
-        className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-saffron-400 px-5 py-3 text-sm font-bold text-brand-950 shadow-glow transition-all hover:bg-saffron-300 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#1C140B] px-5 py-3 text-sm font-bold text-white shadow-[0_18px_34px_-18px_rgba(28,20,11,0.7)] transition-all hover:-translate-y-0.5 hover:bg-brand-800 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
       >
         <ArrowDown size={18} weight="bold" /> Deals dekhein
       </button>
@@ -297,7 +297,7 @@ function HeroActions({ reduce }) {
         href={waLink('Assalam o alaikum! England ki current offers ke baare mein maloomat chahiye.')}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-[#1ebe5d] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#25D366] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_28px_-14px_rgba(37,211,102,0.8)] transition-all hover:-translate-y-0.5 hover:bg-[#1ebe5d] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
       >
         <WhatsappLogo size={18} weight="fill" className="shrink-0" /> Order on WhatsApp
       </a>

@@ -140,7 +140,7 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true, s
       // Nothing that must escape the card lives inside it — VideoLightbox is
       // portalled to <body> precisely so the card's overflow/radius cannot clip
       // it, and that is what keeps it above the navbar with this in place.
-      className="group isolate flex flex-col overflow-hidden rounded-3xl border border-brand-100 bg-white shadow-soft focus-within:ring-2 focus-within:ring-saffron-400/50"
+      className="group isolate flex flex-col overflow-hidden rounded-[22px] border border-brand-900/[0.08] bg-white shadow-[0_1px_2px_rgba(40,28,14,0.04),0_12px_30px_-24px_rgba(40,28,14,0.3)] transition-[transform,box-shadow,border-color] duration-500 ease-[cubic-bezier(.22,1,.36,1)] focus-within:ring-2 focus-within:ring-saffron-400/50 [@media(hover:hover)]:hover:-translate-y-1.5 [@media(hover:hover)]:hover:border-brand-900/[0.16] [@media(hover:hover)]:hover:shadow-[0_1px_2px_rgba(40,28,14,0.04),0_30px_60px_-32px_rgba(40,28,14,0.4)]"
     >
       {/* Media — clean, edge-to-edge image (fixed aspect ratio → no CLS). Links to
           the product page on the storefront; callers can disable that (admin) so a
@@ -167,7 +167,7 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true, s
       <div className="flex flex-1 flex-col gap-2 p-3.5 sm:p-4">
         <div className="flex items-center justify-between gap-2">
           {/* category tag — AA contrast (brand-700 on brand-50) */}
-          <span className="w-fit min-w-0 truncate rounded-md bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
+          <span className="w-fit min-w-0 truncate font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-brand-600 sm:text-[10.5px] sm:tracking-[0.14em]">
             {p.category}
           </span>
           <StockBadge stock={stock} />
@@ -176,10 +176,10 @@ function ProductCardBase({ p, preferLargestUnit = false, linkToProduct = true, s
         <div>
           {linkToProduct ? (
             <Link to={`/product/${p.id}`} className="block">
-              <h3 className="line-clamp-2 text-sm font-bold leading-snug text-brand-950 transition-colors hover:text-brand-700">{p.name}</h3>
+              <h3 className="line-clamp-2 font-grotesk text-[15.5px] font-extrabold leading-snug tracking-[-0.01em] text-brand-950 transition-colors hover:text-saffron-700 sm:text-base">{p.name}</h3>
             </Link>
           ) : (
-            <h3 className="line-clamp-2 text-sm font-bold leading-snug text-brand-950">{p.name}</h3>
+            <h3 className="line-clamp-2 font-grotesk text-[15.5px] font-extrabold leading-snug tracking-[-0.01em] text-brand-950 sm:text-base">{p.name}</h3>
           )}
           {/* Description always renders on a single clean line with ellipsis. */}
           <p className="mt-0.5 truncate text-xs text-brand-500" title={p.sub}>{(p.sub || '').replace(/\s*\\\s*/g, ' · ').replace(/\s+/g, ' ').trim()}</p>

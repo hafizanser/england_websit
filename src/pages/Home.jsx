@@ -14,6 +14,7 @@ import { imgSrc, onImgError } from '../lib/img'
 import VideoReviews from '../components/VideoReviews'
 import OffersSection from '../components/OffersSection'
 import { Reveal, Check } from '../components/Reveal'
+import CatalogueViewer, { CatalogueDownload } from '../components/CatalogueViewer'
 import { ErrorState, EmptyState } from '../components/ui'
 
 // Single WhatsApp number (mirrors the brand contact).
@@ -42,6 +43,10 @@ const HOME_DOWNLOADS = [
   { file: 'england-wholesale-price-list.pdf', saveAs: 'England Wholesale Rate List.pdf', title: 'Wholesale Rate List', ur: 'ہر پروڈکٹ کا تھوک ریٹ', size: '7.6 MB', hidden: true },
   { file: 'england-product-catalogue-2026.pdf', saveAs: 'England Product Catalogue 2026.pdf', title: 'Product Catalogue 2026', ur: 'تصویروں والا مکمل کیٹلاگ', size: '9.5 MB' },
 ].filter((d) => !d.hidden)
+// The catalogue gets the self-playing viewer + big Download button; any other
+// visible file (the rate list, when it is switched back on) keeps its card.
+const CATALOGUE = HOME_DOWNLOADS.find((d) => d.file.includes('catalogue'))
+const OTHER_DOWNLOADS = HOME_DOWNLOADS.filter((d) => d !== CATALOGUE)
 // BASE_URL is "/" under the dev server and "./" in a build (vite.config.js sets
 // base './'), so the link resolves next to index.html wherever dist/ is hosted.
 const publicUrl = (file) => `${import.meta.env.BASE_URL}${file}`
@@ -363,14 +368,21 @@ export default function Home() {
         <div className="wrap">
           <div className="dl-panel">
             <Reveal className="dl-copy">
-              <span className="eyebrow on-dark">Free downloads</span>
+              <span className="eyebrow on-dark">Free catalogue</span>
               <h2 className="title">Poora product catalogue, <span className="g">ek tap mein</span></h2>
               <div className="title-ur ur">پورا پروڈکٹ کیٹلاگ، ایک ٹیپ میں</div>
-              <p className="lead">Catalogue PDF bilkul free hai — phone mein save karein, staff ko WhatsApp pe forward karein, aur order se pehle har product khud dekh lein.</p>
+              <p className="lead">Yahan catalogue khud chal raha hai — har product, har page. Pasand aaye to neeche button se free download karein aur staff ko WhatsApp pe bhej dein.</p>
               <p className="dl-note"><Check /> Download ke baad file aapke phone ke <b>Downloads</b> folder mein milegi</p>
             </Reveal>
-            <Reveal className={`dl-grid${HOME_DOWNLOADS.length === 1 ? ' is-single' : ''}`}>
-              {HOME_DOWNLOADS.map((d) => (
+            {CATALOGUE && (
+              <Reveal className="dl-cat">
+                <CatalogueViewer />
+                <CatalogueDownload href={publicUrl(CATALOGUE.file)} saveAs={CATALOGUE.saveAs} size={CATALOGUE.size} />
+              </Reveal>
+            )}
+            {OTHER_DOWNLOADS.length > 0 && (
+            <Reveal className={`dl-grid${OTHER_DOWNLOADS.length === 1 ? ' is-single' : ''}`}>
+              {OTHER_DOWNLOADS.map((d) => (
                 <a
                   key={d.file}
                   className="dl-btn"
@@ -389,12 +401,13 @@ export default function Home() {
                 </a>
               ))}
             </Reveal>
+            )}
           </div>
         </div>
       </section>
 
       {/* ===== CATEGORIES ===== */}
-      <section className="section" id="categories" style={{ background: 'var(--cream-soft)', borderBlock: '1px solid var(--line)' }}>
+      <section className="section" id="categories">
         <div className="wrap">
           <Reveal>
             <span className="eyebrow">Categories</span>
@@ -428,8 +441,8 @@ export default function Home() {
       <section className="section pas">
         <div className="wrap">
           <Reveal>
-            <span className="eyebrow on-dark">Problem</span>
-            <h2 className="title" style={{ color: '#fff' }}>Maal ke liye <span className="g">mandi ke chakkar?</span></h2>
+            <span className="eyebrow">Problem</span>
+            <h2 className="title">Maal ke liye <span className="g">mandi ke chakkar?</span></h2>
           </Reveal>
           <Reveal className="grid">
             <div className="pas-card">
@@ -469,7 +482,7 @@ export default function Home() {
       </section>
 
       {/* ===== HOW IT WORKS ===== */}
-      <section className="section">
+      <section className="section how">
         <div className="wrap">
           <Reveal>
             <span className="eyebrow">Kaise kaam karta hai</span>
@@ -492,7 +505,7 @@ export default function Home() {
       <VideoReviews />
 
       {/* ===== CITIES ===== */}
-      <section className="section cities" style={{ background: 'var(--cream-soft)', borderBlock: '1px solid var(--line)' }}>
+      <section className="section cities">
         <div className="wrap">
           <Reveal>
             <span className="eyebrow">Poore Pakistan mein delivery</span>
@@ -514,7 +527,7 @@ export default function Home() {
 
       {/* ===== REVIEWS ===== */}
       {reviews.length > 0 && (
-        <section className="section">
+        <section className="section reviews-sec">
           <div className="wrap">
             <Reveal>
               <span className="eyebrow">Dukaandaron ki zabaani</span>

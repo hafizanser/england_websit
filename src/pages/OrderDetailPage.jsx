@@ -121,7 +121,7 @@ export default function OrderDetailPage() {
       >
         <Link
           to="/orders"
-          className="inline-flex items-center gap-2 rounded-full border border-white/25 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-white/10"
+          className="inline-flex items-center gap-2 rounded-xl border border-brand-900/15 bg-white px-5 py-2.5 text-sm font-semibold text-brand-900 transition-all hover:-translate-y-0.5 hover:border-saffron-400"
         >
           Meri saari orders <ArrowRight size={15} weight="bold" />
         </Link>

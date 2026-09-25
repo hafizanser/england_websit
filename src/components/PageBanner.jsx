@@ -1,95 +1,93 @@
 import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
-import { House, CaretRight } from '@phosphor-icons/react'
 import { Eyebrow } from './ui'
 import { spring } from '../lib/motion'
 
-// Premium image-driven page banner — a contained, rounded hero card that mirrors
-// the homepage hero aesthetic (warm brand gradient over a photo, soft blobs,
-// breadcrumb, trust chips, CTA slot). Used at the top of Products & Offers.
-const overlays = {
-  brand: 'from-brand-950/95 via-brand-900/88 to-brand-800/78',
-  gold: 'from-brand-950/95 via-brand-800/85 to-saffron-700/68',
-}
-
-export default function PageBanner({
-  eyebrow,
-  title,
-  accent,
-  urdu,
-  desc,
-  crumb,
-  hideCrumb = false,
-  image = '/banner.jpg',
-  tone = 'brand',
-  chips = [],
-  children,
-}) {
+// Inner-page banner (Products, Categories, Offers, About, Blog).
+//
+// Redesign (Sep 2026): an editorial header in the same language as the
+// homepage sections — mono eyebrow, heavy uppercase display title, the Urdu
+// line right under it — on a light paper band, with the banner photograph
+// framed on the right from `lg` up. On phones the photo steps aside so the
+// banner stays short and the products start near the top of the screen.
+//
+// Props are unchanged: eyebrow, title, accent, urdu, desc, chips, children
+// (CTA slot), image, tone. `crumb` / `hideCrumb` are still accepted so no
+// caller has to change.
+// eslint-disable-next-line no-unused-vars
+export default function PageBanner({ eyebrow, title, accent, urdu, desc, crumb, hideCrumb = false, image = '/banner.jpg', tone = 'brand', chips = [], children }) {
   return (
-    <section className="container-page pt-4 sm:pt-7">
-      <div className="relative overflow-hidden rounded-[26px] bg-brand-900 shadow-lift sm:rounded-4xl">
-        {/* background photo */}
-        <img
-          src={image}
-          alt=""
-          aria-hidden
-          loading="eager"
-          className="absolute inset-0 h-full w-full scale-105 object-cover object-center"
-        />
-        <div className={`absolute inset-0 bg-gradient-to-br ${overlays[tone] || overlays.brand}`} />
-        {/* fine dot texture */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
-            backgroundSize: '22px 22px',
-          }}
-        />
-        {/* soft glow blobs */}
-        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-saffron-300/25 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 left-1/5 h-56 w-56 rounded-full bg-brand-400/25 blur-3xl" />
+    <section className="relative overflow-hidden border-b border-brand-900/[0.06] bg-[#FBF8F2]">
+      {/* a quiet gold glow + fine dot field, like the reference's paper bands */}
+      <div aria-hidden className="pointer-events-none absolute -left-24 -top-32 h-80 w-80 rounded-full bg-saffron-300/20 blur-3xl" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.35]"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(40,28,14,0.10) 1px, transparent 0)',
+          backgroundSize: '22px 22px',
+          maskImage: 'linear-gradient(90deg, #000, transparent 70%)',
+          WebkitMaskImage: 'linear-gradient(90deg, #000, transparent 70%)',
+        }}
+      />
 
-        <div className="relative px-5 py-4 sm:px-10 sm:py-12 lg:px-14 lg:py-14">
-          <motion.div
-            initial={{ opacity: 0, y: 22 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...spring, stiffness: 90 }}
-            className="max-w-2xl"
+      <div className="container-page relative grid items-center gap-8 py-7 sm:py-12 lg:grid-cols-[1.05fr_.95fr] lg:gap-14 lg:py-14">
+        <motion.div
+          initial={{ opacity: 0, y: 22, filter: 'blur(6px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ ...spring, stiffness: 90 }}
+          className="min-w-0"
+        >
+          {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+          <h1 className="mt-3 text-balance font-grotesk text-[32px] font-extrabold uppercase leading-[0.95] tracking-[-0.035em] text-brand-950 sm:mt-5 sm:text-5xl lg:text-6xl">
+            {title} {accent && <span className="text-saffron-500">{accent}</span>}
+          </h1>
+          {urdu && (
+            <p className="urdu mt-1.5 text-lg text-saffron-600 sm:mt-3 sm:text-2xl" dir="rtl" style={{ width: 'fit-content', maxWidth: '100%' }}>
+              {urdu}
+            </p>
+          )}
+          {/* Description hidden on mobile so the banner stays short. */}
+          {desc && <p className="mt-3 hidden max-w-xl text-[15px] leading-relaxed text-brand-600 sm:block sm:text-[17px]">{desc}</p>}
+
+          {chips.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2 sm:mt-6">
+              {chips.map((c) => (
+                <span
+                  key={c.label}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-brand-900/10 bg-white px-3 py-1.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.1em] text-brand-700 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-[11px]"
+                >
+                  {c.icon && <c.icon size={13} weight="fill" className="text-saffron-500" />}
+                  {c.label}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {children && <div className="mt-5 sm:mt-7">{children}</div>}
+        </motion.div>
+
+        {/* the photograph, framed — desktop only */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
+          className="relative hidden lg:block"
+        >
+          <div
+            className={`relative overflow-hidden rounded-[28px] border border-brand-900/10 shadow-[0_40px_80px_-40px_rgba(40,28,14,0.55)] ${
+              tone === 'gold' ? 'bg-saffron-100' : 'bg-sand-100'
+            }`}
           >
-            {eyebrow && <Eyebrow tone="light">{eyebrow}</Eyebrow>}
-            <h1 className="mt-2.5 text-balance text-2xl font-black leading-[1.04] tracking-tight text-white sm:mt-4 sm:text-4xl md:text-5xl">
-              {title} {accent && <span className="text-saffron-300">{accent}</span>}
-            </h1>
-            {urdu && (
-              <p
-                className="urdu mt-1.5 text-base font-medium text-white sm:mt-3 sm:text-xl"
-                dir="rtl"
-                style={{ textShadow: '0 1px 10px rgba(26,18,9,0.55)' }}
-              >
-                {urdu}
-              </p>
-            )}
-            {/* Description hidden on mobile so the banner stays short. */}
-            {desc && <p className="mt-3.5 hidden max-w-xl text-sm leading-relaxed text-white/70 sm:mt-4 sm:block sm:text-[15px]">{desc}</p>}
-
-            {chips.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2 sm:mt-6 sm:gap-2.5">
-                {chips.map((c) => (
-                  <span
-                    key={c.label}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/15 backdrop-blur-sm sm:gap-2 sm:px-3.5 sm:py-2"
-                  >
-                    {c.icon && <c.icon size={14} weight="fill" className="text-saffron-300" />}
-                    {c.label}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {children && <div className="mt-4 sm:mt-6">{children}</div>}
-          </motion.div>
-        </div>
+            <img
+              src={image}
+              alt=""
+              aria-hidden
+              loading="eager"
+              className="aspect-[16/11] w-full object-cover object-center transition-transform duration-[1400ms] ease-out hover:scale-[1.03]"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-950/25 via-transparent to-transparent" />
+          </div>
+        </motion.div>
       </div>
     </section>
   )

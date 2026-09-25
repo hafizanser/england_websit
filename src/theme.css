@@ -228,6 +228,123 @@
 /* one visible card (the rate list is hidden for now): full width at every size,
    never a lone half-width tile in the 2-up tablet grid */
 .eng .dl-grid.is-single{grid-template-columns:1fr}
+
+/* ── the self-playing catalogue (components/CatalogueViewer.jsx) ─────────────
+   A framed "window" over the pre-rendered PDF pages: a title bar with three
+   dots and a live chip, the screen (the page strip slides inside it), then a
+   row of per-page progress segments, the page number/name and a pause button —
+   the product-tour pattern from the Mango site, in England's espresso + gold.
+   The Download button sits under it. One column, centred, capped in width so
+   the screen never outgrows the copy beside it on desktop. */
+/* min-width:0 matters: the page <img>s carry width="1000", and a grid item's
+   automatic minimum would otherwise stretch the panel's column to 1000px on a
+   phone. */
+.eng .dl-cat{display:grid;gap:18px;width:100%;min-width:0;max-width:430px;margin-inline:auto}
+@media (max-width:899px){.eng .dl-panel{grid-template-columns:minmax(0,1fr)}}
+.eng .cat-view{display:grid;gap:14px;min-width:0}
+.eng .cat-win{
+  position:relative;border-radius:20px;padding:6px;
+  background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.04));
+  box-shadow:0 0 0 1px rgba(203,164,92,.34),0 40px 70px -40px rgba(0,0,0,.85),0 0 60px -24px rgba(203,164,92,.35)}
+.eng .cat-win__bar{display:flex;align-items:center;gap:10px;padding:7px 8px 9px}
+.eng .cat-win__dots{display:flex;gap:5px;flex:0 0 auto}
+.eng .cat-win__dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.22)}
+.eng .cat-win__dots i:first-child{background:rgba(203,164,92,.7)}
+.eng .cat-win__title{flex:1 1 auto;min-width:0;text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eng .cat-win__live{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.eng .cat-win__live::before{content:"";width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.35)}
+.eng .cat-win__live.is-on{color:var(--gold-2)}
+.eng .cat-win__live.is-on::before{background:var(--gold-2);box-shadow:0 0 0 0 rgba(203,164,92,.6);animation:catLive 1.8s ease-out infinite}
+@keyframes catLive{0%{box-shadow:0 0 0 0 rgba(203,164,92,.55)}100%{box-shadow:0 0 0 8px rgba(203,164,92,0)}}
+.eng .cat-win__screen{
+  position:relative;display:block;width:100%;overflow:hidden;border:0;padding:0;margin:0;cursor:pointer;
+  border-radius:14px;background:#f4ecdc;
+  box-shadow:inset 0 0 0 1px rgba(185,143,67,.25)}
+.eng .cat-win__screen:focus-visible{outline:2px solid var(--gold-2);outline-offset:3px}
+.eng .cat-win__strip{position:absolute;inset:0 0 auto 0;display:flex;flex-direction:column;will-change:transform;transition:opacity .6s ease}
+.eng .cat-win__strip img{display:block;width:100%;height:auto;aspect-ratio:1000/1414;background:#f7f1e4;user-select:none;-webkit-user-drag:none}
+.eng .cat-win__screen.is-fading .cat-win__strip{opacity:0}
+/* a soft fade at the top and bottom edges, so pages slide in and out of the frame */
+.eng .cat-win__shade{position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:linear-gradient(180deg,rgba(39,28,18,.16),transparent 9%,transparent 88%,rgba(39,28,18,.22))}
+.eng .cat-win__play{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;display:grid;place-items:center;
+  color:var(--cream);background:rgba(39,28,18,.78);box-shadow:0 0 0 1px rgba(203,164,92,.5),0 14px 30px -10px rgba(0,0,0,.6);
+  animation:catPop .35s var(--ease-spring) both}
+.eng .cat-win__play svg{width:24px;height:24px;margin-left:3px}
+@keyframes catPop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+
+.eng .cat-tour{--p:0;display:grid;gap:10px;padding-inline:2px}
+.eng .cat-tour__bars{display:flex;gap:4px;list-style:none;margin:0;padding:0}
+.eng .cat-tour__bars li{flex:1 1 0;min-width:0}
+.eng .cat-tour__bars button{display:block;width:100%;padding:8px 0;border:0;background:none;cursor:pointer}
+.eng .cat-tour__bars button:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;border-radius:3px}
+.eng .cat-tour__bars span{position:relative;display:block;height:3px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.16);transition:background .3s ease}
+.eng .cat-tour__bars button:hover span{background:rgba(255,255,255,.3)}
+.eng .cat-tour__bars span::after{content:"";position:absolute;inset:0;transform-origin:left;transform:scaleX(0);background:var(--gold-2);border-radius:inherit}
+.eng .cat-tour__bars .is-done span::after{transform:scaleX(1);opacity:.55}
+.eng .cat-tour__bars .is-active span::after{transform:scaleX(var(--p))}
+.eng .cat-tour__row{display:flex;align-items:center;gap:12px;min-width:0}
+.eng .cat-tour__n{flex:0 0 auto;font-size:11px;font-weight:800;letter-spacing:.1em;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums}
+.eng .cat-tour__label{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;gap:10px;font-size:14.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eng .cat-tour__ur{font-family:'Noto Nastaliq Urdu',serif;font-size:13px;font-weight:400;line-height:1.6;color:var(--gold-2)}
+.eng .cat-tour__pause{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 10px;border-radius:999px;border:0;cursor:pointer;
+  font:inherit;font-size:12px;font-weight:700;color:var(--cream);background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(203,164,92,.35);
+  transition:background .25s ease,transform .25s var(--ease-spring)}
+.eng .cat-tour__pause svg{width:13px;height:13px}
+.eng .cat-tour__pause:hover{background:rgba(203,164,92,.18)}
+.eng .cat-tour__pause:active{transform:scale(.95)}
+.eng .cat-tour__pause:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px}
+
+/* the Download button: cream plate, gold fill. `cat-dl__bar` is the idle
+   progress breath along its foot; `cat-dl__fill` is the full-face fill on tap. */
+.eng .cat-dl{
+  position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;gap:13px;
+  min-height:74px;padding:12px 18px 14px 12px;border-radius:20px;text-decoration:none;color:var(--ink);
+  background:linear-gradient(180deg,#fff,#f8f1e2);
+  box-shadow:0 0 0 1px rgba(203,164,92,.55),0 22px 44px -22px rgba(0,0,0,.8),0 0 34px -12px rgba(203,164,92,.5);
+  animation:catDlBreath 3.6s var(--ease-out) infinite;
+  transition:transform .35s var(--ease-spring),box-shadow .35s ease}
+.eng .cat-dl:hover{box-shadow:0 0 0 1px rgba(203,164,92,.9),0 28px 50px -22px rgba(0,0,0,.85),0 0 44px -10px rgba(203,164,92,.65)}
+.eng .cat-dl:active{transform:scale(.965);animation:none}
+.eng .cat-dl:focus-visible{outline:2px solid var(--gold-2);outline-offset:3px}
+@keyframes catDlBreath{0%,100%{transform:scale(1)}55%{transform:scale(.978)}72%{transform:scale(1.006)}86%{transform:scale(1)}}
+.eng .cat-dl__ic{flex:0 0 auto;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--cream);
+  background:linear-gradient(160deg,var(--brown-2),var(--brown));box-shadow:0 8px 16px -8px rgba(39,28,18,.7),inset 0 1px 0 rgba(255,255,255,.12);
+  transition:transform .45s var(--ease-spring)}
+.eng .cat-dl__ic svg{width:21px;height:21px}
+.eng .cat-dl:hover .cat-dl__ic{transform:translateY(2px)}
+.eng .cat-dl__txt{flex:1 1 auto;min-width:0;display:grid;gap:3px;text-align:left}
+.eng .cat-dl__t{font-size:16px;font-weight:800;line-height:1.2;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eng .cat-dl__m{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eng .cat-dl__ur{flex:0 0 auto;font-family:'Noto Nastaliq Urdu',serif;font-size:13px;line-height:1.8;color:#7d5f26}
+.eng .cat-dl__bar{position:absolute;left:16px;right:16px;bottom:7px;height:3px;border-radius:3px;background:rgba(185,143,67,.18);overflow:hidden}
+.eng .cat-dl__bar i{position:absolute;inset:0;border-radius:inherit;transform-origin:left;transform:scaleX(0);
+  background:linear-gradient(90deg,var(--gold),var(--gold-2));animation:catDlBar 3.6s var(--ease-out) infinite}
+@keyframes catDlBar{0%{transform:scaleX(0);opacity:1}62%{transform:scaleX(1);opacity:1}86%,100%{transform:scaleX(1);opacity:0}}
+.eng .cat-dl__fill{position:absolute;inset:0;z-index:-1;transform-origin:left;transform:scaleX(0);
+  background:linear-gradient(90deg,#f3e3bf,#e9d09a)}
+/* tapped: the button presses in, the face fills like a progress bar */
+.eng .cat-dl.is-busy{animation:catDlPress .5s var(--ease-spring)}
+.eng .cat-dl.is-busy .cat-dl__fill{animation:catDlFill 1.3s cubic-bezier(.45,0,.2,1) forwards}
+.eng .cat-dl.is-busy .cat-dl__bar,.eng .cat-dl.is-done .cat-dl__bar{opacity:0}
+.eng .cat-dl.is-done{animation:none}
+.eng .cat-dl.is-done .cat-dl__fill{transform:scaleX(1)}
+.eng .cat-dl.is-done .cat-dl__ic{background:linear-gradient(160deg,#2f9e5a,#1f7a43)}
+@keyframes catDlPress{0%{transform:scale(1)}35%{transform:scale(.95)}100%{transform:scale(1)}}
+@keyframes catDlFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (max-width:400px){
+  .eng .cat-dl{gap:11px;padding-right:14px}
+  .eng .cat-dl__ic{width:42px;height:42px}
+  .eng .cat-dl__t{font-size:15px}
+  .eng .cat-dl__ur{display:none}
+}
+@media (min-width:900px){
+  .eng .dl-cat{max-width:440px;margin-right:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .eng .cat-dl,.eng .cat-dl__bar i,.eng .cat-win__live.is-on::before{animation:none}
+  .eng .cat-dl.is-busy .cat-dl__fill{animation-duration:.01s}
+}
 @media (prefers-reduced-motion:reduce){.eng .dl-btn,.eng .dl-btn::before,.eng .dl-btn .dl-ic,.eng .dl-btn .dl-arrow,.eng .dl-btn .dl-arrow svg{transition:none}}
 /* Hero image — NO card/border/frame/shadow/background/container. It sits flat in
    the hero, blends with clean edges, and scales responsively at its own natural
