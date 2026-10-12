@@ -105,13 +105,16 @@ function Gallery({ images, name, overview = [], video, poster }) {
           kind={video.kind}
           poster={video.poster || poster}
           name={name}
+          // The one place the clip plays by itself. On the catalogue grid the
+          // badge is poster-only — see ProductVideoBadge for the measurements.
+          preview="auto"
         />
       )}
     </ProductGallery>
   )
 }
 
-function DetailSkeleton() {
+function DetailSkeleton({ retrying = false }) {
   return (
     <div className="grid animate-pulse gap-8 lg:grid-cols-2 lg:gap-12">
       <div className="aspect-square rounded-3xl bg-sand-200" />
@@ -121,6 +124,13 @@ function DetailSkeleton() {
         <div className="h-7 w-40 rounded-lg bg-sand-200" />
         <div className="mt-2 h-24 w-full rounded-2xl bg-sand-200" />
         <div className="mt-2 h-12 w-full rounded-full bg-sand-200" />
+        {/* Only while a silent retry is in flight, so a slow connection reads as
+            "still working" rather than as a page that has given up. */}
+        {retrying && (
+          <p className="mt-1 text-sm font-semibold text-brand-500">
+            Connection slow hai — dobara koshish ho rahi hai…
+          </p>
+        )}
       </div>
     </div>
   )
@@ -130,8 +140,19 @@ export default function ProductDetailPage() {
   const { id } = useParams()
   // Cached so a shopper walking a category — product, Back, next product, Back —
   // pays for each product once, and so Back to the grid finds the list still there.
-  const { data: p, loading, error, reload } = useAsync(() => getProductById(id), [id], {
+  //
+  // `retries` is the other half of the "Product nahi mila" fix. getProductById
+  // now only returns null for a real 404 and throws everything else, so a
+  // dropped connection arrives here as an ERROR — and on this host a drop is
+  // usually instantaneous (ERR_CONNECTION_CLOSED, not a timeout), so two quiet
+  // re-asks a fraction of a second apart recover it before the shopper sees
+  // anything at all. If all three attempts fail they get the error card with a
+  // working Retry button, which is the honest answer; what they must never get
+  // is the not-found card, which says the product was deleted.
+  const { data: p, loading, error, retrying, reload } = useAsync(() => getProductById(id), [id], {
     cacheKey: catalogKeys.product(id),
+    retries: 2,
+    retryDelay: 700,
   })
   const { data: offers } = useAsync(() => getOffers(), [], { cacheKey: catalogKeys.offers() })
 
@@ -181,11 +202,20 @@ export default function ProductDetailPage() {
         <ArrowLeft size={16} weight="bold" /> Back to Products
       </Link>
 
-      {loading && <DetailSkeleton />}
+      {loading && <DetailSkeleton retrying={retrying} />}
 
-      {!loading && error && <ErrorState message={error.message} onRetry={reload} />}
+      {/* A transport failure — dropped connection, timeout, 5xx. The product is
+          very probably fine; say so, and give them a button that re-asks. */}
+      {!loading && error && (
+        <ErrorState
+          message={`${error.message} Product delete nahi hua — sirf connection ka masla lagta hai.`}
+          onRetry={reload}
+        />
+      )}
 
-      {!loading && !error && !p && (
+      {/* A GENUINE 404: the server looked and there is no such product. This is
+          the only path that may claim a product is gone. */}
+      {!loading && !error && p === null && (
         <div className="rounded-3xl border border-brand-100 bg-white p-12 text-center shadow-soft">
           <Package size={40} weight="duotone" className="mx-auto text-brand-300" />
           <h1 className="mt-4 text-xl font-bold text-brand-900">Product nahi mila</h1>

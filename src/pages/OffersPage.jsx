@@ -30,7 +30,7 @@ import { useNotify } from '../context/NotifyContext'
 import { products } from '../data/site'
 import { unitLabelFor } from '../lib/cartEngine'
 import { waLink } from '../lib/whatsapp'
-import { imgSrc, onImgError } from '../lib/img'
+import { imgSrc, onImgError, thumbSrc } from '../lib/img'
 import MrpPerPiece from '../components/MrpPerPiece'
 import { dealUrdu } from '../lib/offerUrdu'
 import { fadeUp, stagger } from '../lib/motion'
@@ -218,9 +218,10 @@ const DealCard = memo(function DealCard({ offer, featured = false, motionSafe = 
               {linked.map((p) => (
                 <img
                   key={p.id}
-                  src={imgSrc(p.image)}
+                  src={thumbSrc(imgSrc(p.image), 160)}
                   alt={p.name}
                   loading="lazy"
+                  decoding="async"
                   onError={onImgError}
                   width="40"
                   height="40"

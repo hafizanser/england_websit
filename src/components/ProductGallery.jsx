@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { useReducedMotion } from 'framer-motion'
-import { PLACEHOLDER, onImgError } from '../lib/img'
+import { PLACEHOLDER, onImgError, srcSetFor, thumbSrc } from '../lib/img'
 
 // The one product image gallery — used by the cards (catalog, related, admin's
 // new-order picker) and by the product detail page, so the controls and timing
@@ -19,12 +19,39 @@ const SIZES = {
   lg: { btn: 'h-10 w-10', icon: 18, edge: 'left-3 right-3', dots: 'bottom-3', dot: 'h-2 w-2', dotOn: 'h-2 w-7' },
 }
 
+// ---------------------------------------------------------------------------
+// How much image this gallery is actually allowed to download
+// ---------------------------------------------------------------------------
+// Two separate problems, two separate levers.
+//
+// WIDTH. The uploads are phone originals — 738 KB on average, up to 1.94 MB —
+// and a card draws one at about 170px. `sizes` tells the browser how wide the
+// frame really is at this viewport, `srcSet` gives it the widths the API can
+// render, and it picks. A grid tile ends up asking for 320px instead of 2000.
+//
+// COUNT. Every image in a set used to be in the DOM with a real `src` from the
+// first frame — that is how the crossfade works — so a card with five photos
+// fetched five, times thirty cards. The stack still renders (the animation is
+// untouched) but only the slides in the current WINDOW carry a `src`: the one
+// on screen, the one fading out, and the one about to fade in. The rest are
+// empty <img> elements, which request nothing. Nobody waiting for the first
+// paint of a grid pays for slide four of a card they have not reached.
+const DEFAULT_SIZES = {
+  sm: '(max-width: 640px) 48vw, (max-width: 1024px) 30vw, 300px',
+  lg: '(max-width: 1024px) 92vw, 600px',
+}
+const SRCSET_WIDTHS = {
+  sm: [160, 320, 480, 640],
+  lg: [480, 640, 960, 1280],
+}
+
 export default function ProductGallery({
   images,
   alt = '',
   interval = 2800,
   autoPlay = true,
   size = 'sm',
+  sizes, // CSS `sizes`; defaults per `size` — override when the frame is unusual
   arrows = 'hover', // 'hover' | 'always' | 'none'
   thumbnails = false,
   zoomSingle = false,
@@ -45,12 +72,71 @@ export default function ProductGallery({
   const [idx, setIdx] = useState(0)
   const [paused, setPaused] = useState(false)
 
+  const sizesAttr = sizes || DEFAULT_SIZES[size] || DEFAULT_SIZES.sm
+  const widths = SRCSET_WIDTHS[size] || SRCSET_WIDTHS.sm
+  const n = list.length
+
+  // ---------------------------------------------------------------------
+  // Which slides are allowed to hold a src
+  // ---------------------------------------------------------------------
+  // The current one, plus its immediate neighbours so a crossfade in either
+  // direction has something to fade to and from — and then it is REMEMBERED.
+  // The set only ever grows (until the product changes, which resets it).
+  //
+  // Growing-only matters more than it looks. An earlier version computed the
+  // window from `idx` alone, so a slide that scrolled out of it had its src
+  // taken away mid-download: the browser aborted the request, and the bytes
+  // already on the wire were thrown away and asked for again the next time the
+  // carousel came round. Worse, removing a src can fire the element's `error`
+  // handler, which would have swapped a perfectly good photo for the
+  // placeholder. Never un-setting a src avoids both.
+  //
+  // The saving is unchanged where it counts: slides the shopper never reaches
+  // are never fetched at all.
+  const [seen, setSeen] = useState(() => new Set([0]))
+  const loaded = (i) => seen.has(i)
+
+  useEffect(() => {
+    setSeen((prev) => {
+      const next = [idx, (idx + 1) % n, (idx - 1 + n) % n]
+      if (next.every((i) => prev.has(i))) return prev // no re-render for nothing
+      const grown = new Set(prev)
+      next.forEach((i) => grown.add(i))
+      return grown
+    })
+  }, [idx, n])
+
   // A different product can be rendered into the same mounted gallery (the grid
   // reuses cards), and the new set may be shorter — restart rather than point at
-  // an index that no longer exists.
+  // an index that no longer exists. The remembered slides go with it.
   useEffect(() => {
     setIdx(0)
+    setSeen(new Set([0]))
   }, [list])
+
+  // ---------------------------------------------------------------------
+  // Auto-advance only while the gallery is actually on screen
+  // ---------------------------------------------------------------------
+  // A catalogue page mounts thirty of these. Without this they all cycle at
+  // once, the whole time, so a shopper reading the top of the grid silently
+  // downloads every photo of every product below the fold — on the connection
+  // they are waiting on. Pausing the off-screen ones costs nothing visible
+  // (nobody is looking at them) and leaves the behaviour on screen identical.
+  const frameRef = useRef(null)
+  const [onScreen, setOnScreen] = useState(false)
+  useEffect(() => {
+    const el = frameRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setOnScreen(true)
+      return undefined
+    }
+    const io = new IntersectionObserver(([e]) => setOnScreen(e.isIntersecting), {
+      rootMargin: '120px 0px',
+      threshold: 0.01,
+    })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
 
   // Auto-play is driven by the progress bar's own animationend, NOT a setInterval.
   // That is what makes hover-pause exact: pausing the CSS animation freezes the
@@ -58,7 +144,7 @@ export default function ProductGallery({
   // point. A timer would have to track elapsed time by hand to do the same, and
   // the old code didn't — its hover handler advanced the image without resetting
   // the interval, so a hover could be followed a few ms later by an auto tick.
-  const autoRunning = autoPlay && multi && !reduce
+  const autoRunning = autoPlay && multi && !reduce && onScreen
 
   const go = (d) => setIdx((i) => (i + d + list.length) % list.length)
   // The cards wrap this gallery in a <Link>; steering the images must not follow it.
@@ -91,6 +177,7 @@ export default function ProductGallery({
         // page, where no card wraps them. Left to resolve against the root,
         // those numbers collide with the page's sticky chrome. Contained, they
         // only ever order the frame's own contents.
+        ref={frameRef}
         className={`group/gal relative isolate ${frameClassName}`}
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
@@ -99,9 +186,14 @@ export default function ProductGallery({
           list.map((src, i) => (
             <img
               key={i}
-              src={src}
+              // Empty until this slide is in the window — see the note by
+              // SRCSET_WIDTHS. An <img> with no src requests nothing.
+              src={loaded(i) ? thumbSrc(src, widths[widths.length - 1]) : undefined}
+              srcSet={loaded(i) ? srcSetFor(src, widths) : undefined}
+              sizes={loaded(i) ? sizesAttr : undefined}
               alt={alt}
               loading={priority && i === 0 ? 'eager' : 'lazy'}
+              fetchpriority={priority && i === 0 ? 'high' : undefined}
               decoding="async"
               onError={onImgError}
               className={`img-placeholder-bg absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${
@@ -111,9 +203,12 @@ export default function ProductGallery({
           ))
         ) : (
           <img
-            src={list[0]}
+            src={thumbSrc(list[0], widths[widths.length - 1])}
+            srcSet={srcSetFor(list[0], widths)}
+            sizes={sizesAttr}
             alt={alt}
             loading={priority ? 'eager' : 'lazy'}
+            fetchpriority={priority ? 'high' : undefined}
             decoding="async"
             onError={onImgError}
             className={`img-placeholder-bg h-full w-full object-cover transition-transform duration-700 ease-out ${
@@ -201,7 +296,15 @@ export default function ProductGallery({
                 idx === i ? 'border-saffron-400 ring-2 ring-saffron-200' : 'border-brand-100 hover:border-brand-300'
               }`}
             >
-              <img src={src} alt={`${alt} ${i + 1}`} onError={onImgError} loading="lazy" className="img-placeholder-bg h-full w-full object-cover" />
+              {/* 80px on screen at most, so 160px covers a 2x display. */}
+              <img
+                src={thumbSrc(src, 160)}
+                alt={`${alt} ${i + 1}`}
+                onError={onImgError}
+                loading="lazy"
+                decoding="async"
+                className="img-placeholder-bg h-full w-full object-cover"
+              />
             </button>
           ))}
         </div>

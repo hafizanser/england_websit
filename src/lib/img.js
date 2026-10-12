@@ -65,6 +65,50 @@ export function isPlaceholder(src) {
   return src === PLACEHOLDER || src === PLACEHOLDER_FALLBACK
 }
 
+// ---------------------------------------------------------------------------
+// Responsive sizes
+// ---------------------------------------------------------------------------
+// The API can hand back a downscaled copy of any uploaded photo — GET /image
+// takes a `w` (see backend_laravel/app/Support/ImageVariants.php). The widths
+// here are the ONLY ones it will render, and the two lists have to agree: ask
+// for a width the server does not know and it quietly streams the original,
+// which is safe but is the whole problem this exists to solve.
+//
+// Why it matters: the catalogue's photos are phone originals, 738 KB on
+// average and up to 1.94 MB, and they were being sent at full size to a 170px
+// grid tile. Nothing else on the storefront came close to costing that much.
+//
+// Only our own /image URLs are touched. A product whose photo is an absolute
+// URL somewhere else is passed through untouched — we cannot resize what we do
+// not serve, and appending a query string to a stranger's URL is as likely to
+// break it as not.
+export const IMG_WIDTHS = [160, 320, 480, 640, 960, 1280]
+
+const isOwnUpload = (url) => typeof url === 'string' && /[?&]file=/.test(url) && /\/image\b/.test(url)
+
+/** `url` at `width` px, or `url` unchanged when it is not ours to resize. */
+export function thumbSrc(url, width) {
+  if (!isOwnUpload(url) || !width) return url
+  if (/[?&]w=/.test(url)) return url // already sized by a caller upstream
+  return `${url}${url.includes('?') ? '&' : '?'}w=${width}`
+}
+
+/**
+ * A `srcSet` for `url`, so the browser picks the width it actually needs for
+ * this device's viewport and DPR instead of being handed the original.
+ *
+ * `widths` defaults to the mid range, which covers every tile in the app; the
+ * detail page passes the larger end. Returns undefined for anything we cannot
+ * resize, which is exactly what <img srcSet={undefined}> wants.
+ */
+export function srcSetFor(url, widths = [320, 640, 960]) {
+  if (!isOwnUpload(url)) return undefined
+  return widths
+    .filter((w) => IMG_WIDTHS.includes(w))
+    .map((w) => `${thumbSrc(url, w)} ${w}w`)
+    .join(', ')
+}
+
 /** Returns the first non-empty url, else the branded placeholder. */
 export function imgSrc(...urls) {
   for (const u of urls) {
@@ -74,11 +118,19 @@ export function imgSrc(...urls) {
 }
 
 /**
- * onError handler — swaps a failed image to the branded placeholder.
+ * onError handler — degrades a failed image instead of showing a broken icon.
  *
- * Two stages, tracked on the element so each can fire at most once and the
- * handler can never loop: a real URL fails to the placeholder asset, and the
- * placeholder asset (only if it fails too) to the inline SVG, which cannot.
+ * THREE stages now, tracked on the element so each can fire at most once and
+ * the handler can never loop:
+ *
+ *   0 → full size   a request for a RESIZED copy failed. The photo itself is
+ *                   almost certainly fine — the host dropped the connection, or
+ *                   its GD could not read this particular file — so the next
+ *                   try is the original URL, the exact bytes that have always
+ *                   worked. Only sized URLs take this step; everything else
+ *                   falls straight through to the placeholder.
+ *   1 → placeholder the branded England plaque.
+ *   2 → inline SVG  a data URI, which cannot make a request and so cannot fail.
  */
 export function onImgError(e) {
   const el = e.currentTarget
@@ -87,9 +139,20 @@ export function onImgError(e) {
   if (stage === '2') return // already on the un-failable inline fallback
   if (stage === '1') {
     el.dataset.fallback = '2'
+    el.removeAttribute('srcset')
     el.src = PLACEHOLDER_FALLBACK
     return
   }
+  if (!stage && /[?&]w=\d+/.test(el.currentSrc || el.src || '')) {
+    el.dataset.fallback = '0b'
+    // srcset has to go too, or the browser re-picks a sized candidate and we
+    // are straight back where we started.
+    el.removeAttribute('srcset')
+    el.removeAttribute('sizes')
+    el.src = (el.currentSrc || el.src).replace(/([?&])w=\d+&?/, '$1').replace(/[?&]$/, '')
+    return
+  }
   el.dataset.fallback = '1'
+  el.removeAttribute('srcset')
   el.src = PLACEHOLDER
 }

@@ -80,8 +80,13 @@
 // Every read and write in both tiers is best-effort and wrapped: a private-mode
 // browser that throws on access simply runs on the in-memory Map.
 
-const PREFIX = 'eng.qc.1:' // bump the digit to orphan every persisted entry
-const DURABLE_PREFIX = 'eng.qcd.1:'
+// Bumped 1 -> 2 deliberately. Builds before this one could persist `null` as a
+// product's "value" (see getProductById in src/api/catalog.js), and a phone that
+// already has one of those stored would keep painting "Product nahi mila" from
+// it for up to a day after the fix shipped. Changing the prefix orphans every
+// entry the old build wrote, so every device starts clean on its next visit.
+const PREFIX = 'eng.qc.2:' // bump the digit to orphan every persisted entry
+const DURABLE_PREFIX = 'eng.qcd.2:'
 const VERSION_KEY = 'eng.qc.version'
 
 // Past FRESH_MS an entry is STALE: still good enough to paint, never good enough
@@ -229,6 +234,15 @@ export function readCache(key) {
   }
   if (!entry) return null
 
+  // Belt-and-braces beside the prefix bump above: an entry holding nothing is
+  // never worth painting, however it got here (an older build, a shared
+  // profile, a half-written record). Treated as a miss and removed.
+  if (entry.data === null || entry.data === undefined) {
+    MEM.delete(key)
+    dropPersisted((k) => k === key)
+    return null
+  }
+
   const age = Date.now() - entry.at
   if (age > DURABLE_MAX_AGE_MS || age < 0) {
     // `age < 0` means the clock moved backwards (or the entry was written by a
@@ -241,9 +255,23 @@ export function readCache(key) {
   return { data: entry.data, at: entry.at, age, stale: age > FRESH_MS }
 }
 
-/** Record a successful read. `undefined` is not a value worth remembering. */
+/**
+ * Record a successful read.
+ *
+ * `undefined` and `null` are both refused, and the `null` half is the one that
+ * matters. "There is no such product" is an answer with a very long shadow: the
+ * durable tier would replay it on the first frame of every visit for the next
+ * 24 hours, so a single 404 — or, before this was fixed upstream, a single
+ * dropped connection that got MISREAD as a 404 — turned into a product that
+ * stayed deleted on that phone long after it came back.
+ *
+ * Nothing legitimate is lost. Every other caller caches a list or an object;
+ * the only reader that can produce `null` is getProductById, and a genuine 404
+ * is cheap to re-ask (the API answers it from its own cache without touching
+ * MySQL — see CatalogController::product).
+ */
 export function writeCache(key, data) {
-  if (!key || data === undefined) return
+  if (!key || data === undefined || data === null) return
   const entry = { data, at: Date.now() }
   MEM.set(key, entry)
   persist(key, entry)

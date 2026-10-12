@@ -20,7 +20,7 @@ import { useAsync } from '../hooks/useAsync'
 import { fadeUp, stagger } from '../lib/motion'
 import { brand } from '../data/site'
 import { waLink } from '../lib/whatsapp'
-import { onImgError } from '../lib/img'
+import { onImgError, srcSetFor, thumbSrc } from '../lib/img'
 
 const MotionLink = motion(Link)
 
@@ -80,7 +80,9 @@ function CategoryCard({ cat, active, reduce }) {
     <div className="relative aspect-[1/0.9] overflow-hidden bg-sand-100">
       {cat.image ? (
         <img
-          src={cat.image}
+          src={thumbSrc(cat.image, 640)}
+          srcSet={srcSetFor(cat.image, [320, 480, 640])}
+          sizes="(max-width: 640px) 46vw, 300px"
           alt={cat.name}
           loading="lazy"
           decoding="async"

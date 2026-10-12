@@ -36,21 +36,36 @@ export function getProducts(opts = {}) {
   return http.get(`/products?${qs}`).then((r) => r.data)
 }
 
-export function getProductById(id) {
-  return withFallback(
-    async () => (await http.get(`/products/${id}`)).data,
-    async () => clone(products).find((p) => p.id === id) || null,
-  )
+// ---------------------------------------------------------------------------
+// A product by id. `null` means ONE thing: the server looked and this product
+// does not exist (HTTP 404). Everything else — a dropped connection, a timeout,
+// a 500, a gateway cutting the response in half — is RE-THROWN, so the caller
+// says "something went wrong, try again" instead of "this product was deleted".
+//
+// This used to go through withFallback() against the bundled demo catalogue,
+// whose `.find()` returns undefined for every real product id — so EVERY
+// network blip became `null`, which is exactly the storefront's not-found
+// card. On the shared host this site runs on a connection dropped mid-flight is
+// not rare (see the audit in this commit), and it was being reported to
+// shopkeepers as "Product nahi mila" for a product sitting right there in the
+// database. Worse, `null` is a perfectly cacheable value, so useAsync stored it
+// and the phantom deletion outlived the blip by up to a day. Both halves are
+// fixed: this no longer manufactures a null, and lib/queryCache.js no longer
+// stores one.
+// ---------------------------------------------------------------------------
+export async function getProductById(id) {
+  try {
+    return (await http.get(`/products/${id}`)).data
+  } catch (e) {
+    if (e?.status === 404) return null // a real answer: the product is gone
+    throw e // transient — the caller retries, and offers a Retry button
+  }
 }
 
+// Same rule: a failure here is a failure, not an empty catalogue. Returning []
+// from a dropped request would quietly blank the "related products" rail.
 export function getProductsByIds(ids = []) {
-  return withFallback(
-    async () => {
-      const all = (await http.get('/products')).data
-      return all.filter((p) => ids.includes(p.id))
-    },
-    async () => clone(products).filter((p) => ids.includes(p.id)),
-  )
+  return http.get('/products').then((r) => (r.data || []).filter((p) => ids.includes(p.id)))
 }
 
 export function getCategories() {

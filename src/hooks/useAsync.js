@@ -71,7 +71,20 @@ const idleState = { data: null, loading: true, error: null, attempt: 0, revalida
 // Note this hook now reads react-router's navigation type, so it must be used
 // inside the Router — which every caller in this app already is.
 export function useAsync(fn, deps = [], options = {}) {
-  const { retries = 0, retryDelay = 900, cacheKey = null } = options
+  const { cacheKey = null } = options
+  // A cacheKey means "public catalogue read" by construction — the rule two
+  // paragraphs up, enforced at every call site. Those are exactly the reads
+  // that should shrug off a blip rather than report one: the shopper asked for
+  // a page of products, not for a verdict on the connection. So they retry by
+  // default, and anything personal (cart, orders, profile, every admin read)
+  // keeps the old retries=0 unless it opts in.
+  //
+  // This was the difference between a dropped connection costing a moment of
+  // shimmer and costing an error panel — or, on the product page before the
+  // fix in src/api/catalog.js, a "Product nahi mila" for a product that was
+  // never deleted. CategoriesPage already did this by hand; it is the default
+  // now so the next page added cannot forget.
+  const { retries = cacheKey ? 2 : 0, retryDelay = 900 } = options
 
   // A Back/Forward into a page this session has already shown. See
   // useRestoreNavigation for why this is not simply `navType === 'POP'`.

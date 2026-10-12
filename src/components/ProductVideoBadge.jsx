@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Play } from '@phosphor-icons/react'
-import { onImgError } from '../lib/img'
+import { onImgError, thumbSrc } from '../lib/img'
 import VideoLightbox from './VideoLightbox'
 
 // A small LIVE preview pinned to the bottom-right of a product's image: the clip
@@ -14,13 +14,37 @@ import VideoLightbox from './VideoLightbox'
 // Raising it here without raising them is meaningless; raising it there would
 // put it back on top of the bar.
 //
-// Perf: a catalogue grid of autoplaying clips is expensive, so the media is both
-// lazy-loaded AND playback-gated by an IntersectionObserver — the file is only
-// requested once the card nears the viewport, and the loop is paused the instant
-// it scrolls away. A poster still fills the fixed-size frame beforehand, so there
-// is never a layout shift. Sits as a SIBLING of the card's <Link> (valid markup)
-// and its click is stopped from bubbling to the anchor.
-export default function ProductVideoBadge({ src, kind = 'video', poster, name = '' }) {
+// ---------------------------------------------------------------------------
+// `preview` — why the grid and the detail page differ
+// ---------------------------------------------------------------------------
+// This badge used to stream its clip everywhere it appeared, gated only by an
+// IntersectionObserver. On ONE product page that is a nice touch. On the
+// catalogue grid it was 18 separate multi-megabyte videos, all autoplaying,
+// into a 64px square. Measured on a 390px phone viewport against the live site:
+// 1.97 MB and 130 requests with the clips suppressed, 8.70 MB and 177 requests
+// with them — and the extra requests are not short reads, they are long-lived
+// media streams held open for as long as the card is near the viewport.
+//
+// That cost two separate things. Shoppers on a thin connection were paying four
+// times over for a page of thumbnails; and because mobile browsers cap how many
+// videos may decode at once, most of those clips never played anyway — which is
+// exactly the "videos don't work" the shop was being told about. It also left
+// far less headroom for the request that actually matters when a shopper taps a
+// card, the one that fetches the product.
+//
+//   preview="poster"  (grid, the default)  draw the poster and the play glyph,
+//                     fetch NOTHING. The clip loads when it is asked for, in the
+//                     lightbox, with controls — which is where anyone who wants
+//                     to watch it was going anyway.
+//   preview="auto"    (product detail page) the live muted loop, unchanged. One
+//                     product, one clip, a shopper who has already chosen it.
+//
+// In "auto" the media is still lazy-loaded AND playback-gated by an
+// IntersectionObserver, and the poster fills the fixed-size frame beforehand so
+// there is never a layout shift. Either way the badge sits as a SIBLING of the
+// card's <Link> (valid markup) and its click is stopped from bubbling to it.
+export default function ProductVideoBadge({ src, kind = 'video', poster, name = '', preview = 'poster' }) {
+  const live = preview === 'auto'
   const [open, setOpen] = useState(false)
   const [inView, setInView] = useState(false)
   const wrapRef = useRef(null)
@@ -29,6 +53,7 @@ export default function ProductVideoBadge({ src, kind = 'video', poster, name = 
   // Load the clip a little before it enters view; drop `inView` once it leaves so
   // playback can pause. rootMargin gives a small pre-load buffer for smoothness.
   useEffect(() => {
+    if (!live) return undefined // poster mode never mounts media
     const el = wrapRef.current
     if (!el || typeof IntersectionObserver === 'undefined') {
       setInView(true) // no observer support → just show it
@@ -40,7 +65,7 @@ export default function ProductVideoBadge({ src, kind = 'video', poster, name = 
     )
     io.observe(el)
     return () => io.disconnect()
-  }, [])
+  }, [live])
 
   // Pause the loop while off-screen, resume when back. autoPlay covers the very
   // first play; this keeps CPU/GPU cost to only the previews actually visible.
@@ -55,7 +80,9 @@ export default function ProductVideoBadge({ src, kind = 'video', poster, name = 
     }
   }, [inView, kind])
 
-  const media = kind === 'gif'
+  // `live` short-circuits before `inView` so the poster branch cannot request a
+  // byte of media even if an observer somewhere decided the badge is visible.
+  const media = !live ? null : kind === 'gif'
     ? (
       inView && (
         <img
@@ -96,12 +123,16 @@ export default function ProductVideoBadge({ src, kind = 'video', poster, name = 
         aria-label={name ? `${name} ka video dekhein` : 'Video dekhein'}
         className="group/vid absolute bottom-2.5 right-2.5 z-30 h-14 w-14 overflow-hidden rounded-2xl border border-white/70 bg-brand-900/20 shadow-[0_8px_22px_-8px_rgba(24,18,10,0.65)] ring-1 ring-inset ring-white/40 backdrop-blur-sm transition-transform duration-300 ease-out hover:scale-110 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500 sm:h-16 sm:w-16"
       >
-        {/* Poster placeholder fills the frame until the clip is loaded → no CLS. */}
+        {/* The poster fills the frame — in "auto" until the clip is loaded (no
+            CLS), in "poster" mode for good. Sized for a 64px square, so the
+            browser is never asked for the 1 MB original. */}
         {poster && (
           <img
-            src={poster}
+            src={thumbSrc(poster, 160)}
             alt=""
             aria-hidden
+            loading="lazy"
+            decoding="async"
             onError={onImgError}
             className="absolute inset-0 h-full w-full object-cover"
           />

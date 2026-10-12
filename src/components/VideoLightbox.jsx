@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from '@phosphor-icons/react'
@@ -12,6 +12,16 @@ import { onImgError } from '../lib/img'
 // and on the close button. The <video>/<img> only mounts while `open` is true, so
 // nothing downloads until the shopper actually opens the modal (lazy by design).
 export default function VideoLightbox({ open, onClose, src, kind = 'video', poster, title = '' }) {
+  // A clip that will not load — the file is missing, the host dropped the
+  // connection, or this browser cannot decode the container. Before this the
+  // modal just showed a black rectangle for ever, which looks like the site is
+  // broken rather than like one clip being unavailable. Reset whenever the
+  // modal is opened again, so "try again" is always one close-and-reopen away.
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    if (open) setFailed(false)
+  }, [open, src])
+
   // ESC to close + background scroll lock, wired only while open.
   useEffect(() => {
     if (!open) return undefined
@@ -59,7 +69,24 @@ export default function VideoLightbox({ open, onClose, src, kind = 'video', post
               <X size={20} weight="bold" />
             </button>
 
-            {kind === 'gif' ? (
+            {failed ? (
+              <div className="grid min-h-[40vh] place-items-center px-6 py-16 text-center">
+                <div>
+                  <p className="text-base font-bold text-white">Video abhi chal nahi saki</p>
+                  <p className="mt-1 text-sm text-white/70">
+                    Internet slow ho sakta hai. Product ki tamam tafseelat aur tasveerein
+                    neeche mojood hain.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="mt-6 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-brand-900 transition-all hover:bg-white/90 active:translate-y-px"
+                  >
+                    Band karein
+                  </button>
+                </div>
+              </div>
+            ) : kind === 'gif' ? (
               <img
                 src={src}
                 alt={title}
@@ -75,7 +102,12 @@ export default function VideoLightbox({ open, onClose, src, kind = 'video', post
                 autoPlay
                 muted
                 playsInline
-                preload="metadata"
+                // The clip is only requested once this modal is open, so there
+                // is no reason to hold back here — "metadata" would make the
+                // shopper wait for a second round-trip after they have already
+                // said they want to watch it.
+                preload="auto"
+                onError={() => setFailed(true)}
                 className="mx-auto block max-h-[82vh] w-full bg-black object-contain"
               />
             )}

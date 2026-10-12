@@ -10,7 +10,7 @@ import { deliveryCities } from '../components/CitiesDelivery'
 import { orderUnitOptions, unitLabelFor } from '../lib/cartEngine'
 import { enquiryHref } from '../lib/whatsapp'
 import MrpPerPiece from '../components/MrpPerPiece'
-import { imgSrc, onImgError } from '../lib/img'
+import { imgSrc, onImgError, srcSetFor, thumbSrc } from '../lib/img'
 import VideoReviews from '../components/VideoReviews'
 import OffersSection from '../components/OffersSection'
 import { Reveal, Check } from '../components/Reveal'
@@ -124,7 +124,17 @@ function HomeProduct({ p }) {
     <article className="card">
       <div className="media">
         {p.badge && <span className="tag-best">{p.badge}</span>}
-        <Link to={`/product/${p.id}`} aria-label={p.name}><img src={img} alt={p.name} loading="lazy" onError={onImgError} /></Link>
+        <Link to={`/product/${p.id}`} aria-label={p.name}>
+          <img
+            src={thumbSrc(img, 640)}
+            srcSet={srcSetFor(img, [320, 480, 640])}
+            sizes="(max-width: 640px) 46vw, 280px"
+            alt={p.name}
+            loading="lazy"
+            decoding="async"
+            onError={onImgError}
+          />
+        </Link>
       </div>
       <div className="body">
         <span className="cat">{p.category}</span>
@@ -425,7 +435,17 @@ export default function Home() {
             )}
             {catsReady && catList.map((c) => (
               <Link className="cat-card" key={c.id} to={`/products?cat=${c.id}`}>
-                <div className="media"><img src={imgSrc(c.image)} alt={c.name} loading="lazy" onError={onImgError} /></div>
+                <div className="media">
+                  <img
+                    src={thumbSrc(imgSrc(c.image), 480)}
+                    srcSet={srcSetFor(imgSrc(c.image), [160, 320, 480])}
+                    sizes="(max-width: 640px) 40vw, 220px"
+                    alt={c.name}
+                    loading="lazy"
+                    decoding="async"
+                    onError={onImgError}
+                  />
+                </div>
                 <div className="row"><b>{c.name}</b><span className="arr"><Arrow /></span></div>
               </Link>
             ))}

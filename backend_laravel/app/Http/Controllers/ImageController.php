@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Support\ImageVariants;
 use App\Support\Uploads;
 use Illuminate\Http\Request;
 
@@ -25,6 +26,26 @@ class ImageController extends Controller
         }
 
         $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+
+        // An optional `w` asks for a downscaled copy — see App\Support\ImageVariants
+        // for the rules. The catalogue's photos are phone originals averaging
+        // 738 KB and the grid draws them at ~170px, so serving the full file
+        // there was most of what made the storefront slow on a mobile
+        // connection — and the bandwidth it wasted is bandwidth the product API
+        // was competing with on the same connection.
+        //
+        // Every failure path inside returns null and we stream the original, so
+        // a host without GD, an unwritable uploads folder or a corrupt file all
+        // behave exactly as they did before this parameter existed. A URL with
+        // no `w` is byte-for-byte what it always was.
+        $width = ImageVariants::normaliseWidth($request->query('w'));
+        if ($width !== null) {
+            $variant = ImageVariants::path($path, $width);
+            if ($variant !== null) {
+                $path = $variant;
+                $ext  = strtolower(pathinfo($variant, PATHINFO_EXTENSION));
+            }
+        }
 
         // Stored filenames are content-immutable: App\Support\Uploads::save()
         // stamps every upload with `time()_<random>`, so replacing a product photo

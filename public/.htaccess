@@ -63,28 +63,49 @@ FileETag MTime Size
   # the compression block at the bottom: an unguarded directive from a missing
   # module is a 500 on every request, not a silently skipped line.
   <IfModule mod_setenvif.c>
+    # --- 0. the API is not ours to re-header -------------------------------
+    # Laravel sets its own Cache-Control on every /api/ response: 15 s +
+    # must-revalidate on catalogue JSON, a year + immutable on photos. Apache's
+    # "Header set" APPENDS a second Cache-Control rather than replacing it, so
+    # before this flag existed /api/image?file=x.png came back carrying BOTH
+    # "immutable, max-age=31536000" and "max-age=604800" (rule 3 matched the
+    # .png in the QUERY STRING), and /api/products carried two different
+    # max-ages. Two conflicting max-age directives are undefined behaviour — a
+    # browser may take either, and a proxy may treat the response as stale on
+    # arrival. Verified against the live site before the fix.
+    #
+    # Set FIRST so the negations below can use it: everything under /api/ is
+    # excluded from every rule in this block and keeps exactly the headers the
+    # application chose.
+    SetEnvIf Request_URI "/api/" ENG_API=1
+
     # --- 1. content-hashed build output -> a year, never revalidated --------
     # Matched on the /assets/ path rather than on a "looks hashed" filename
     # pattern: `hero-products.jpg` would pass any such pattern and is NOT hashed.
     # Unanchored so a sub-folder deploy (/england_store/assets/...) still matches.
     SetEnvIf Request_URI "/assets/" ENG_IMMUTABLE=1
+    SetEnvIf Request_URI "/api/" !ENG_IMMUTABLE
     Header set Cache-Control "public, max-age=31536000, immutable" env=ENG_IMMUTABLE
 
     # --- 2. reels -> a month ------------------------------------------------
     SetEnvIf Request_URI "/videos/" ENG_VIDEO=1
     SetEnvIf Request_URI "/assets/" !ENG_VIDEO
+    SetEnvIf Request_URI "/api/" !ENG_VIDEO
     Header set Cache-Control "public, max-age=2592000" env=ENG_VIDEO
 
     # --- 3. unhashed images + fonts from public/ -> a week, then revalidate -
     SetEnvIf Request_URI "\.(png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|eot)$" ENG_MEDIA=1
     SetEnvIf Request_URI "/assets/" !ENG_MEDIA
     SetEnvIf Request_URI "/videos/" !ENG_MEDIA
+    # /api/image?file=something.png matched this rule on the query string.
+    SetEnvIf Request_URI "/api/" !ENG_MEDIA
     Header set Cache-Control "public, max-age=604800" env=ENG_MEDIA
 
     # --- 3b. downloadable PDFs -> always revalidate ---------------------------
     # Same directive shapes as the rules above (SetEnvIf + Header env=), so a
     # server that accepts those accepts this.
     SetEnvIf Request_URI "\.pdf$" ENG_PDF=1
+    SetEnvIf Request_URI "/api/" !ENG_PDF
     Header set Cache-Control "no-cache, must-revalidate" env=ENG_PDF
   </IfModule>
 
@@ -99,28 +120,40 @@ FileETag MTime Size
   </FilesMatch>
 </IfModule>
 
-# mod_expires as a belt-and-braces companion: on a host where mod_headers is
-# missing this still produces sane Expires dates. Where both are present the
-# Cache-Control set above wins, which is what we want.
-<IfModule mod_expires.c>
-  ExpiresActive On
-  ExpiresByType text/css                "access plus 1 year"
-  ExpiresByType application/javascript  "access plus 1 year"
-  ExpiresByType text/javascript         "access plus 1 year"
-  ExpiresByType image/png               "access plus 1 week"
-  ExpiresByType image/jpeg              "access plus 1 week"
-  ExpiresByType image/gif               "access plus 1 week"
-  ExpiresByType image/webp              "access plus 1 week"
-  ExpiresByType image/avif              "access plus 1 week"
-  ExpiresByType image/svg+xml           "access plus 1 week"
-  ExpiresByType image/x-icon            "access plus 1 week"
-  ExpiresByType font/woff2              "access plus 1 year"
-  ExpiresByType font/woff               "access plus 1 year"
-  ExpiresByType video/mp4               "access plus 1 month"
-  ExpiresByType video/webm              "access plus 1 month"
-  ExpiresByType application/pdf         "access plus 0 seconds"
-  ExpiresByType text/html               "access plus 0 seconds"
-</IfModule>
+# ---------------------------------------------------------------------------
+# WHY THERE IS NO mod_expires BLOCK HERE ANY MORE
+# ---------------------------------------------------------------------------
+# There used to be one, described as "belt-and-braces: where both are present
+# the Cache-Control set above wins". That is not what happens. mod_expires does
+# not defer to mod_headers — it emits its OWN Cache-Control alongside the
+# Expires date, so every response that matched both carried TWO Cache-Control
+# headers with two different max-ages.
+#
+# That was measured, not reasoned about. On the live site a product photo came
+# back as:
+#
+#     Cache-Control: immutable, max-age=31536000, public   <- the API
+#     Cache-Control: max-age=604800                        <- mod_expires
+#
+# because `ExpiresByType image/png` matched /api/image?file=something.png —
+# mod_expires matches on CONTENT TYPE, which no amount of path exclusion in
+# the SetEnvIf rules above can prevent (verified against a local Apache with
+# this exact file). Two conflicting max-age directives are undefined
+# behaviour: a browser may honour either, and a shared cache is entitled to
+# treat the response as stale the moment it arrives. A one-year immutable
+# photo being revalidated every week is the kind of thing that only ever shows
+# up as "the site is slow sometimes".
+#
+# mod_headers is what actually sets the policy here, and it is demonstrably
+# present on this host — those immutable headers are its work. So the fallback
+# is gone and the rules above are the single source of truth. If a future host
+# turns out to lack mod_headers, the answer is to set the headers there, not
+# to add a second mechanism that fights this one.
+#
+# NOTE: the hosting still appends its own `Cache-Control: max-age=86400` to API
+# JSON responses from somewhere outside this file. Browsers take the FIRST
+# max-age, which is the API's own 15 s, so it is not breaking anything today,
+# but it is worth raising with the host.
 
 # Compression. Text assets are the ones worth compressing; images, fonts and
 # video are already compressed and re-compressing them only burns CPU.

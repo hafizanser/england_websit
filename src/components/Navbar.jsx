@@ -7,7 +7,7 @@ import { brand, navLinks } from '../data/site'
 import { useCart } from '../context/CartContext'
 import { useCustomerAuth } from '../context/CustomerAuthContext'
 import { useProductSearch } from '../hooks/useProductSearch'
-import { imgSrc, onImgError } from '../lib/img'
+import { imgSrc, onImgError, thumbSrc } from '../lib/img'
 import { spring } from '../lib/motion'
 import { lockScroll } from '../lib/scroll'
 
@@ -460,10 +460,11 @@ export default function Navbar() {
                       className="flex items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors hover:bg-white"
                     >
                       <img
-                        src={imgSrc(p.image, p.images?.[0])}
+                        src={thumbSrc(imgSrc(p.image, p.images?.[0]), 160)}
                         onError={onImgError}
                         alt=""
                         loading="lazy"
+                        decoding="async"
                         className="h-11 w-11 shrink-0 rounded-xl border border-brand-100 bg-white object-cover"
                       />
                       <span className="min-w-0 flex-1">
