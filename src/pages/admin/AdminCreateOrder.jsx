@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, MagnifyingGlass, Headset, Package } from '@phosphor-icons/react'
 import { getProducts, getCategories } from '../../api/catalog'
 import { useAsync } from '../../hooks/useAsync'
-import ProductCard from '../../components/ProductCard'
 import { ProductSkeleton } from '../../components/ui'
+import AdminOrderProductCard from '../../components/admin/AdminOrderProductCard'
+import AdminOrderCart from '../../components/admin/AdminOrderCart'
+import AdminCheckoutForm from '../../components/admin/AdminCheckoutForm'
 
 const GRID_CAP = 24 // safeguard against huge catalogs — chips + search narrow it
 
@@ -58,15 +60,16 @@ export default function AdminCreateOrder() {
       <div className="mb-5 mt-1 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-[26px] font-extrabold leading-none tracking-[-0.02em] text-[#2A2117] sm:text-[30px]">Naya order banayein</h1>
-          <p className="mt-2 text-sm text-[#6E6250]">Product chunein aur WhatsApp par rate poochein</p>
+          <p className="mt-2 text-sm text-[#6E6250]">Products cart mein daalein aur checkout karein</p>
         </div>
         <span className="inline-flex items-center gap-2 rounded-full border border-[#E6DCC5] bg-[#FBF7EE] px-3.5 py-2 text-[13px] font-semibold text-[#6E6250] shadow-[0_1px_2px_rgba(58,46,31,0.06)]">
           <Headset size={15} weight="fill" className="text-[#C29A45]" /> Source: Admin
         </span>
       </div>
 
-      {/* Full-width product picker — single natural page scroll. */}
-      <div className="grid gap-[22px]">
+      {/* Two-pane: product picker (left) + live cart & checkout (right, sticky on
+          desktop). Stacks to one column on mobile — picker, then cart, then form. */}
+      <div className="grid gap-[22px] lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
         {/* ── product picker ── */}
         <Panel className="p-5">
           <h2 className="mb-3.5 text-base font-extrabold tracking-[-0.01em] text-[#2A2117]">Products</h2>
@@ -118,9 +121,9 @@ export default function AdminCreateOrder() {
 
           {!productsLoading && !productsError && results.length > 0 && (
             <>
-              <div className="grid grid-cols-2 gap-3 sm:gap-5 min-[760px]:grid-cols-3 min-[1100px]:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 min-[760px]:grid-cols-3">
                 {capped.map((p) => (
-                  <ProductCard key={p.id} p={p} preferLargestUnit linkToProduct={false} />
+                  <AdminOrderProductCard key={p.id} p={p} />
                 ))}
               </div>
               {results.length > GRID_CAP && (
@@ -130,6 +133,12 @@ export default function AdminCreateOrder() {
           )}
           </div>
         </Panel>
+
+        {/* ── live cart + checkout ── */}
+        <div className="flex flex-col gap-[22px] lg:sticky lg:top-4">
+          <AdminOrderCart />
+          <AdminCheckoutForm />
+        </div>
       </div>
     </div>
   )
