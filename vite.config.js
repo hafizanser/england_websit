@@ -132,17 +132,49 @@ export default defineConfig(({ mode }) => {
           // dependency bump, app code changes weekly, and separating them means a
           // normal deploy leaves ~500 KB of vendor bundle untouched in the
           // shopper's cache.
-          manualChunks: {
-            react: ['react', 'react-dom', 'react-router-dom'],
-            motion: ['framer-motion'],
-            icons: ['@phosphor-icons/react'],
-            // Named, not for caching reasons but so the service worker's precache
-            // filter above can recognise and skip it. Left to Rollup it is
-            // emitted as `index-[hash].js` — the same stem as the app's own
-            // entry chunk, so it cannot be excluded by name. It stays a lazy
-            // chunk: its only importer is a dynamic import() in
-            // lib/videoCompress.js.
-            mediabunny: ['mediabunny'],
+          //
+          // Function form rather than the object map because the Phosphor icons
+          // need SPREADING, not grouping. Collapsed into a single `icons` chunk
+          // the used icon set is ~350 KB, and that one file sits on first paint
+          // for both the storefront and the admin. Bluehost routinely resets the
+          // connection partway through serving a file that large (see
+          // production-host-quirks), so the chunk arrives truncated and the whole
+          // app fails to boot with ERR_CONNECTION_RESET. Fanning the icon modules
+          // across several buckets keeps every first-paint file small enough to
+          // transfer in one piece; the shared IconBase/context stays in one
+          // `icons-core` so the per-icon chunks have a single common import.
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined
+            const n = id.replace(/\\/g, '/')
+
+            if (n.includes('@phosphor-icons/react')) {
+              // Each icon is TWO modules: a thin csr/ssr wrapper and the actual
+              // SVG path data in defs/ (that's where the weight matters). Bucket
+              // by the icon name so a given icon's wrapper AND its path data land
+              // together; lib/ (IconBase/SSRBase/context) and the barrel index
+              // stay in the shared icons-core.
+              const m = n.match(/@phosphor-icons\/react\/dist\/(?:csr|ssr|defs)\/(.+?)\.[^/]+$/)
+              const name = m && m[1]
+              if (!name) return 'icons-core' // lib/, index, context — the shared base
+              // Deterministic bucket from the icon name: stable across builds (so
+              // content hashes only move when an icon is actually added/removed)
+              // and evenly spread. 8 buckets puts the ~350 KB set near ~45 KB each.
+              let h = 0
+              for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0
+              return 'icons-' + (Math.abs(h) % 8)
+            }
+
+            // react/react-dom/react-router kept together — anchored on the
+            // package-dir boundary so @phosphor-icons/react (already handled
+            // above) and other "*react*" packages cannot fall in here.
+            if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(n)) return 'react'
+            if (n.includes('framer-motion') || n.includes('/motion-dom/') || n.includes('/motion-utils/')) return 'motion'
+            // Named so the service worker's precache filter above can recognise
+            // and skip it. It stays a lazy chunk either way: its only importer is
+            // a dynamic import() in lib/videoCompress.js.
+            if (n.includes('mediabunny')) return 'mediabunny'
+
+            return undefined
           },
         },
       },
