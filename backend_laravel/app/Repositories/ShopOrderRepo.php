@@ -218,9 +218,16 @@ class ShopOrderRepo extends BaseRepo
     /** Set/clear a per-item discount and re-derive the order totals. */
     public function setItemDiscount(int $orderId, int $itemId, float $amount): ?array
     {
+        // A line's discount can never exceed the line itself (no negative lines).
+        $lineTotal = (int) $this->scalar(
+            'SELECT line_total FROM fmcg_order_items WHERE id = ? AND order_id = ? LIMIT 1',
+            [$itemId, $orderId]
+        );
+        $amount = max(0, min((int) round($amount), $lineTotal));
+
         $this->exec(
             'UPDATE fmcg_order_items SET discount = ?, updated_at = NOW() WHERE id = ? AND order_id = ?',
-            [(int) $amount, $itemId, $orderId]
+            [$amount, $itemId, $orderId]
         );
 
         $sum = $this->first(

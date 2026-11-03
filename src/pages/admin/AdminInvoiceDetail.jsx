@@ -19,7 +19,7 @@ export default function AdminInvoiceDetail() {
   const handlePdf = async () => {
     setPdfBusy(true)
     try {
-      await downloadPdf(invoiceRef.current, `${order.code}-invoice.pdf`)
+      await downloadPdf(invoiceRef.current, `${order.code}-receipt.pdf`)
       success('PDF download ho gaya')
     } finally {
       setPdfBusy(false)
@@ -31,15 +31,15 @@ export default function AdminInvoiceDetail() {
     return (
       <Card className="grid place-items-center py-16 text-center">
         <p className="font-bold text-saffron-800">{error?.message || 'Invoice nahi mila'}</p>
-        <Link to="/admin/invoices" className="mt-3 text-sm font-semibold text-brand-700">← Invoices</Link>
+        <Link to="/admin/orders" className="mt-3 text-sm font-semibold text-brand-700">← Orders</Link>
       </Card>
     )
   }
 
   return (
     <>
-      <Link to="/admin/invoices" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-900">
-        <ArrowLeft size={16} weight="bold" /> Invoices
+      <Link to={`/admin/orders/${order.id}`} className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-900">
+        <ArrowLeft size={16} weight="bold" /> Back to order
       </Link>
 
       <AdminTitle title={`Invoice ${order.code}`} subtitle={`${order.customer?.name} • ${order.customer?.phone}`}>

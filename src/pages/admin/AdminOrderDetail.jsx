@@ -8,6 +8,7 @@ import {
   CircleNotch,
   Clock,
   Receipt,
+  Printer,
 } from '@phosphor-icons/react'
 import { getAdminOrder, updateOrderStatus, setItemDiscount } from '../../api/admin'
 import { money } from '../../lib/cartEngine'
@@ -15,15 +16,99 @@ import { useNotify } from '../../context/NotifyContext'
 import { AdminTitle, Loader, Card, StatusBadge, STATUSES } from '../../components/admin/ui'
 import { SourceBadge } from '../../components/admin/SourceBadge'
 
+// Converts what the admin typed into whole rupees for one line. Returns null
+// when the entry is invalid (empty, negative, over 100% or over the line).
+function discountRupees(value, mode, lineTotal) {
+  if (value === '' || value === null || value === undefined) return null
+  const v = Number(value)
+  if (!Number.isFinite(v) || v < 0) return null
+  if (mode === 'pct') {
+    if (v > 100) return null
+    return Math.round((lineTotal * v) / 100)
+  }
+  if (v > lineTotal) return null
+  return Math.round(v)
+}
+
+// "Overall Discount In %" from the original order system: the same percent is
+// applied to every product line, saved through the existing per-item discount.
+function OverallDiscount({ orderId, items, onUpdated }) {
+  const [pct, setPct] = useState('')
+  const [saving, setSaving] = useState(false)
+  const { success, error } = useNotify()
+
+  const apply = async (value) => {
+    const v = Number(value)
+    if (value === '' || !Number.isFinite(v) || v < 0 || v > 100) {
+      error('Overall discount 0 se 100% ke darmiyan hona chahiye')
+      return
+    }
+    setSaving(true)
+    try {
+      let latest = null
+      for (const it of items) {
+        const rs = v > 0 ? Math.round(((Number(it.line_total) || 0) * v) / 100) : 0
+        latest = await setItemDiscount(orderId, it.id, rs, v > 0 ? `Overall ${v}%` : '')
+      }
+      if (latest) onUpdated(latest)
+      setPct('')
+      success(v > 0 ? `Overall ${v}% discount laga diya` : 'Tamam discounts hata diye')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t border-brand-100 px-5 py-4">
+      <span className="text-sm font-bold text-brand-900">Overall discount</span>
+      <input
+        type="number"
+        min="0"
+        max="100"
+        value={pct}
+        onChange={(e) => setPct(e.target.value)}
+        placeholder="0"
+        className="w-20 rounded-lg border border-brand-200 px-2 py-1.5 text-right text-sm outline-none focus:border-brand-500"
+      />
+      <span className="text-sm text-brand-500">% har product par</span>
+      <button
+        onClick={() => apply(pct)}
+        disabled={saving || pct === ''}
+        className="inline-flex items-center gap-1 rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
+      >
+        {saving ? <CircleNotch size={13} className="animate-spin" /> : <Check size={13} weight="bold" />} Lagao
+      </button>
+      {items.some((it) => Number(it.discount) > 0) && (
+        <button
+          onClick={() => apply(0)}
+          disabled={saving}
+          className="rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-semibold text-brand-600 disabled:opacity-60"
+        >
+          Sab discount hatao
+        </button>
+      )}
+    </div>
+  )
+}
+
 function ItemRow({ orderId, item, onUpdated }) {
   const discounted = Number(item.discount) > 0
   const [editing, setEditing] = useState(false)
   const [amount, setAmount] = useState(item.discount || 0)
+  const [mode, setMode] = useState('rs') // 'rs' = rupee amount, 'pct' = percent of line
   const [note, setNote] = useState(item.discount_note || '')
   const [saving, setSaving] = useState(false)
-  const { success } = useNotify()
+  const { success, error } = useNotify()
+  const lineTotal = Number(item.line_total) || 0
+  const rupees = discountRupees(amount, mode, lineTotal)
 
   const save = async (value, noteVal) => {
+    const v = Number(value)
+    if (!Number.isFinite(v) || v < 0 || v > lineTotal) {
+      error(`Discount 0 se ${money(lineTotal)} ke darmiyan hona chahiye`)
+      return
+    }
+    value = Math.round(v)
     setSaving(true)
     try {
       const order = await setItemDiscount(orderId, item.id, value, noteVal)
@@ -51,16 +136,30 @@ function ItemRow({ orderId, item, onUpdated }) {
         {editing ? (
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-brand-400">Rs.</span>
+              <div className="flex overflow-hidden rounded-lg border border-brand-200 text-xs font-bold">
+                {[['rs', 'Rs.'], ['pct', '%']].map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => { setMode(k); setAmount(0) }}
+                    className={`px-2 py-1.5 ${mode === k ? 'bg-brand-700 text-white' : 'bg-white text-brand-500'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <input
                 type="number"
                 min="0"
-                max={item.line_total}
+                max={mode === 'pct' ? 100 : lineTotal}
                 value={amount}
-                onChange={(e) => setAmount(Number(e.target.value))}
+                onChange={(e) => setAmount(e.target.value === '' ? '' : Number(e.target.value))}
                 className="w-24 rounded-lg border border-brand-200 px-2 py-1.5 text-right text-sm outline-none focus:border-brand-500"
               />
             </div>
+            {mode === 'pct' && rupees !== null && (
+              <span className="text-[11px] text-brand-400">= − {money(rupees)}</span>
+            )}
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -69,7 +168,7 @@ function ItemRow({ orderId, item, onUpdated }) {
             />
             <div className="flex gap-1.5">
               <button
-                onClick={() => save(amount, note)}
+                onClick={() => save(rupees === null ? -1 : rupees, note)}
                 disabled={saving}
                 className="inline-flex items-center gap-1 rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
               >
@@ -96,7 +195,7 @@ function ItemRow({ orderId, item, onUpdated }) {
               </>
             ) : (
               <button
-                onClick={() => { setAmount(0); setNote(''); setEditing(true) }}
+                onClick={() => { setAmount(0); setMode('rs'); setNote(''); setEditing(true) }}
                 className="inline-flex items-center gap-1 rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-sand-50"
               >
                 <Tag size={13} weight="fill" /> Discount
@@ -182,6 +281,12 @@ export default function AdminOrderDetail() {
 
       <AdminTitle title={order.code} subtitle={`${order.customer?.name} • ${order.customer?.phone}`}>
         <SourceBadge source={order.source} />
+        <Link
+          to={`/admin/invoices/${order.id}`}
+          className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2.5 text-sm font-bold text-brand-800 hover:bg-sand-50"
+        >
+          <Printer size={17} weight="fill" /> Receipt
+        </Link>
       </AdminTitle>
 
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
@@ -209,6 +314,7 @@ export default function AdminOrderDetail() {
                 </tbody>
               </table>
             </div>
+            <OverallDiscount orderId={id} items={order.items} onUpdated={setOrder} />
             <div className="space-y-1.5 border-t border-brand-100 p-5 text-sm">
               <div className="flex justify-between text-brand-600"><span>Subtotal</span><span className="font-semibold tabular-nums">{money(order.subtotal)}</span></div>
               {order.discount_lines.map((l, i) => (
