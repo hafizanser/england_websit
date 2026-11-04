@@ -1,0 +1,12 @@
+{
+  "appId": "com.englandbymt.orders",
+  "appName": "England Orders",
+  "webDir": "dist",
+  "backgroundColor": "#FBF5E9",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "Camera": {}
+  }
+}

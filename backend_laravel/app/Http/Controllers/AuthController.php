@@ -22,7 +22,9 @@ class AuthController extends Controller
         if (!$admin || !password_verify($password, $admin->password)) {
             Api::halt('Ghalat username ya password', 401);
         }
-        $admin->tokens()->delete();
+        // Single dashboard session as before; the England Orders app's own token
+        // (england-orders-app) is left alone so signing in here does not sign the app out.
+        $admin->tokens()->where('name', '!=', 'england-orders-app')->delete();
         $token = $admin->createToken('admin')->plainTextToken;
         return Api::ok([
             'token' => $token,

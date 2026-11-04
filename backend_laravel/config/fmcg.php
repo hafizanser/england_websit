@@ -35,6 +35,15 @@ return [
     // Drive-fetched) reels. Defaults to the PATH lookup; set an absolute path if
     // they aren't on PATH. If ffmpeg is unavailable the original file is stored
     // as-is (no compression) so the feature still works.
+    // England Orders mobile app (internal team). Order dates are stored in UTC;
+    // "today / tomorrow" are worked out in the business's own timezone.
+    'business_timezone' => env('FMCG_BUSINESS_TIMEZONE', 'Asia/Karachi'),
+
+    // Pandi delivery-slip photos. Private: never web-served directly, only streamed
+    // back to a signed-in admin through GET /app/orders/{id}/slip.
+    'slips_path' => env('FMCG_SLIPS_PATH') ?: storage_path('app/pandi-slips'),
+    'slip_max_kb' => (int) env('FMCG_SLIP_MAX_KB', 10240),
+
     'ffmpeg_path'  => env('FMCG_FFMPEG_PATH', 'ffmpeg'),
     'ffprobe_path' => env('FMCG_FFPROBE_PATH', 'ffprobe'),
 ];

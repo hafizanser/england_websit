@@ -1,0 +1,132 @@
+/* ============================================================
+   England Orders — design tokens.
+   Same system as the Masoom app (gold header + tab bar, warm off-white
+   surfaces, Nastaliq UI, measured Urdu line-heights, 44px+ targets),
+   in England's brown-and-gold brand colours.
+   ============================================================ */
+:root {
+  /* brand */
+  --c-primary: #7a5320;
+  --c-primary-strong: #5f3f15;
+  --c-primary-soft: #f3ecdd;
+  --c-primary-line: #e7d9bd;
+  --grad-brand: linear-gradient(180deg, #a87a3c 0%, #7a5320 100%);
+  --grad-header: linear-gradient(180deg, #c4975a 0%, #9c6f33 100%);
+  --c-accent: #c9a45d;
+  --c-accent-soft: #f3ecdd;
+  --on-header: #ffffff;
+
+  /* neutrals */
+  --c-bg: #faf8f3;
+  --c-surface: #ffffff;
+  --c-surface-2: #f4f1ea;
+  --c-ink: #20231f;
+  --c-ink-2: #5f645e;
+  --c-ink-3: #8f887b;
+  --c-border: #e9e2d7;
+  --c-card-line: #efe7d8;
+  --c-card-line-soft: #f1ece3;
+  --c-disabled: #cdbfa6;
+
+  /* feedback */
+  --c-success: #1e7a47;
+  --c-success-soft: #e4f2e9;
+  --c-tick: #1fa055;
+  --c-danger: #b42318;
+  --c-danger-soft: #fbeae8;
+  --c-danger-line: #f0d6d3;
+  --c-warn: #b86e00;
+  --c-warn-soft: #fdf1dc;
+  --c-warn-line: #f0d39b;
+
+  /* order stages — one colour each, as in Masoom */
+  --c-new: #8a5b16;
+  --c-new-soft: #f6ecd8;
+  --c-received: #3d5a4c;
+  --c-received-soft: #eaf2ee;
+  --c-preparing: #9a5b00;
+  --c-preparing-soft: #fcefd9;
+  --c-shipped: #2b5c93;
+  --c-shipped-soft: #e7eef7;
+
+  /* typography: flowing Nastaliq for the UI; Naskh for typed Urdu; the system face for Latin & numbers */
+  --f-ur: 'Noto Nastaliq Urdu', 'Noto Naskh Arabic', serif;
+  --f-ur-input: 'Noto Naskh Arabic', system-ui, sans-serif;
+  --f-num: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Manrope Variable', system-ui, sans-serif;
+
+  /* Nastaliq inks ~2.07em: these line-heights keep the glyphs inside their own box (Masoom's measured values). */
+  --lh-ur: 1.9;
+  --lh-ur-tight: 2.1;
+  --lh-ur-ctrl: 1.85;
+
+  --tap-min: 44px;
+  --ctrl-h-sm: 44px;
+  --ctrl-h-md: 52px;
+  --gutter: 16px;
+
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-pill: 999px;
+
+  --sh-sm: 0 1px 2px rgba(32, 35, 31, 0.05), 0 4px 14px rgba(32, 35, 31, 0.05);
+  --sh-md: 0 6px 18px rgba(32, 35, 31, 0.14);
+  --sh-lg: 0 20px 50px rgba(20, 20, 16, 0.28);
+  --sh-brand: 0 6px 16px rgba(122, 83, 32, 0.3);
+  --sh-bar: 0 6px 16px rgba(122, 83, 32, 0.22);
+  --ease: cubic-bezier(0.3, 0.8, 0.3, 1);
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tab-h: 78px;
+  --skeleton: linear-gradient(90deg, #f1e9da 0%, #f9f4ea 50%, #f1e9da 100%);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --c-primary: #e2c48c;
+  --c-primary-strong: #f0d7a6;
+  --c-primary-soft: #3a2f1e;
+  --c-primary-line: #4a3b25;
+  --grad-brand: linear-gradient(180deg, #c9a45d 0%, #a8823d 100%);
+  --grad-header: linear-gradient(180deg, #3a2c1a 0%, #2a2014 100%);
+  --c-accent: #d6b06b;
+  --c-accent-soft: #33291b;
+
+  --c-bg: #15110c;
+  --c-surface: #211a13;
+  --c-surface-2: #2a2219;
+  --c-ink: #f6eee0;
+  --c-ink-2: #cdbfa8;
+  --c-ink-3: #9e8f7a;
+  --c-border: #3a2f23;
+  --c-card-line: #362c20;
+  --c-card-line-soft: #30271d;
+  --c-disabled: #5a4c38;
+
+  --c-success: #5fd394;
+  --c-success-soft: #14321f;
+  --c-tick: #34b56b;
+  --c-danger: #ff8a80;
+  --c-danger-soft: #3b1714;
+  --c-danger-line: #5a2520;
+  --c-warn: #f2b457;
+  --c-warn-soft: #3a2a10;
+  --c-warn-line: #5b4318;
+
+  --c-new: #f0cf8f;
+  --c-new-soft: #3a2f1e;
+  --c-received: #9fd0b6;
+  --c-received-soft: #1c2d25;
+  --c-preparing: #f2b457;
+  --c-preparing-soft: #3a2a10;
+  --c-shipped: #9ac4ef;
+  --c-shipped-soft: #16283a;
+
+  --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.25);
+  --sh-brand: 0 6px 16px rgba(0, 0, 0, 0.35);
+  --sh-bar: 0 6px 16px rgba(0, 0, 0, 0.4);
+  --skeleton: linear-gradient(90deg, #2a2219 0%, #33291e 50%, #2a2219 100%);
+  color-scheme: dark;
+}

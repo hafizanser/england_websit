@@ -227,3 +227,20 @@ Route::middleware(['cache.private', 'admin.auth', 'catalog.bump'])->group(functi
     Route::put('/admin/pdf-documents/{id}', [AdminPdfDocumentController::class, 'update']);
     Route::delete('/admin/pdf-documents/{id}', [AdminPdfDocumentController::class, 'destroy']);
 });
+
+// ---- England Orders mobile app (internal team) ------------------------------
+// Admin accounts only. Reads the real orders; writes only fmcg_order_deliveries
+// (delivery date, Pandi Name, Adda Name, Pandi slip photo). Never cached, never
+// bumps the catalogue (nothing a shopper sees changes). See OrderAppController.
+Route::post('/app/auth/login', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'login'])
+    ->middleware(['cache.private', 'throttle:10,1']);
+Route::post('/app/auth/logout', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'logout'])
+    ->middleware('cache.private');
+Route::middleware(['cache.private', 'admin.auth'])->prefix('app')->group(function () {
+    Route::get('/auth/me', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'me']);
+    Route::get('/orders', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'index']);
+    Route::get('/orders/{id}', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'show'])->whereNumber('id');
+    Route::patch('/orders/{id}/delivery', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'updateDelivery'])->whereNumber('id');
+    Route::post('/orders/{id}/slip', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'uploadSlip'])->whereNumber('id');
+    Route::get('/orders/{id}/slip', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'slip'])->whereNumber('id');
+});
