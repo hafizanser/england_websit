@@ -12,6 +12,10 @@ export default defineConfig(({ mode }) => {
     if (/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(api)) {
       throw new Error(`VITE_API_BASE=${api} points at the phone itself. Use the PC's LAN address or the live API.`);
     }
+    // The pre-1.3 default api-store.codelps.com no longer exists; an app built against it can never connect.
+    if (/api-store\.codelps\.com/i.test(api)) {
+      throw new Error(`VITE_API_BASE=${api} is the retired API host. Set VITE_API_BASE=https://englandwaly.com/api in .env.android.`);
+    }
   }
   return {
     base: './',

@@ -14,7 +14,7 @@ mobile-app/
   src/            React screens (Login, Orders, OrderDetail), lib (api, image, native), state, styles
   public/         England icons
   android/        Capacitor Android project (icons, splash, permissions, signing gate)
-  .env.android    API used by Android builds (live: https://api-store.codelps.com)
+  .env.android    API used by Android builds (live: https://englandwaly.com/api)
 ```
 
 ## Run in a browser (development)

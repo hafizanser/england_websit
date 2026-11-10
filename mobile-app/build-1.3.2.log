@@ -1,0 +1,447 @@
+===== START Tue 11/10/2026 18:56:40.44 ===== 
+[1/5] Running the app tests...
+
+> england-orders-app@1.3.2 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/shan-e-ulfat/Documents/GitHub/england_websit/mobile-app[39m
+
+ [32m✓[39m src/__tests__/lib.test.js [2m([22m[2m16 tests[22m[2m)[22m[33m 348[2mms[22m[39m
+ [32m✓[39m src/__tests__/detail.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[33m 670[2mms[22m[39m
+   [33m[2m✓[22m[39m ERP sale detail: mixed invoices[2m > [22mshows only England lines, says other lines were left out, and labels the total as the whole invoice [33m 347[2mms[22m[39m
+ [32m✓[39m src/__tests__/orders.test.jsx [2m([22m[2m13 tests[22m[2m)[22m[33m 2978[2mms[22m[39m
+   [33m[2m✓[22m[39m Orders screen navigation[2m > [22mshows the four order tabs at the top with counts, and the same four in the bottom bar [33m 332[2mms[22m[39m
+   [33m[2m✓[22m[39m Orders screen navigation[2m > [22mswitches lists from the bottom bar and keeps the top tabs in step [33m 518[2mms[22m[39m
+   [33m[2m✓[22m[39m Orders screen navigation[2m > [22mloads the right list for each tab and marks the selected one [33m 404[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m33 passed[39m[22m[90m (33)[39m
+[2m   Start at [22m 18:56:44
+[2m   Duration [22m 9.05s[2m (transform 1.19s, setup 0ms, collect 2.95s, tests 4.00s, environment 11.24s, prepare 1.99s)[22m
+
+[2/5] Building the app screens (live API)...
+
+> england-orders-app@1.3.2 android:sync
+> vite build --mode android && cap sync android
+
+[36mvite v7.1.12 [32mbuilding for android...[36m[39m
+transforming...
+[32m✓[39m 83 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                                                  [39m[1m[2m  0.95 kB[22m[1m[22m[2m │ gzip:  0.56 kB[22m
+[2mdist/[22m[32massets/manrope-vietnamese-wght-normal-usUDDRr7.woff2        [39m[1m[2m  8.52 kB[22m[1m[22m
+[2mdist/[22m[32massets/manrope-greek-wght-normal-DL7QRZyv.woff2             [39m[1m[2m  9.44 kB[22m[1m[22m
+[2mdist/[22m[32massets/manrope-cyrillic-wght-normal-Dvxsihut.woff2          [39m[1m[2m 14.50 kB[22m[1m[22m
+[2mdist/[22m[32massets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2         [39m[1m[2m 15.12 kB[22m[1m[22m
+[2mdist/[22m[32massets/manrope-latin-wght-normal-DHIcAJRg.woff2             [39m[1m[2m 24.84 kB[22m[1m[22m
+[2mdist/[22m[32massets/noto-naskh-arabic-arabic-400-normal-BgcZqrGr.woff2   [39m[1m[2m 53.46 kB[22m[1m[22m
+[2mdist/[22m[32massets/noto-naskh-arabic-arabic-700-normal-ZR9wh5jV.woff2   [39m[1m[2m 54.08 kB[22m[1m[22m
+[2mdist/[22m[32massets/noto-naskh-arabic-arabic-400-normal-906mYfoQ.woff    [39m[1m[2m 88.11 kB[22m[1m[22m
+[2mdist/[22m[32massets/noto-naskh-arabic-arabic-700-normal-BMRMgo0A.woff    [39m[1m[2m 88.67 kB[22m[1m[22m
+[2mdist/[22m[32massets/noto-nastaliq-urdu-arabic-700-normal-CV4fHIsl.woff2  [39m[1m[2m157.61 kB[22m[1m[22m
+[2mdist/[22m[32massets/noto-nastaliq-urdu-arabic-400-normal-BVDOj1dq.woff2  [39m[1m[2m159.37 kB[22m[1m[22m
+[2mdist/[22m[32massets/noto-nastaliq-urdu-arabic-600-normal-Bim-T0zK.woff2  [39m[1m[2m164.59 kB[22m[1m[22m
+[2mdist/[22m[32massets/noto-nastaliq-urdu-arabic-700-normal-DLTMJhMG.woff   [39m[1m[2m209.90 kB[22m[1m[22m
+[2mdist/[22m[32massets/noto-nastaliq-urdu-arabic-400-normal-Df9iHKj9.woff   [39m[1m[2m211.57 kB[22m[1m[22m
+[2mdist/[22m[32massets/noto-nastaliq-urdu-arabic-600-normal-CV1nlLWd.woff   [39m[1m[2m217.02 kB[22m[1m[22m
+[2mdist/[22m[35massets/index-tzd_jJC-.css                                   [39m[1m[2m 52.72 kB[22m[1m[22m[2m │ gzip: 13.32 kB[22m
+[2mdist/[22m[36massets/index-xgG-aGa-.js                                    [39m[1m[2m  0.33 kB[22m[1m[22m[2m │ gzip:  0.24 kB[22m
+[2mdist/[22m[36massets/index-CU6lx8QY.js                                    [39m[1m[2m  0.33 kB[22m[1m[22m[2m │ gzip:  0.23 kB[22m
+[2mdist/[22m[36massets/index-Baq704zN.js                                    [39m[1m[2m  0.35 kB[22m[1m[22m[2m │ gzip:  0.24 kB[22m
+[2mdist/[22m[36massets/web-DDFth3su.js                                      [39m[1m[2m  0.38 kB[22m[1m[22m[2m │ gzip:  0.25 kB[22m
+[2mdist/[22m[36massets/index-sVUPawUD.js                                    [39m[1m[2m  0.63 kB[22m[1m[22m[2m │ gzip:  0.42 kB[22m
+[2mdist/[22m[36massets/web-CYW8GHYt.js                                      [39m[1m[2m  0.67 kB[22m[1m[22m[2m │ gzip:  0.33 kB[22m
+[2mdist/[22m[36massets/web-BEI23275.js                                      [39m[1m[2m  1.25 kB[22m[1m[22m[2m │ gzip:  0.58 kB[22m
+[2mdist/[22m[36massets/index-CcfG6eGQ.js                                    [39m[1m[2m  4.40 kB[22m[1m[22m[2m │ gzip:  1.68 kB[22m
+[2mdist/[22m[36massets/web-CGKoqgsM.js                                      [39m[1m[2m  8.68 kB[22m[1m[22m[2m │ gzip:  2.96 kB[22m
+[2mdist/[22m[36massets/index-Ct1pmKpx.js                                    [39m[1m[2m317.68 kB[22m[1m[22m[2m │ gzip: 99.73 kB[22m
+[32m✓ built in 6.25s[39m
+√ Copying web assets from dist to android\app\src\main\assets\public in 290.62ms
+√ Creating capacitor.config.json in android\app\src\main\assets in 84.52ms
+√ copy android in 446.19ms
+√ Updating Android plugins in 22.56ms
+[info] Found 5 Capacitor plugins for android:
+       @capacitor/app@6.0.2
+       @capacitor/camera@6.1.3
+       @capacitor/filesystem@6.0.3
+       @capacitor/preferences@6.0.3
+       @capacitor/share@6.0.3
+√ update android in 276.69ms
+[info] Sync finished in 0.807s
+[3/5] Checking the bundle has no local test server or test login...
+[4/5] Building the APK...
+
+> Configure project :app
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Configure project :capacitor-cordova-android-plugins
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-android:preBuild UP-TO-DATE
+> Task :capacitor-android:preDebugBuild UP-TO-DATE
+> Task :capacitor-android:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-app:preBuild UP-TO-DATE
+> Task :capacitor-app:preDebugBuild UP-TO-DATE
+> Task :capacitor-app:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-camera:preBuild UP-TO-DATE
+> Task :capacitor-camera:preDebugBuild UP-TO-DATE
+> Task :capacitor-camera:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:preBuild UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:preDebugBuild UP-TO-DATE
+> Task :capacitor-filesystem:preBuild UP-TO-DATE
+> Task :capacitor-filesystem:preDebugBuild UP-TO-DATE
+> Task :capacitor-filesystem:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-preferences:preBuild UP-TO-DATE
+> Task :capacitor-preferences:preDebugBuild UP-TO-DATE
+> Task :capacitor-preferences:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-share:preBuild UP-TO-DATE
+> Task :capacitor-share:preDebugBuild UP-TO-DATE
+> Task :capacitor-share:writeDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :capacitor-android:generateDebugResValues UP-TO-DATE
+> Task :capacitor-android:generateDebugResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:writeDebugAarMetadata
+> Task :capacitor-android:packageDebugResources UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :capacitor-app:generateDebugResValues UP-TO-DATE
+> Task :capacitor-app:generateDebugResources UP-TO-DATE
+> Task :capacitor-app:packageDebugResources UP-TO-DATE
+> Task :capacitor-camera:generateDebugResValues UP-TO-DATE
+> Task :capacitor-camera:generateDebugResources UP-TO-DATE
+> Task :capacitor-camera:packageDebugResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:generateDebugResValues
+> Task :capacitor-cordova-android-plugins:generateDebugResources
+> Task :capacitor-cordova-android-plugins:packageDebugResources
+> Task :capacitor-filesystem:generateDebugResValues UP-TO-DATE
+> Task :capacitor-filesystem:generateDebugResources UP-TO-DATE
+> Task :capacitor-filesystem:packageDebugResources UP-TO-DATE
+> Task :capacitor-preferences:generateDebugResValues UP-TO-DATE
+> Task :capacitor-preferences:generateDebugResources UP-TO-DATE
+> Task :capacitor-preferences:packageDebugResources UP-TO-DATE
+> Task :capacitor-share:generateDebugResValues UP-TO-DATE
+> Task :capacitor-share:generateDebugResources UP-TO-DATE
+> Task :capacitor-share:packageDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-android:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-android:processDebugManifest UP-TO-DATE
+> Task :capacitor-app:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-app:processDebugManifest UP-TO-DATE
+> Task :capacitor-camera:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-camera:processDebugManifest UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:extractDeepLinksDebug
+> Task :capacitor-filesystem:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-filesystem:processDebugManifest UP-TO-DATE
+> Task :capacitor-preferences:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-preferences:processDebugManifest UP-TO-DATE
+> Task :capacitor-share:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-share:processDebugManifest UP-TO-DATE
+> Task :capacitor-android:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-android:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-android:generateDebugRFile UP-TO-DATE
+> Task :capacitor-app:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:processDebugManifest
+> Task :capacitor-app:parseDebugLocalResources UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :capacitor-app:generateDebugRFile UP-TO-DATE
+> Task :capacitor-camera:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-camera:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-camera:generateDebugRFile UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:compileDebugLibraryResources
+> Task :capacitor-filesystem:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-filesystem:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-filesystem:generateDebugRFile UP-TO-DATE
+> Task :capacitor-preferences:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-preferences:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-preferences:generateDebugRFile UP-TO-DATE
+> Task :capacitor-share:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:parseDebugLocalResources
+> Task :capacitor-share:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-share:generateDebugRFile UP-TO-DATE
+> Task :capacitor-android:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:generateDebugRFile
+> Task :capacitor-android:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :capacitor-android:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-app:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :capacitor-app:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-camera:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-camera:compileDebugJavaWithJavac UP-TO-DATE
+> Task :capacitor-camera:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:javaPreCompileDebug
+> Task :capacitor-filesystem:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:compileDebugJavaWithJavac NO-SOURCE
+> Task :capacitor-cordova-android-plugins:bundleLibCompileToJarDebug
+> Task :capacitor-filesystem:compileDebugJavaWithJavac UP-TO-DATE
+> Task :capacitor-filesystem:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-preferences:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-preferences:compileDebugJavaWithJavac UP-TO-DATE
+> Task :capacitor-preferences:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-share:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-share:compileDebugJavaWithJavac UP-TO-DATE
+> Task :capacitor-share:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :capacitor-android:mergeDebugShaders UP-TO-DATE
+> Task :capacitor-android:compileDebugShaders NO-SOURCE
+> Task :capacitor-android:generateDebugAssets UP-TO-DATE
+> Task :capacitor-android:mergeDebugAssets UP-TO-DATE
+> Task :capacitor-app:mergeDebugShaders UP-TO-DATE
+> Task :capacitor-app:compileDebugShaders NO-SOURCE
+> Task :capacitor-app:generateDebugAssets UP-TO-DATE
+> Task :capacitor-app:mergeDebugAssets UP-TO-DATE
+> Task :capacitor-camera:mergeDebugShaders UP-TO-DATE
+> Task :capacitor-camera:compileDebugShaders NO-SOURCE
+> Task :capacitor-camera:generateDebugAssets UP-TO-DATE
+> Task :capacitor-camera:mergeDebugAssets UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:mergeDebugShaders
+> Task :capacitor-cordova-android-plugins:compileDebugShaders NO-SOURCE
+> Task :capacitor-cordova-android-plugins:generateDebugAssets UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:mergeDebugAssets
+> Task :capacitor-filesystem:mergeDebugShaders UP-TO-DATE
+> Task :capacitor-filesystem:compileDebugShaders NO-SOURCE
+> Task :capacitor-filesystem:generateDebugAssets UP-TO-DATE
+> Task :capacitor-filesystem:mergeDebugAssets UP-TO-DATE
+> Task :capacitor-preferences:mergeDebugShaders UP-TO-DATE
+> Task :capacitor-preferences:compileDebugShaders NO-SOURCE
+> Task :capacitor-preferences:generateDebugAssets UP-TO-DATE
+> Task :capacitor-preferences:mergeDebugAssets UP-TO-DATE
+> Task :capacitor-share:mergeDebugShaders UP-TO-DATE
+> Task :capacitor-share:compileDebugShaders NO-SOURCE
+> Task :capacitor-share:generateDebugAssets UP-TO-DATE
+> Task :capacitor-share:mergeDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :capacitor-app:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :capacitor-android:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :capacitor-camera:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :capacitor-filesystem:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :capacitor-preferences:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :capacitor-share:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:bundleLibRuntimeToJarDebug
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:dexBuilderDebug UP-TO-DATE
+> Task :app:processDebugJavaRes NO-SOURCE
+> Task :capacitor-android:processDebugJavaRes NO-SOURCE
+> Task :capacitor-app:processDebugJavaRes NO-SOURCE
+> Task :capacitor-camera:processDebugJavaRes NO-SOURCE
+> Task :capacitor-cordova-android-plugins:processDebugJavaRes NO-SOURCE
+> Task :capacitor-filesystem:processDebugJavaRes NO-SOURCE
+> Task :capacitor-preferences:processDebugJavaRes NO-SOURCE
+> Task :capacitor-share:processDebugJavaRes NO-SOURCE
+> Task :app:mergeDebugJavaResource UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:mergeExtDexDebug UP-TO-DATE
+> Task :app:mergeDebugGlobalSynthetics UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:mergeProjectDexDebug UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :capacitor-android:mergeDebugJniLibFolders UP-TO-DATE
+> Task :capacitor-android:mergeDebugNativeLibs NO-SOURCE
+> Task :capacitor-android:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :capacitor-app:mergeDebugNativeLibs NO-SOURCE
+> Task :capacitor-app:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-camera:mergeDebugJniLibFolders UP-TO-DATE
+> Task :capacitor-camera:mergeDebugNativeLibs NO-SOURCE
+> Task :capacitor-camera:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:mergeDebugJniLibFolders
+> Task :capacitor-cordova-android-plugins:mergeDebugNativeLibs NO-SOURCE
+> Task :capacitor-cordova-android-plugins:copyDebugJniLibsProjectOnly
+> Task :capacitor-filesystem:mergeDebugJniLibFolders UP-TO-DATE
+> Task :capacitor-filesystem:mergeDebugNativeLibs NO-SOURCE
+> Task :capacitor-filesystem:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-preferences:mergeDebugJniLibFolders UP-TO-DATE
+> Task :capacitor-preferences:mergeDebugNativeLibs NO-SOURCE
+> Task :capacitor-preferences:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-share:mergeDebugJniLibFolders UP-TO-DATE
+> Task :capacitor-share:mergeDebugNativeLibs NO-SOURCE
+> Task :capacitor-share:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:validateSigningDebug UP-TO-DATE
+> Task :app:writeDebugAppMetadata UP-TO-DATE
+> Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :app:packageDebug UP-TO-DATE
+> Task :app:createDebugApkListingFileRedirect UP-TO-DATE
+> Task :app:assembleDebug UP-TO-DATE
+> Task :capacitor-android:stripDebugDebugSymbols NO-SOURCE
+> Task :capacitor-android:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :capacitor-android:extractDebugAnnotations UP-TO-DATE
+> Task :capacitor-android:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :capacitor-android:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :capacitor-android:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :capacitor-android:prepareDebugArtProfile UP-TO-DATE
+> Task :capacitor-android:prepareLintJarForPublish UP-TO-DATE
+> Task :capacitor-android:mergeDebugJavaResource UP-TO-DATE
+> Task :capacitor-android:syncDebugLibJars UP-TO-DATE
+> Task :capacitor-android:bundleDebugAar UP-TO-DATE
+> Task :capacitor-android:assembleDebug UP-TO-DATE
+> Task :capacitor-app:stripDebugDebugSymbols NO-SOURCE
+> Task :capacitor-app:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :capacitor-app:extractDebugAnnotations UP-TO-DATE
+> Task :capacitor-app:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :capacitor-app:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :capacitor-app:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :capacitor-app:prepareDebugArtProfile UP-TO-DATE
+> Task :capacitor-app:prepareLintJarForPublish UP-TO-DATE
+> Task :capacitor-app:mergeDebugJavaResource UP-TO-DATE
+> Task :capacitor-app:syncDebugLibJars UP-TO-DATE
+> Task :capacitor-app:bundleDebugAar UP-TO-DATE
+> Task :capacitor-app:assembleDebug UP-TO-DATE
+> Task :capacitor-camera:stripDebugDebugSymbols NO-SOURCE
+> Task :capacitor-camera:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :capacitor-camera:extractDebugAnnotations UP-TO-DATE
+> Task :capacitor-camera:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :capacitor-camera:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :capacitor-camera:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :capacitor-camera:prepareDebugArtProfile UP-TO-DATE
+> Task :capacitor-camera:prepareLintJarForPublish UP-TO-DATE
+> Task :capacitor-camera:mergeDebugJavaResource UP-TO-DATE
+> Task :capacitor-camera:syncDebugLibJars UP-TO-DATE
+> Task :capacitor-camera:bundleDebugAar UP-TO-DATE
+> Task :capacitor-camera:assembleDebug UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:stripDebugDebugSymbols NO-SOURCE
+> Task :capacitor-cordova-android-plugins:copyDebugJniLibsProjectAndLocalJars
+> Task :capacitor-cordova-android-plugins:extractDebugAnnotations
+> Task :capacitor-cordova-android-plugins:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:prepareDebugArtProfile UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:prepareLintJarForPublish UP-TO-DATE
+> Task :capacitor-filesystem:stripDebugDebugSymbols NO-SOURCE
+> Task :capacitor-filesystem:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :capacitor-filesystem:extractDebugAnnotations UP-TO-DATE
+> Task :capacitor-filesystem:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:mergeDebugJavaResource
+> Task :capacitor-filesystem:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:syncDebugLibJars
+> Task :capacitor-cordova-android-plugins:bundleDebugAar
+> Task :capacitor-cordova-android-plugins:assembleDebug
+> Task :capacitor-filesystem:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :capacitor-filesystem:prepareDebugArtProfile UP-TO-DATE
+> Task :capacitor-filesystem:prepareLintJarForPublish UP-TO-DATE
+> Task :capacitor-filesystem:mergeDebugJavaResource UP-TO-DATE
+> Task :capacitor-filesystem:syncDebugLibJars UP-TO-DATE
+> Task :capacitor-filesystem:bundleDebugAar UP-TO-DATE
+> Task :capacitor-filesystem:assembleDebug UP-TO-DATE
+> Task :capacitor-preferences:stripDebugDebugSymbols NO-SOURCE
+> Task :capacitor-preferences:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :capacitor-preferences:extractDebugAnnotations UP-TO-DATE
+> Task :capacitor-preferences:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :capacitor-preferences:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :capacitor-preferences:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :capacitor-preferences:prepareDebugArtProfile UP-TO-DATE
+> Task :capacitor-preferences:prepareLintJarForPublish UP-TO-DATE
+> Task :capacitor-preferences:mergeDebugJavaResource UP-TO-DATE
+> Task :capacitor-preferences:syncDebugLibJars UP-TO-DATE
+> Task :capacitor-preferences:bundleDebugAar UP-TO-DATE
+> Task :capacitor-preferences:assembleDebug UP-TO-DATE
+> Task :capacitor-share:stripDebugDebugSymbols NO-SOURCE
+> Task :capacitor-share:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :capacitor-share:extractDebugAnnotations UP-TO-DATE
+> Task :capacitor-share:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :capacitor-share:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :capacitor-share:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :capacitor-share:prepareDebugArtProfile UP-TO-DATE
+> Task :capacitor-share:prepareLintJarForPublish UP-TO-DATE
+> Task :capacitor-share:mergeDebugJavaResource UP-TO-DATE
+> Task :capacitor-share:syncDebugLibJars UP-TO-DATE
+> Task :capacitor-share:bundleDebugAar UP-TO-DATE
+> Task :capacitor-share:assembleDebug UP-TO-DATE
+
+BUILD SUCCESSFUL in 17s
+220 actionable tasks: 21 executed, 199 up-to-date
+[5/5] Copying the APK to Downloads...
+        1 file(s) copied.
+
+DONE: C:\Users\shan-e-ulfat\Downloads\england-orders-1.3.2-erp-debug.apk
+SIZE: 9108373 bytes
+      "versionCode": 7,
+      "versionName": "1.3.2",
+Press any key to continue . . . 
+BUILD_EXIT=0 
+ 
+===== CERT: NEW 1.3.2 APK ===== 
+Signer #1:
+
+Certificate #1:
+Owner: C=US, O=Android, CN=Android Debug
+Issuer: C=US, O=Android, CN=Android Debug
+Serial number: 1
+Valid from: Fri Oct 02 14:05:26 PKT 2026 until: Sun Sep 24 14:05:26 PKT 2056
+Certificate fingerprints:
+	 SHA1: F5:8F:0A:A6:0F:C0:8A:2B:95:BE:FF:E3:81:63:A7:89:CB:DE:ED:9D
+	 SHA256: 4E:5B:9A:C5:A8:C2:93:92:78:D4:47:73:C4:B0:49:12:28:C0:D9:63:2F:52:6C:26:36:64:2E:80:17:0F:2B:26
+Signature algorithm name: SHA256withRSA
+Subject Public Key Algorithm: 2048-bit RSA key
+Version: 1
+
+===== CERT: PREVIOUS 1.3.1 APK ===== 
+Signer #1:
+
+Certificate #1:
+Owner: C=US, O=Android, CN=Android Debug
+Issuer: C=US, O=Android, CN=Android Debug
+Serial number: 1
+Valid from: Fri Oct 02 14:05:26 PKT 2026 until: Sun Sep 24 14:05:26 PKT 2056
+Certificate fingerprints:
+	 SHA1: F5:8F:0A:A6:0F:C0:8A:2B:95:BE:FF:E3:81:63:A7:89:CB:DE:ED:9D
+	 SHA256: 4E:5B:9A:C5:A8:C2:93:92:78:D4:47:73:C4:B0:49:12:28:C0:D9:63:2F:52:6C:26:36:64:2E:80:17:0F:2B:26
+Signature algorithm name: SHA256withRSA
+Subject Public Key Algorithm: 2048-bit RSA key
+Version: 1
+
+===== CERT: PREVIOUS 1.2.0 APK (if present) ===== 
+Signer #1:
+
+Certificate #1:
+Owner: C=US, O=Android, CN=Android Debug
+Issuer: C=US, O=Android, CN=Android Debug
+Serial number: 1
+Valid from: Fri Oct 02 14:05:26 PKT 2026 until: Sun Sep 24 14:05:26 PKT 2056
+Certificate fingerprints:
+	 SHA1: F5:8F:0A:A6:0F:C0:8A:2B:95:BE:FF:E3:81:63:A7:89:CB:DE:ED:9D
+	 SHA256: 4E:5B:9A:C5:A8:C2:93:92:78:D4:47:73:C4:B0:49:12:28:C0:D9:63:2F:52:6C:26:36:64:2E:80:17:0F:2B:26
+Signature algorithm name: SHA256withRSA
+Subject Public Key Algorithm: 2048-bit RSA key
+Version: 1
+
+===== CERT: THIS PC DEBUG KEYSTORE (public fingerprints only) ===== 
+Owner: C=US, O=Android, CN=Android Debug
+Valid from: Fri Oct 02 14:05:26 PKT 2026 until: Sun Sep 24 14:05:26 PKT 2056
+	 SHA1: F5:8F:0A:A6:0F:C0:8A:2B:95:BE:FF:E3:81:63:A7:89:CB:DE:ED:9D
+	 SHA256: 4E:5B:9A:C5:A8:C2:93:92:78:D4:47:73:C4:B0:49:12:28:C0:D9:63:2F:52:6C:26:36:64:2E:80:17:0F:2B:26
+Signature algorithm name: SHA256withRSA
+===== APK FILES IN DOWNLOADS ===== 
+ Volume in drive C has no label.
+ Volume Serial Number is EA11-CE28
+
+ Directory of C:\Users\shan-e-ulfat\Downloads
+
+11/04/2026  09:23 PM           8443291 england-orders-1.0.0-debug.apk
+11/04/2026  11:56 PM           9155350 england-orders-1.1.0-urdu-debug.apk
+11/05/2026  12:26 PM           9098329 england-orders-1.1.1-urdu-debug.apk
+11/05/2026  05:06 PM           9152612 england-orders-1.2.0-builty-debug.apk
+11/06/2026  03:18 PM           9108367 england-orders-1.3.0-erp-debug.apk
+11/06/2026  05:31 PM           9109027 england-orders-1.3.1-erp-debug.apk
+11/10/2026  06:55 PM           9108373 england-orders-1.3.2-erp-debug.apk
+               7 File(s)       63175349 bytes
+               0 Dir(s)     18824822784 bytes free
+===== END Tue 11/10/2026 18:57:35.56 ===== 

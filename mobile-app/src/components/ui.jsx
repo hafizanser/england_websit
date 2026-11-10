@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { STATUS_LABEL } from '../config.js';
+import { ORIGIN_LABEL, STATUS_LABEL } from '../config.js';
 import { pushBack } from '../lib/backstack.js';
-import { cx, dayLabelLong, isRtl } from '../lib/format.js';
+import { cx, dayLabelLong, isRtl, unitUr } from '../lib/format.js';
 
 // One consistent line-icon set (24px grid, currentColor), like Masoom's Icon.jsx.
 const PATHS = {
@@ -31,6 +32,11 @@ const PATHS = {
   refresh: <><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8" /><path d="M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5L20 16" /><path d="M20 20v-4h-4" /></>,
   sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" /></>,
   moon: <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />,
+  lock: <><rect x="5" y="10.5" width="14" height="10" rx="2.5" /><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" /><path d="M12 14.5v2.5" /></>,
+  eye: <><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></>,
+  eyeOff: <><path d="M10.6 5.6A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.6 3.4M6.4 6.9C3.9 8.6 2.5 12 2.5 12S6 18.5 12 18.5c1.6 0 3-.4 4.2-1" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" /></>,
+  imageUp: <><path d="M20.5 13v5a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 18V6A2.5 2.5 0 0 1 6 3.5h6" /><path d="m3.8 17.5 5-5 4 4 2-2 5.4 5.2" /><path d="M18 10V3.5M15 6.5l3-3 3 3" /></>,
+  checkCircle: <><circle cx="12" cy="12" r="9" /><path d="m8 12.3 2.8 2.8L16.2 9.5" /></>,
   phoneSet: <><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M10.5 18.5h3" /></>,
   logout: <><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /><path d="M10 16l-4-4 4-4M6 12h10" /></>,
   edit: <><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="m13.5 6.5 4 4" /></>,
@@ -65,8 +71,8 @@ export function UText({ children, as: Tag = 'span', className = '', ...rest }) {
   return <Tag dir={rtl ? 'rtl' : 'ltr'} className={cx(className, rtl ? 'ur-data' : 'lat-data')} {...rest}>{children}</Tag>;
 }
 
-const STATUS_TONE = { pending: 'new', confirmed: 'received', packed: 'preparing', shipped: 'shipped', delivered: 'done', cancelled: 'cancelled' };
-const STATUS_ICON = { delivered: 'check', cancelled: 'close', shipped: 'truck', packed: 'box', confirmed: 'check', pending: 'clock' };
+const STATUS_TONE = { pending: 'new', confirmed: 'received', packed: 'preparing', shipped: 'shipped', delivered: 'done', cancelled: 'cancelled', posted: 'received' };
+const STATUS_ICON = { delivered: 'check', cancelled: 'close', shipped: 'truck', packed: 'box', confirmed: 'check', pending: 'clock', posted: 'receipt' };
 
 export function StatusPill({ status, size = 'md' }) {
   return (
@@ -75,6 +81,33 @@ export function StatusPill({ status, size = 'md' }) {
       <span>{STATUS_LABEL[status] || status || 'نامعلوم'}</span>
     </span>
   );
+}
+
+/** Where a record comes from: England website/dashboard order or Accountrix ERP sale. */
+export function OriginBadge({ origin, size = 'md' }) {
+  const erp = origin === 'erp';
+  return (
+    <span className={cx('origin', erp ? 'origin--erp' : 'origin--web', size === 'sm' && 'origin--sm')} title={erp ? 'Accountrix ERP سیل' : 'انگلینڈ ویب سائٹ آرڈر'}>
+      <Icon name={erp ? 'receipt' : 'store'} size={size === 'sm' ? 12 : 14} strokeWidth={2.4} />
+      <span>{ORIGIN_LABEL[erp ? 'erp' : 'website']}</span>
+    </span>
+  );
+}
+
+/**
+ * Quantity of one line. Website lines are "qty unit"; ERP lines can mix units
+ * ("2 CTN + 24 PCS") and carry a free bonus, both sent ready-made by the server.
+ */
+export function LineQty({ item, className }) {
+  if (item.qty_text) {
+    return (
+      <span className={className}>
+        <Num>{item.qty_text}</Num>
+        {item.bonus && <small className="lineqty__bonus"> + <Num>{item.bonus}</Num> بونس</small>}
+      </span>
+    );
+  }
+  return <span className={className}><Num>{item.qty}</Num> {unitUr(item.unit)}</span>;
 }
 
 /** Green tick only after the server confirmed the slip; amber "باقی ہے" otherwise. */
@@ -107,15 +140,26 @@ export function Button({ variant = 'primary', block = true, size, className, chi
 export function SkeletonCard() {
   return (
     <div className="ocard ocard--skeleton" aria-hidden="true">
-      <div className="sk sk--w60" /><div className="sk sk--w40" /><div className="sk sk--w80" />
+      <div className="sk-row"><div className="sk sk--w50 sk--lg" /><div className="sk sk--w25" /></div>
+      <div className="sk-row sk-row--end"><div className="sk sk--w20" /></div>
+      <div className="sk-block"><div className="sk sk--w80" /><div className="sk sk--w60" /></div>
+      <div className="sk sk--btn" />
     </div>
   );
+}
+
+/**
+ * A bar fixed to the bottom of the phone screen (tab bar, save button). Rendered into
+ * <body> so the page-enter animation can never carry it along or make it scroll.
+ */
+export function FixedBar({ children, className, ...rest }) {
+  return createPortal(<div className={cx('fixedbar', className)} {...rest}>{children}</div>, document.body);
 }
 
 export function EmptyState({ icon = 'box', title, text, children }) {
   return (
     <div className="empty">
-      <span className="empty__icon"><Icon name={icon} size={64} strokeWidth={1.4} /></span>
+      <span className="empty__icon"><Icon name={icon} size={34} strokeWidth={1.7} /></span>
       <h3>{title}</h3>
       {text && <p>{text}</p>}
       {children}
@@ -123,12 +167,19 @@ export function EmptyState({ icon = 'box', title, text, children }) {
   );
 }
 
+const ERROR_TITLE = {
+  server_outdated: 'سرور اپ ڈیٹ نہیں ہوا',
+  server_error: 'سرور میں مسئلہ',
+  rate_limited: 'تھوڑا رک جائیں',
+};
+
 export function ErrorState({ error, onRetry }) {
   const offline = error?.offline;
+  const title = offline ? 'انٹرنیٹ دستیاب نہیں' : (ERROR_TITLE[error?.reason] || 'معلومات نہیں آ سکیں');
   return (
-    <div className="empty empty--error">
-      <span className="empty__icon"><Icon name={offline ? 'wifi' : 'alert'} size={60} strokeWidth={1.4} /></span>
-      <h3>{offline ? 'انٹرنیٹ دستیاب نہیں' : 'معلومات نہیں آ سکیں'}</h3>
+    <div className="empty empty--error" data-reason={error?.reason || undefined}>
+      <span className="empty__icon"><Icon name={offline ? 'wifi' : 'alert'} size={34} strokeWidth={1.7} /></span>
+      <h3>{title}</h3>
       <p>{error?.message || 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔'}</p>
       {onRetry && <Button block={false} onClick={onRetry}><Icon name="refresh" size={18} /> دوبارہ کوشش کریں</Button>}
     </div>

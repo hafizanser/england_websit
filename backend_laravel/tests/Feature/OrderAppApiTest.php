@@ -61,6 +61,9 @@ class OrderAppApiTest extends TestCase
             'yesterday' => $mk($c1, '2026-11-03 10:00:00', 'delivered'),
             'old' => $mk($c2, '2026-10-01 10:00:00', 'cancelled'),
         ];
+        // A multi-product order.
+        DB::table('fmcg_order_items')->insert(['order_id' => $this->ids['today'], 'product_id' => '9', 'name' => 'England 5G Razor', 'sub' => 'Pack of 10',
+            'unit' => 'Carton', 'qty' => 5, 'unit_price' => 3000, 'line_total' => 15000, 'discount' => 0]);
     }
 
     protected function tearDown(): void
@@ -72,7 +75,7 @@ class OrderAppApiTest extends TestCase
 
     private function token(): string
     {
-        return $this->postJson('/app/auth/login', ['username' => 'teamlead', 'password' => 'secret-pass'])->assertOk()->json('token');
+        return $this->postJson('/app/auth/login', ['username' => 'teamlead', 'password' => 'secret-pass'])->assertOk()->json('data.token');
     }
 
     private function api(string $method, string $uri, array $data = [])
@@ -94,111 +97,181 @@ class OrderAppApiTest extends TestCase
         return new UploadedFile($tmp, $name, null, null, true);
     }
 
-    public function test_login_is_required_and_wrong_passwords_are_refused(): void
+    private function code(string $key): string
     {
-        $this->getJson('/app/orders')->assertStatus(401);
-        $this->postJson('/app/auth/login', ['username' => 'teamlead', 'password' => 'nope'])->assertStatus(401);
-        $t = $this->token();
-        $this->withHeader('Authorization', 'Bearer ' . $t)->getJson('/app/auth/me')->assertOk()->assertJsonPath('user.username', 'teamlead');
-        // Signing in to the website dashboard does not sign the app out.
-        $this->postJson('/auth/admin/login', ['username' => 'teamlead', 'password' => 'secret-pass'])->assertOk();
-        $this->withHeader('Authorization', 'Bearer ' . $t)->getJson('/app/auth/me')->assertOk();
+        return 'ENG-' . (1000 + $this->ids[$key]);
     }
 
-    public function test_tabs_counts_search_and_pagination_follow_the_business_day(): void
+    private function envelope($r, int $code, bool $error = false)
+    {
+        $r->assertStatus($code)->assertJsonPath('error', $error)->assertJsonPath('code', $code);
+        $this->assertIsString($r->json('message'));
+        $this->assertIsArray($r->json('data'));
+        return $r;
+    }
+
+    public function test_auth_uses_the_app_envelope(): void
+    {
+        $r = $this->envelope($this->getJson('/app/orders'), 401, true);
+        $this->assertSame('unauthenticated', $r->json('data.reason'));
+        $this->assertSame('invalid_credentials', $this->envelope($this->postJson('/app/auth/login', ['username' => 'teamlead', 'password' => 'nope']), 401, true)->json('data.reason'));
+        $r = $this->envelope($this->postJson('/app/auth/login', []), 422, true);
+        $this->assertSame('validation_failed', $r->json('data.reason'));
+        $this->assertArrayHasKey('username', $r->json('data.fields'));
+
+        $t = $this->token();
+        $this->envelope($this->withHeader('Authorization', 'Bearer ' . $t)->getJson('/app/auth/me'), 200)->assertJsonPath('data.user.username', 'teamlead');
+        // Signing in to the website dashboard does not sign the app out; the website keeps its own envelope.
+        $this->postJson('/auth/admin/login', ['username' => 'teamlead', 'password' => 'secret-pass'])->assertOk()->assertJsonPath('ok', true);
+        $this->withHeader('Authorization', 'Bearer ' . $t)->getJson('/app/auth/me')->assertOk();
+        // Unknown /app route → app envelope.
+        $this->assertSame('not_found', $this->envelope($this->withHeader('Authorization', 'Bearer ' . $t)->getJson('/app/nope'), 404, true)->json('data.reason'));
+    }
+
+    public function test_cards_carry_city_adda_and_every_product_with_quantities_but_no_prices(): void
     {
         $t = $this->token();
-        $get = fn ($q) => $this->withHeader('Authorization', 'Bearer ' . $t)->getJson('/app/orders?' . $q)->assertOk();
+        $get = fn ($q) => $this->envelope($this->withHeader('Authorization', 'Bearer ' . $t)->getJson('/app/orders?' . $q), 200);
 
         $r = $get('tab=today');
-        $this->assertSame(['today' => 2, 'tomorrow' => 0, 'previous' => 2, 'all' => 4], $r->json('counts'));
-        $this->assertEqualsCanonicalizing([$this->ids['today'], $this->ids['todayLate']], array_column($r->json('data'), 'id'));
-        $this->assertSame('2026-11-04', $r->json('meta.today'));
-        $card = collect($r->json('data'))->firstWhere('id', $this->ids['today']);
-        $this->assertSame('TEST علی کریانہ', $card['customer']['name']);
-        $this->assertFalse($card['slip']['uploaded']);
+        $this->assertSame(['today' => 2, 'tomorrow' => 0, 'previous' => 2, 'all' => 4], $r->json('data.counts'));
+        $this->assertEqualsCanonicalizing([$this->ids['today'], $this->ids['todayLate']], array_column($r->json('data.orders'), 'id'));
+        $this->assertSame('2026-11-04', $r->json('data.meta.today'));
+        $card = collect($r->json('data.orders'))->firstWhere('id', $this->ids['today']);
+        $this->assertSame($this->code('today'), $card['code']);
+        $this->assertSame(['name' => 'TEST علی کریانہ', 'phone' => '03001234567', 'city' => 'Lahore'], $card['customer']);
+        $this->assertSame(2, $card['items_count']);
+        $this->assertSame([['England Classic Razer', 'Carton', 2], ['England 5G Razor', 'Carton', 5]],
+            array_map(fn ($i) => [$i['name'], $i['unit'], $i['qty']], $card['items']));
+        $this->assertNull($card['adda_name']);
+        $this->assertSame(['uploaded' => false, 'uploaded_at' => null], $card['builty']['front']);
+        $this->assertSame(0, $card['builty']['uploaded_count']);
+        $this->assertFalse($card['builty']['complete']);
+        // No price, total or discount anywhere in the list.
+        $json = json_encode($r->json('data.orders'));
+        foreach (['total', 'price', 'discount', 'subtotal', 'line_total'] as $k) {
+            $this->assertStringNotContainsString('"' . $k . '"', $json, "list must not expose $k");
+        }
 
-        // A delivery date moves an order between tabs (the order itself is untouched).
+        // Adda + delivery date: moves the order to tomorrow, shown on the card.
         $this->withHeader('Authorization', 'Bearer ' . $t)->patchJson("/app/orders/{$this->ids['yesterday']}/delivery", ['delivery_date' => '2026-11-05', 'pandi_name' => 'Akram Pandi', 'adda_name' => 'Badami Bagh Adda'])->assertOk();
         $r = $get('tab=tomorrow');
-        $this->assertSame([$this->ids['yesterday']], array_column($r->json('data'), 'id'));
-        $this->assertSame('Akram Pandi', $r->json('data.0.pandi_name'));
-        $this->assertSame(1, $r->json('counts.previous'));
+        $this->assertSame([$this->ids['yesterday']], array_column($r->json('data.orders'), 'id'));
+        $this->assertSame('Badami Bagh Adda', $r->json('data.orders.0.adda_name'));
+        $this->assertSame(1, $r->json('data.counts.previous'));
 
-        // Search: name, phone in any format, order code.
-        $this->assertSame(2, $get('tab=all&q=' . urlencode('علی'))->json('meta.total'));
-        $this->assertSame(2, $get('tab=all&q=' . urlencode('+92 321 7654321'))->json('meta.total'));
-        $code = 'ENG-' . (1000 + $this->ids['old']);
-        $this->assertSame([$this->ids['old']], array_column($get('tab=all&q=' . $code)->json('data'), 'id'));
-        // Filters: status, date range, slip.
-        $this->assertSame(1, $get('tab=all&status=cancelled')->json('meta.total'));
-        $this->assertSame(3, $get('tab=all&from=2026-11-04')->json('meta.total'));
-        $this->assertSame(1, $get('tab=all&to=2026-10-31')->json('meta.total'));
-        // Pagination.
+        // Search and filters still work.
+        $this->assertSame(2, $get('tab=all&q=' . urlencode('علی'))->json('data.meta.total'));
+        $this->assertSame(2, $get('tab=all&q=' . urlencode('+92 321 7654321'))->json('data.meta.total'));
+        $this->assertSame([$this->ids['old']], array_column($get('tab=all&q=' . $this->code('old'))->json('data.orders'), 'id'));
+        $this->assertSame(1, $get('tab=all&status=cancelled')->json('data.meta.total'));
+        $this->assertSame(3, $get('tab=all&from=2026-11-04')->json('data.meta.total'));
+        $this->assertSame(1, $get('tab=all&to=2026-10-31')->json('data.meta.total'));
         $p = $get('tab=all&per_page=5&page=1');
-        $this->assertSame(1, $p->json('meta.last_page'));
-        $this->assertCount(4, $p->json('data'));
+        $this->assertSame(1, $p->json('data.meta.last_page'));
+        $this->assertCount(4, $p->json('data.orders'));
     }
 
-    public function test_order_details_show_customer_items_totals_and_delivery(): void
+    public function test_order_detail_has_products_and_customer_without_prices(): void
     {
-        $o = $this->api('GET', "/app/orders/{$this->ids['today']}")->assertOk()->json('order');
+        $r = $this->envelope($this->api('GET', "/app/orders/{$this->ids['today']}"), 200);
+        $o = $r->json('data.order');
         $this->assertSame(['name' => 'TEST علی کریانہ', 'phone' => '03001234567', 'address' => 'Shop 4, Akbari Mandi', 'city' => 'Lahore'], $o['customer']);
-        $this->assertSame('England Classic Razer', $o['items'][0]['name']);
-        $this->assertSame(['Carton', 2, 4800], [$o['items'][0]['unit'], $o['items'][0]['qty'], $o['items'][0]['net_total']]);
-        $this->assertSame(4800, $o['totals']['total']);
+        $this->assertSame(['England Classic Razer', 'England 5G Razor'], array_column($o['items'], 'name'));
+        $this->assertSame([2, 5], array_column($o['items'], 'qty'));
         $this->assertSame('2026-11-04', $o['order_date']);
-        $this->assertNull($o['pandi_name']);
-        $this->api('GET', '/app/orders/999999')->assertStatus(404);
+        $this->assertFalse($o['builty']['front']['uploaded']);
+        $this->assertFalse($o['builty']['back']['uploaded']);
+        $this->assertArrayNotHasKey('totals', $o);
+        $this->assertStringNotContainsString('price', json_encode($o));
+        $this->assertSame('order_not_found', $this->envelope($this->api('GET', '/app/orders/999999'), 404, true)->json('data.reason'));
     }
 
-    public function test_slip_upload_attaches_to_the_exact_order_and_never_changes_the_order(): void
+    public function test_builty_front_and_back_upload_replace_view_and_isolation(): void
     {
         $id = $this->ids['today'];
-        $code = 'ENG-' . (1000 + $id);
+        $code = $this->code('today');
         $before = (array) DB::table('fmcg_orders')->where('id', $id)->first();
         $items = DB::table('fmcg_order_items')->where('order_id', $id)->get()->toArray();
-        $t = $this->token();
-        $h = ['Authorization' => 'Bearer ' . $t, 'Accept' => 'application/json'];
+        $h = ['Authorization' => 'Bearer ' . $this->token(), 'Accept' => 'application/json'];
+        $post = fn (string $side, array $data, ?int $oid = null) => $this->withHeaders($h)->post('/app/orders/' . ($oid ?? $id) . "/builty/{$side}", $data);
 
-        // Wrong order code → refused, nothing stored.
-        $this->withHeaders($h)->post("/app/orders/{$id}/slip", ['order_code' => 'ENG-1999', 'slip' => $this->photo()])->assertStatus(409);
-        $this->withHeaders($h)->post("/app/orders/{$id}/slip", ['slip' => $this->photo()])->assertStatus(409);
-        // Bad files → refused with a message.
-        $this->withHeaders($h)->post("/app/orders/{$id}/slip", ['order_code' => $code, 'slip' => UploadedFile::fake()->create('x.pdf', 20, 'application/pdf')])
-            ->assertStatus(422)->assertJsonPath('ok', false);
-        $this->withHeaders($h)->post("/app/orders/{$id}/slip", ['order_code' => $code, 'slip' => $this->photo(100, 80)])->assertStatus(422);
-        $this->assertFalse($this->withHeaders($h)->getJson("/app/orders/{$id}")->json('order.slip.uploaded'));
+        // Wrong / missing order code → 409, nothing stored.
+        $this->assertSame('order_mismatch', $this->envelope($post('front', ['order_code' => $this->code('todayLate'), 'image' => $this->photo()]), 409, true)->json('data.reason'));
+        $this->envelope($post('front', ['image' => $this->photo()]), 409, true);
+        // Validation.
+        $this->assertSame('validation_failed', $this->envelope($post('front', ['order_code' => $code]), 422, true)->json('data.reason'));
+        $this->assertSame('image_type_not_allowed', $this->envelope($post('front', ['order_code' => $code, 'image' => UploadedFile::fake()->create('x.pdf', 20, 'application/pdf')]), 422, true)->json('data.reason'));
+        $this->assertSame('image_too_small', $this->envelope($post('back', ['order_code' => $code, 'image' => $this->photo(100, 80)]), 422, true)->json('data.reason'));
+        $this->envelope($post('side', ['order_code' => $code, 'image' => $this->photo()]), 404, true);
+        $this->assertNull(DB::table('fmcg_order_deliveries')->where('order_id', $id)->value('slip_path'));
 
-        // Good upload → 201 only after the file and its row are saved.
-        $r = $this->withHeaders($h)->post("/app/orders/{$id}/slip", ['order_code' => $code, 'slip' => $this->photo(3000, 4000)])->assertStatus(201);
-        $this->assertTrue($r->json('slip.uploaded'));
-        if (function_exists('imagecreatetruecolor')) {
-            $this->assertLessThanOrEqual(2400, max($r->json('slip.width'), $r->json('slip.height')), 'a large photo is scaled down');
-        } else {
-            $this->assertSame(4000, $r->json('slip.height'), 'without GD the (already phone-compressed) photo is kept as sent');
-        }
-        $first = DB::table('fmcg_order_deliveries')->where('order_id', $id)->value('slip_path');
-        $this->assertFileExists($this->slips . '/' . $first);
-        $this->assertStringStartsWith($id . '/' . $code . '-', $first);
+        // Front only → partial.
+        $r = $this->envelope($post('front', ['order_code' => $code, 'image' => $this->photo()]), 201);
+        $this->assertSame('front', $r->json('data.side'));
+        $this->assertTrue($r->json('data.builty.front.uploaded'));
+        $this->assertFalse($r->json('data.builty.back.uploaded'));
+        $this->assertSame(1, $r->json('data.builty.uploaded_count'));
+        $this->assertFalse($r->json('data.builty.complete'));
+        $this->assertSame([$id], array_column($this->withHeaders($h)->getJson('/app/orders?tab=all&builty=partial')->json('data.orders'), 'id'));
+        $this->assertStringNotContainsString('pandi-slips', json_encode($r->json()), 'no private storage path in responses');
+        $this->assertStringNotContainsString($this->slips, json_encode($r->json()));
 
-        // The list shows the tick for this order only.
-        $cards = collect($this->withHeaders($h)->getJson('/app/orders?tab=today')->json('data'))->keyBy('id');
-        $this->assertTrue($cards[$id]['slip']['uploaded']);
-        $this->assertFalse($cards[$this->ids['todayLate']]['slip']['uploaded']);
+        // Back → complete.
+        $r = $this->envelope($post('back', ['order_code' => $code, 'image' => $this->fixture('900x1200.png')]), 201);
+        $this->assertTrue($r->json('data.builty.complete'));
+        $this->assertSame('image/png', $r->json('data.builty.back.mime'));
+        $d = DB::table('fmcg_order_deliveries')->where('order_id', $id)->first();
+        $this->assertStringStartsWith($id . '/' . $code . '-builty-front-', $d->slip_path);
+        $this->assertStringStartsWith($id . '/' . $code . '-builty-back-', $d->builty_back_path);
+        $this->assertCount(2, File::files($this->slips . '/' . $id));
 
-        // The photo streams back to a signed-in admin only.
-        $this->withHeaders($h)->get("/app/orders/{$id}/slip")->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+        // Builty filter: complete vs missing.
+        $this->assertSame([$id], array_column($this->withHeaders($h)->getJson('/app/orders?tab=all&builty=uploaded')->json('data.orders'), 'id'));
+        $this->assertSame(3, $this->withHeaders($h)->getJson('/app/orders?tab=all&builty=pending')->json('data.meta.total'));
+
+        // Cards: complete for this order only.
+        $cards = collect($this->withHeaders($h)->getJson('/app/orders?tab=today')->json('data.orders'))->keyBy('id');
+        $this->assertTrue($cards[$id]['builty']['complete']);
+        $this->assertSame(0, $cards[$this->ids['todayLate']]['builty']['uploaded_count']);
+
+        // Viewer: signed URLs stream the right bytes with no bearer token.
+        $v = $this->envelope($this->withHeaders($h)->getJson("/app/orders/{$id}/builty"), 200);
+        $this->assertSame($code, $v->json('data.order_code'));
+        $front = $v->json('data.builty.front.url');
+        $back = $v->json('data.builty.back.url');
+        $this->assertStringContainsString("/app/orders/{$id}/builty/front/image", $front);
+        $this->assertStringStartsWith("/app/orders/{$id}/builty/front/image?", $v->json('data.builty.front.path'));
         $this->flushHeaders();
-        $this->app['auth']->forgetGuards();
-        $this->get("/app/orders/{$id}/slip", ['Accept' => 'application/json'])->assertStatus(401);
+        $this->get($v->json('data.builty.front.path'), ['X-Forwarded-Proto' => 'https'])->assertOk(); // scheme-independent
+        $this->flushHeaders();
+        $this->get($front)->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+        $this->get($back)->assertOk()->assertHeader('Content-Type', 'image/png');
+        // Tampered URL (another order / other side) → refused.
+        $this->assertSame('link_expired', $this->envelope($this->getJson(str_replace("/orders/{$id}/", '/orders/' . $this->ids['todayLate'] . '/', $front)), 403, true)->json('data.reason'));
+        $this->getJson(str_replace('/front/', '/back/', $front))->assertStatus(403);
+        $this->getJson("/app/orders/{$id}/builty/front/image")->assertStatus(403);
+        // Other order's viewer has nothing.
+        $o = $this->withHeaders($h)->getJson('/app/orders/' . $this->ids['todayLate'] . '/builty')->json('data.builty');
+        $this->assertSame(['front' => ['uploaded' => false], 'back' => ['uploaded' => false], 'uploaded_count' => 0, 'complete' => false], $o);
 
-        // Replacing keeps one file per order.
-        $this->withHeaders($h)->post("/app/orders/{$id}/slip", ['order_code' => $code, 'slip' => $this->fixture('900x1200.png')])->assertStatus(201);
-        $second = DB::table('fmcg_order_deliveries')->where('order_id', $id)->value('slip_path');
-        $this->assertNotSame($first, $second);
-        $this->assertFileDoesNotExist($this->slips . '/' . $first);
-        $this->assertCount(1, File::files($this->slips . '/' . $id));
+        // Replace the back: old file removed, old URL no longer opens it.
+        $oldBack = $d->builty_back_path;
+        $this->envelope($post('back', ['order_code' => $code, 'image' => $this->photo(3000, 4000)]), 201);
+        $newBack = DB::table('fmcg_order_deliveries')->where('order_id', $id)->value('builty_back_path');
+        $this->assertNotSame($oldBack, $newBack);
+        $this->assertFileDoesNotExist($this->slips . '/' . $oldBack);
+        $this->assertCount(2, File::files($this->slips . '/' . $id));
+        $this->flushHeaders();
+        $this->assertSame('image_replaced', $this->envelope($this->getJson($back), 410, true)->json('data.reason'));
+        // Front still intact.
+        $this->assertSame($d->slip_path, DB::table('fmcg_order_deliveries')->where('order_id', $id)->value('slip_path'));
+
+        // Expired link.
+        CarbonImmutable::setTestNow(CarbonImmutable::now()->addMinutes(31));
+        $this->travel(31)->minutes();
+        $this->getJson($front)->assertStatus(403);
+        $this->travelBack();
 
         // The order, its items and its status are exactly as before.
         $this->assertSame($before, (array) DB::table('fmcg_orders')->where('id', $id)->first());
@@ -206,16 +279,29 @@ class OrderAppApiTest extends TestCase
         $this->assertSame(0, DB::table('fmcg_order_status_history')->count());
     }
 
+    public function test_legacy_slip_endpoints_map_to_the_front_image(): void
+    {
+        $id = $this->ids['old'];
+        $h = ['Authorization' => 'Bearer ' . $this->token(), 'Accept' => 'application/json'];
+        $this->envelope($this->withHeaders($h)->post("/app/orders/{$id}/slip", ['order_code' => $this->code('old'), 'slip' => $this->photo()]), 201)
+            ->assertJsonPath('data.builty.front.uploaded', true);
+        $this->withHeaders($h)->get("/app/orders/{$id}/slip")->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+        $this->flushHeaders();
+        $this->app['auth']->forgetGuards();
+        $this->getJson("/app/orders/{$id}/slip")->assertStatus(401);
+    }
+
     public function test_delivery_fields_validate_and_clear(): void
     {
         $id = $this->ids['old'];
-        $this->api('PATCH', "/app/orders/{$id}/delivery", ['delivery_date' => '2026-02-30'])->assertStatus(422);
+        $r = $this->envelope($this->api('PATCH', "/app/orders/{$id}/delivery", ['delivery_date' => '2026-02-30']), 422, true);
+        $this->assertArrayHasKey('delivery_date', $r->json('data.fields'));
         $this->api('PATCH', "/app/orders/{$id}/delivery", ['pandi_name' => str_repeat('x', 121)])->assertStatus(422);
         $this->api('PATCH', "/app/orders/{$id}/delivery", ['order_code' => 'ENG-1', 'pandi_name' => 'X'])->assertStatus(409);
         $this->api('PATCH', "/app/orders/{$id}/delivery", ['pandi_name' => '  Akram   Pandi ', 'adda_name' => 'لاری اڈہ'])->assertOk()
-            ->assertJsonPath('order.pandi_name', 'Akram Pandi')->assertJsonPath('order.adda_name', 'لاری اڈہ');
+            ->assertJsonPath('data.order.pandi_name', 'Akram Pandi')->assertJsonPath('data.order.adda_name', 'لاری اڈہ');
         $this->api('PATCH', "/app/orders/{$id}/delivery", ['pandi_name' => '', 'delivery_date' => ''])->assertOk()
-            ->assertJsonPath('order.pandi_name', null)->assertJsonPath('order.adda_name', 'لاری اڈہ');
+            ->assertJsonPath('data.order.pandi_name', null)->assertJsonPath('data.order.adda_name', 'لاری اڈہ');
         $this->assertSame('cancelled', DB::table('fmcg_orders')->where('id', $id)->value('status'));
     }
 }

@@ -8,6 +8,8 @@ import Login from './screens/Login.jsx';
 import Orders from './screens/Orders.jsx';
 import OrderDetail from './screens/OrderDetail.jsx';
 import Account from './screens/Account.jsx';
+import BuiltyUpload from './screens/BuiltyUpload.jsx';
+import BuiltyViewer from './screens/BuiltyViewer.jsx';
 
 /** Android back button / gesture: close what is open first, then go back, then leave the app. */
 function BackHandler() {
@@ -26,6 +28,13 @@ function BackHandler() {
     })();
     return () => { sub?.remove(); };
   }, [nav, loc.pathname]);
+  return null;
+}
+
+/** Every screen except the order list (which restores its own position) opens at the top. */
+function ScrollTop() {
+  const loc = useLocation();
+  useEffect(() => { if (loc.pathname !== '/') window.scrollTo(0, 0); }, [loc.pathname]);
   return null;
 }
 
@@ -48,6 +57,12 @@ function Screens() {
       <Routes location={loc}>
         <Route path="/" element={<Orders />} />
         <Route path="/orders/:id" element={<OrderDetail />} />
+        <Route path="/orders/:id/builty" element={<BuiltyViewer />} />
+        <Route path="/orders/:id/builty/upload" element={<BuiltyUpload />} />
+        {/* Accountrix ERP sales: same screens, their own API routes. */}
+        <Route path="/erp-sales/:id" element={<OrderDetail origin="erp" />} />
+        <Route path="/erp-sales/:id/builty" element={<BuiltyViewer origin="erp" />} />
+        <Route path="/erp-sales/:id/builty/upload" element={<BuiltyUpload origin="erp" />} />
         <Route path="/account" element={<Account />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -62,6 +77,7 @@ export default function App() {
         <AuthProvider>
           <HashRouter>
             <BackHandler />
+            <ScrollTop />
             <Screens />
           </HashRouter>
         </AuthProvider>

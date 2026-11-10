@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AdminAuth;
+use App\Http\Middleware\AppAdminAuth;
 use App\Http\Middleware\BumpCatalogVersion;
 use App\Http\Middleware\CacheHeaders;
 use App\Http\Middleware\CustomerAuth;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin.auth'    => AdminAuth::class,
+            'app.admin'     => AppAdminAuth::class, // staff app: same rule, app envelope
             'customer.auth' => CustomerAuth::class,
             // Caching policy — see routes/api.php for where each one is applied.
             //   cache.public:<max-age>,<stale-while-revalidate>  public catalogue reads
@@ -42,6 +44,33 @@ return Application::configure(basePath: dirname(__DIR__))
                 return $e->getResponse();
             }
             $status = 500;
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+                $status = $e->getStatusCode();
+            } elseif ($e instanceof \Illuminate\Validation\ValidationException) {
+                $status = 422;
+            }
+            // Staff app (/app/*): the {error, message, code, data} envelope.
+            if ($request->is('app/*')) {
+                if ($e instanceof \Illuminate\Validation\ValidationException) {
+                    return \App\Support\AppApi::fail('Please check the highlighted fields.', 422, 'validation_failed',
+                        ['fields' => collect($e->errors())->map(fn ($m) => $m[0])->all()]);
+                }
+                if ($e instanceof \Illuminate\Routing\Exceptions\InvalidSignatureException) {
+                    return \App\Support\AppApi::fail('This image link has expired. Open the order again.', 403, 'link_expired');
+                }
+                [$msg, $reason] = match (true) {
+                    $status === 404 => ['Not found.', 'not_found'],
+                    $status === 405 => ['Method not allowed.', 'method_not_allowed'],
+                    $status === 413 => ['The photo is too large.', 'image_too_large'],
+                    $status === 429 => ['Too many requests. Please wait a moment.', 'rate_limited'],
+                    $status >= 500 => ['Something went wrong on the server. Please try again.', 'server_error'],
+                    default => [$e->getMessage() ?: 'Request failed.', 'request_failed'],
+                };
+                if ($status >= 500) {
+                    report($e);
+                }
+                return \App\Support\AppApi::fail($msg, $status, $reason);
+            }
             if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
                 $status = $e->getStatusCode();
             } elseif ($e instanceof \Illuminate\Validation\ValidationException) {

@@ -1,0 +1,2772 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "England Orders — Staff App API",
+    "version": "1.3.0",
+    "description": "API behind the England Orders staff app (internal team, admin accounts). Source of truth: fmcg_orders, fmcg_customers, fmcg_order_items; the app writes only fmcg_order_deliveries (delivery date, Pandi, Adda, Builty images). No prices are returned. Order status, quantities, prices and stock are never changed.\n\nEvery response uses one envelope (same as the Masoom app API): `{error, message, code, data}`; `code` equals the HTTP status; failures carry a stable `data.reason` (and `data.fields` for validation). Examples are real responses captured from the local test server (tokens/signatures redacted).\n\n**Accountrix ERP sales (v1.3).** Posted ERP sales are listed with website orders. The England backend pulls them from the ERP's read-only feed (`GET {ERP}/api/integrations/england/sales`, server-to-server bearer token, never sent to the app) into `fmcg_erp_sales` — one row per ERP sale (unique `erp_sale_id`), keeping the ERP invoice number, customer, date and net total. ERP sales are NOT copied into fmcg_orders and the ERP is never written. Every list card and detail carries `origin` (`website` | `erp`) and a unique `key` (`web-<id>` / `erp-<id>`); ids are only unique within one origin, so ERP records are opened via `/app/erp-sales/{id}`. Delivery date, Pandi, Adda and Builty images for an ERP sale are stored in England's `fmcg_erp_sale_deliveries`.\n\nExamples come from the local integration rig (TEST records created through the real website order service and the real ERP SaleService). Ids in your database will differ: take them from `GET /app/orders`.\n\n**Mixed ERP invoices (v1.3).** The ERP feed sends only the configured company's (England) lines and counts the rest (`other_company_lines`); the feed stays off until `ENGLAND_SYNC_COMPANY_IDS` is set in the ERP."
+  },
+  "servers": [
+    {
+      "url": "https://englandwaly.com/api",
+      "description": "Live"
+    },
+    {
+      "url": "http://127.0.0.1:8010",
+      "description": "Local (php artisan serve / php -S)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Orders"
+    },
+    {
+      "name": "Builty"
+    },
+    {
+      "name": "Legacy (APK 1.1.x)"
+    },
+    {
+      "name": "ERP sales",
+      "description": "Accountrix ERP sales shown in the staff app (read-only copy + app-only delivery fields)."
+    }
+  ],
+  "paths": {
+    "/app/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign in (admin accounts only)",
+        "description": "Returns a Sanctum bearer token for the staff app. Replaces only this app's earlier tokens (the website admin session stays signed in). Throttled to 10/min.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              },
+              "example": {
+                "username": "teamlead",
+                "password": "••••••••"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Signed in.",
+                  "code": 200,
+                  "data": {
+                    "token": "1|<token>",
+                    "user": {
+                      "id": 1,
+                      "username": "teamlead",
+                      "role": "admin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong username or password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Wrong username or password.",
+                  "code": 401,
+                  "data": {
+                    "reason": "invalid_credentials"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Enter your username and password.",
+                  "code": 422,
+                  "data": {
+                    "reason": "validation_failed",
+                    "fields": {
+                      "username": "Enter your username.",
+                      "password": "Enter your password."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Too many requests. Please wait a moment.",
+                  "code": 429,
+                  "data": {
+                    "reason": "rate_limited"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign out (revokes this app token)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signed out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Signed out.",
+                  "code": 200,
+                  "data": {
+                    "logged_out": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Signed-in user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Signed-in user.",
+                  "code": 200,
+                  "data": {
+                    "user": {
+                      "id": 1,
+                      "username": "teamlead",
+                      "role": "admin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/orders": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Website orders and ERP sales, customer-wise cards (no prices)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Website orders (fmcg_orders + fmcg_customers + fmcg_order_items) and Accountrix ERP sales (fmcg_erp_sales) in one list. Each card has `origin`, `key`, customer name/phone/city, Adda/Pandi, every product with quantity and unit, and the Builty status. No prices on cards (the total is on the detail screen). Tabs use the effective date — delivery date, else order date — in Asia/Karachi; a saved delivery date is never overwritten. `tab=all` lists everything. Sort: newest first (previous: latest effective date first). Calling this also refreshes ERP sales when the last refresh is older than `ERP_SYNC_SECONDS` (default 60 s); if the ERP is unreachable the last copied sales are still returned and `data.sources.erp.ok` is false.",
+        "parameters": [
+          {
+            "name": "tab",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "today",
+                "tomorrow",
+                "previous",
+                "all"
+              ],
+              "default": "today"
+            }
+          },
+          {
+            "name": "origin",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "website",
+                "erp"
+              ]
+            },
+            "description": "Only website orders or only ERP sales. Omit for both."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Customer name, phone (any format), order code (ENG-…) or ERP invoice number"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "confirmed",
+                "packed",
+                "shipped",
+                "delivered",
+                "cancelled",
+                "posted"
+              ]
+            },
+            "description": "`posted` = ERP invoice"
+          },
+          {
+            "name": "builty",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "uploaded",
+                "partial",
+                "pending"
+              ]
+            },
+            "description": "uploaded = front and back saved; partial = exactly one; pending = one or both missing. `slip` is accepted as a legacy alias."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 5,
+              "maximum": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orders page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "examples": {
+                  "all": {
+                    "summary": "tab=all&per_page=5 — website + ERP",
+                    "value": {
+                      "error": false,
+                      "message": "Orders retrieved.",
+                      "code": 200,
+                      "data": {
+                        "orders": [
+                          {
+                            "id": 3,
+                            "key": "erp-3",
+                            "origin": "erp",
+                            "code": "3",
+                            "status": "posted",
+                            "source": "erp",
+                            "placed_at": "2026-11-06T08:01:30+00:00",
+                            "order_date": "2026-11-07",
+                            "delivery_date": null,
+                            "effective_date": "2026-11-07",
+                            "customer": {
+                              "name": "TEST ERP Kiryana Store",
+                              "phone": "03217654321",
+                              "city": "Multan"
+                            },
+                            "pandi_name": "TEST Pandi Akram",
+                            "adda_name": "TEST Adda Daewoo",
+                            "items": [
+                              {
+                                "id": 3,
+                                "name": "England Today Razor",
+                                "urdu_name": "ٹوڈے ریزر",
+                                "sub": "CTN = 576 PCS",
+                                "unit": "CTN",
+                                "qty": 2,
+                                "qty_text": "2 CTN + 24 PCS",
+                                "bonus": "6 PCS",
+                                "type": "sale"
+                              }
+                            ],
+                            "items_count": 1,
+                            "builty": {
+                              "front": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "back": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "uploaded_count": 0,
+                              "complete": false
+                            }
+                          },
+                          {
+                            "id": 2,
+                            "key": "erp-2",
+                            "origin": "erp",
+                            "code": "2",
+                            "status": "posted",
+                            "source": "erp",
+                            "placed_at": "2026-11-06T08:01:29+00:00",
+                            "order_date": "2026-11-05",
+                            "delivery_date": null,
+                            "effective_date": "2026-11-05",
+                            "customer": {
+                              "name": "TEST ERP Kiryana Store",
+                              "phone": "03217654321",
+                              "city": "Multan"
+                            },
+                            "pandi_name": "TEST Pandi Akram",
+                            "adda_name": "TEST Adda Daewoo",
+                            "items": [
+                              {
+                                "id": 2,
+                                "name": "England Today Razor",
+                                "urdu_name": "ٹوڈے ریزر",
+                                "sub": "CTN = 576 PCS",
+                                "unit": "CTN",
+                                "qty": 2,
+                                "qty_text": "2 CTN + 24 PCS",
+                                "bonus": "6 PCS",
+                                "type": "sale"
+                              }
+                            ],
+                            "items_count": 1,
+                            "builty": {
+                              "front": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "back": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "uploaded_count": 0,
+                              "complete": false
+                            }
+                          },
+                          {
+                            "id": 1,
+                            "key": "web-1",
+                            "origin": "website",
+                            "code": "ENG-1001",
+                            "status": "pending",
+                            "source": "admin",
+                            "placed_at": "2026-11-06T08:00:53+00:00",
+                            "order_date": "2026-11-06",
+                            "delivery_date": null,
+                            "effective_date": "2026-11-06",
+                            "customer": {
+                              "name": "TEST Website Kiryana",
+                              "phone": "03001234567",
+                              "city": "Lahore"
+                            },
+                            "pandi_name": "TEST Pandi Website",
+                            "adda_name": "TEST Adda Lahore",
+                            "items": [
+                              {
+                                "id": 1,
+                                "name": "England Classic Razer",
+                                "sub": "48 pcs/box · 12 box/ctn",
+                                "unit": "Carton",
+                                "qty": 2
+                              }
+                            ],
+                            "items_count": 1,
+                            "builty": {
+                              "front": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "back": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "uploaded_count": 0,
+                              "complete": false
+                            }
+                          },
+                          {
+                            "id": 1,
+                            "key": "erp-1",
+                            "origin": "erp",
+                            "code": "1",
+                            "status": "posted",
+                            "source": "erp",
+                            "placed_at": "2026-11-06T08:00:04+00:00",
+                            "order_date": "2026-11-06",
+                            "delivery_date": "2026-11-07",
+                            "effective_date": "2026-11-07",
+                            "customer": {
+                              "name": "TEST ERP Kiryana Store",
+                              "phone": "03217654321",
+                              "city": "Multan"
+                            },
+                            "pandi_name": "TEST Pandi Bashir",
+                            "adda_name": "TEST Adda Faisal Movers",
+                            "items": [
+                              {
+                                "id": 1,
+                                "name": "England Today Razor",
+                                "urdu_name": "ٹوڈے ریزر",
+                                "sub": "CTN = 576 PCS",
+                                "unit": "CTN",
+                                "qty": 2,
+                                "qty_text": "2 CTN + 24 PCS",
+                                "bonus": "6 PCS",
+                                "type": "sale"
+                              }
+                            ],
+                            "items_count": 1,
+                            "builty": {
+                              "front": {
+                                "uploaded": true,
+                                "uploaded_at": "2026-11-06T08:01:59+00:00"
+                              },
+                              "back": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "uploaded_count": 1,
+                              "complete": false
+                            }
+                          }
+                        ],
+                        "meta": {
+                          "tab": "all",
+                          "page": 1,
+                          "per_page": 5,
+                          "total": 4,
+                          "last_page": 1,
+                          "has_more": false,
+                          "today": "2026-11-06",
+                          "timezone": "Asia/Karachi"
+                        },
+                        "counts": {
+                          "today": 1,
+                          "tomorrow": 2,
+                          "previous": 1,
+                          "all": 4
+                        },
+                        "sources": {
+                          "website": {
+                            "enabled": true
+                          },
+                          "erp": {
+                            "enabled": true,
+                            "last_success_at": "2026-11-06T08:08:22+00:00",
+                            "last_attempt_at": "2026-11-06T08:08:22+00:00",
+                            "ok": true,
+                            "error": null
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "erp_only": {
+                    "summary": "tab=all&origin=erp",
+                    "value": {
+                      "error": false,
+                      "message": "Orders retrieved.",
+                      "code": 200,
+                      "data": {
+                        "orders": [
+                          {
+                            "id": 3,
+                            "key": "erp-3",
+                            "origin": "erp",
+                            "code": "3",
+                            "status": "posted",
+                            "source": "erp",
+                            "placed_at": "2026-11-06T08:01:30+00:00",
+                            "order_date": "2026-11-07",
+                            "delivery_date": null,
+                            "effective_date": "2026-11-07",
+                            "customer": {
+                              "name": "TEST ERP Kiryana Store",
+                              "phone": "03217654321",
+                              "city": "Multan"
+                            },
+                            "pandi_name": "TEST Pandi Akram",
+                            "adda_name": "TEST Adda Daewoo",
+                            "items": [
+                              {
+                                "id": 3,
+                                "name": "England Today Razor",
+                                "urdu_name": "ٹوڈے ریزر",
+                                "sub": "CTN = 576 PCS",
+                                "unit": "CTN",
+                                "qty": 2,
+                                "qty_text": "2 CTN + 24 PCS",
+                                "bonus": "6 PCS",
+                                "type": "sale"
+                              }
+                            ],
+                            "items_count": 1,
+                            "builty": {
+                              "front": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "back": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "uploaded_count": 0,
+                              "complete": false
+                            }
+                          },
+                          {
+                            "id": 2,
+                            "key": "erp-2",
+                            "origin": "erp",
+                            "code": "2",
+                            "status": "posted",
+                            "source": "erp",
+                            "placed_at": "2026-11-06T08:01:29+00:00",
+                            "order_date": "2026-11-05",
+                            "delivery_date": null,
+                            "effective_date": "2026-11-05",
+                            "customer": {
+                              "name": "TEST ERP Kiryana Store",
+                              "phone": "03217654321",
+                              "city": "Multan"
+                            },
+                            "pandi_name": "TEST Pandi Akram",
+                            "adda_name": "TEST Adda Daewoo",
+                            "items": [
+                              {
+                                "id": 2,
+                                "name": "England Today Razor",
+                                "urdu_name": "ٹوڈے ریزر",
+                                "sub": "CTN = 576 PCS",
+                                "unit": "CTN",
+                                "qty": 2,
+                                "qty_text": "2 CTN + 24 PCS",
+                                "bonus": "6 PCS",
+                                "type": "sale"
+                              }
+                            ],
+                            "items_count": 1,
+                            "builty": {
+                              "front": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "back": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "uploaded_count": 0,
+                              "complete": false
+                            }
+                          },
+                          {
+                            "id": 1,
+                            "key": "erp-1",
+                            "origin": "erp",
+                            "code": "1",
+                            "status": "posted",
+                            "source": "erp",
+                            "placed_at": "2026-11-06T08:00:04+00:00",
+                            "order_date": "2026-11-06",
+                            "delivery_date": "2026-11-07",
+                            "effective_date": "2026-11-07",
+                            "customer": {
+                              "name": "TEST ERP Kiryana Store",
+                              "phone": "03217654321",
+                              "city": "Multan"
+                            },
+                            "pandi_name": "TEST Pandi Bashir",
+                            "adda_name": "TEST Adda Faisal Movers",
+                            "items": [
+                              {
+                                "id": 1,
+                                "name": "England Today Razor",
+                                "urdu_name": "ٹوڈے ریزر",
+                                "sub": "CTN = 576 PCS",
+                                "unit": "CTN",
+                                "qty": 2,
+                                "qty_text": "2 CTN + 24 PCS",
+                                "bonus": "6 PCS",
+                                "type": "sale"
+                              }
+                            ],
+                            "items_count": 1,
+                            "builty": {
+                              "front": {
+                                "uploaded": true,
+                                "uploaded_at": "2026-11-06T08:01:59+00:00"
+                              },
+                              "back": {
+                                "uploaded": false,
+                                "uploaded_at": null
+                              },
+                              "uploaded_count": 1,
+                              "complete": false
+                            }
+                          }
+                        ],
+                        "meta": {
+                          "tab": "all",
+                          "page": 1,
+                          "per_page": 20,
+                          "total": 3,
+                          "last_page": 1,
+                          "has_more": false,
+                          "today": "2026-11-06",
+                          "timezone": "Asia/Karachi"
+                        },
+                        "counts": {
+                          "today": 0,
+                          "tomorrow": 2,
+                          "previous": 1,
+                          "all": 3
+                        },
+                        "sources": {
+                          "website": {
+                            "enabled": true
+                          },
+                          "erp": {
+                            "enabled": true,
+                            "last_success_at": "2026-11-06T08:08:22+00:00",
+                            "last_attempt_at": "2026-11-06T08:08:22+00:00",
+                            "ok": true,
+                            "error": null
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/orders/{id}": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Order detail (products + quantities, customer, delivery, Builty)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "fmcg_orders.id — take it from `data.orders[].id` where `origin` is `website`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Order retrieved.",
+                  "code": 200,
+                  "data": {
+                    "order": {
+                      "id": 1,
+                      "key": "web-1",
+                      "origin": "website",
+                      "code": "ENG-1001",
+                      "status": "pending",
+                      "source": "admin",
+                      "placed_at": "2026-11-06T08:00:53+00:00",
+                      "order_date": "2026-11-06",
+                      "delivery_date": null,
+                      "effective_date": "2026-11-06",
+                      "today": "2026-11-06",
+                      "total": 57600,
+                      "total_scope": "order",
+                      "note": "TEST order — local integration rig",
+                      "customer": {
+                        "name": "TEST Website Kiryana",
+                        "phone": "03001234567",
+                        "address": "TEST Shop 4, Akbari Mandi",
+                        "city": "Lahore"
+                      },
+                      "items": [
+                        {
+                          "id": 1,
+                          "name": "England Classic Razer",
+                          "sub": "48 pcs/box · 12 box/ctn",
+                          "unit": "Carton",
+                          "qty": 2
+                        }
+                      ],
+                      "items_count": 1,
+                      "pandi_name": "TEST Pandi Web 200210",
+                      "adda_name": "بادامی باغ اڈا",
+                      "builty": {
+                        "front": {
+                          "uploaded": true,
+                          "path": "/app/orders/1/builty/front/image?expires=1793961151&v=f565b40d9f2a&signature=<signature>",
+                          "url": "http://127.0.0.1:8010/app/orders/1/builty/front/image?expires=1793961151&v=f565b40d9f2a&signature=<signature>",
+                          "url_expires_at": "2026-11-06T10:32:31+00:00",
+                          "mime": "image/jpeg",
+                          "size": 18493,
+                          "width": 900,
+                          "height": 1200,
+                          "uploaded_at": "2026-11-06T08:15:31+00:00"
+                        },
+                        "back": {
+                          "uploaded": true,
+                          "path": "/app/orders/1/builty/back/image?expires=1793961151&v=f565b40d9f2a&signature=<signature>",
+                          "url": "http://127.0.0.1:8010/app/orders/1/builty/back/image?expires=1793961151&v=f565b40d9f2a&signature=<signature>",
+                          "url_expires_at": "2026-11-06T10:32:31+00:00",
+                          "mime": "image/jpeg",
+                          "size": 18493,
+                          "width": 900,
+                          "height": 1200,
+                          "uploaded_at": "2026-11-06T08:15:31+00:00"
+                        },
+                        "uploaded_count": 2,
+                        "complete": true
+                      },
+                      "history": [
+                        {
+                          "status": "pending",
+                          "note": "Order admin dashboard se banaya gaya",
+                          "at": "2026-11-06T08:00:53+00:00"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Order not found.",
+                  "code": 404,
+                  "data": {
+                    "reason": "order_not_found"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "`total` is the website order total (`total_scope: order`)."
+      }
+    },
+    "/app/orders/{id}/delivery": {
+      "patch": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Set delivery date / Pandi / Adda",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "fmcg_orders.id — take it from `data.orders[].id` where `origin` is `website`."
+          }
+        ],
+        "description": "Only the fields sent change, only in fmcg_order_deliveries. Send an empty string to clear a field. order_code is optional here; when sent it must match.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "order_code": {
+                    "type": "string"
+                  },
+                  "delivery_date": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "pandi_name": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "adda_name": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                }
+              },
+              "example": {
+                "order_code": "ENG-1001",
+                "pandi_name": "TEST Pandi Lahore"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Delivery details saved.",
+                  "code": 200,
+                  "data": {
+                    "order": {
+                      "id": 1,
+                      "key": "web-1",
+                      "origin": "website",
+                      "code": "ENG-1001",
+                      "status": "pending",
+                      "source": "admin",
+                      "placed_at": "2026-11-06T08:00:53+00:00",
+                      "order_date": "2026-11-06",
+                      "delivery_date": null,
+                      "effective_date": "2026-11-06",
+                      "today": "2026-11-06",
+                      "total": 57600,
+                      "note": "TEST order — local integration rig",
+                      "customer": {
+                        "name": "TEST Website Kiryana",
+                        "phone": "03001234567",
+                        "address": "TEST Shop 4, Akbari Mandi",
+                        "city": "Lahore"
+                      },
+                      "items": [
+                        {
+                          "id": 1,
+                          "name": "England Classic Razer",
+                          "sub": "48 pcs/box · 12 box/ctn",
+                          "unit": "Carton",
+                          "qty": 2
+                        }
+                      ],
+                      "items_count": 1,
+                      "pandi_name": "TEST Pandi Website",
+                      "adda_name": "TEST Adda Lahore",
+                      "builty": {
+                        "front": {
+                          "uploaded": false
+                        },
+                        "back": {
+                          "uploaded": false
+                        },
+                        "uploaded_count": 0,
+                        "complete": false
+                      },
+                      "history": [
+                        {
+                          "status": "pending",
+                          "note": "Order admin dashboard se banaya gaya",
+                          "at": "2026-11-06T08:00:53+00:00"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "order_code does not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "This does not belong to order ENG-1006. Nothing was saved.",
+                  "code": 409,
+                  "data": {
+                    "reason": "order_mismatch"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Please check the highlighted fields.",
+                  "code": 422,
+                  "data": {
+                    "reason": "validation_failed",
+                    "fields": {
+                      "delivery_date": "Choose a valid date."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/orders/{id}/builty": {
+      "get": {
+        "tags": [
+          "Builty"
+        ],
+        "summary": "Both Builty images with fresh signed links",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "fmcg_orders.id — take it from `data.orders[].id` where `origin` is `website`."
+          }
+        ],
+        "description": "`path` is relative to the API base and signed (30 min, bound to order id + side + image version). `url` is the same link made absolute. Missing sides are returned as {uploaded:false}.",
+        "responses": {
+          "200": {
+            "description": "Builty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Builty images retrieved.",
+                  "code": 200,
+                  "data": {
+                    "order_id": 1,
+                    "order_code": "ENG-1001",
+                    "builty": {
+                      "front": {
+                        "uploaded": true,
+                        "path": "/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>",
+                        "url": "https://englandwaly.com/api/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>",
+                        "url_expires_at": "2026-11-05T11:48:55+00:00",
+                        "mime": "image/jpeg",
+                        "size": 129572,
+                        "width": 1200,
+                        "height": 1600,
+                        "uploaded_at": "2026-11-05T11:18:55+00:00"
+                      },
+                      "back": {
+                        "uploaded": true,
+                        "path": "/app/orders/1/builty/back/image?expires=1793879335&v=e4cc21c7bbb1&signature=<signature>",
+                        "url": "https://englandwaly.com/api/app/orders/1/builty/back/image?expires=1793879335&v=e4cc21c7bbb1&signature=<signature>",
+                        "url_expires_at": "2026-11-05T11:48:55+00:00",
+                        "mime": "image/jpeg",
+                        "size": 124817,
+                        "width": 1200,
+                        "height": 1600,
+                        "uploaded_at": "2026-11-05T11:18:55+00:00"
+                      },
+                      "uploaded_count": 2,
+                      "complete": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Order not found.",
+                  "code": 404,
+                  "data": {
+                    "reason": "order_not_found"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/orders/{id}/builty/{side}": {
+      "post": {
+        "tags": [
+          "Builty"
+        ],
+        "summary": "Upload / replace the front or back Builty image",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "fmcg_orders.id — take it from `data.orders[].id` where `origin` is `website`."
+          },
+          {
+            "name": "side",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "front",
+                "back"
+              ]
+            }
+          }
+        ],
+        "description": "multipart/form-data. The image is saved ONLY to this order: order_code must equal the order's code (else 409, nothing stored). Validation: JPG, PNG or WebP; max 10 MB (FMCG_SLIP_MAX_KB); shortest usable edge ≥ 200 px; images larger than 2400 px are scaled down (needs GD). Files are stored outside the web root. On replace the previous file of that side is deleted only after the new one is saved; if the database save fails the new file is removed (no orphans). Throttled 30/min.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "order_code",
+                  "image"
+                ],
+                "properties": {
+                  "order_code": {
+                    "type": "string",
+                    "example": "ENG-1001"
+                  },
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPG / PNG / WebP, ≤ 10 MB"
+                  }
+                }
+              },
+              "encoding": {
+                "image": {
+                  "contentType": "image/jpeg, image/png, image/webp"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved (front example; back is the same shape)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Builty front image saved.",
+                  "code": 201,
+                  "data": {
+                    "order_id": 1,
+                    "order_code": "ENG-1001",
+                    "side": "front",
+                    "builty": {
+                      "front": {
+                        "uploaded": true,
+                        "path": "/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>",
+                        "url": "https://englandwaly.com/api/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>",
+                        "url_expires_at": "2026-11-05T11:48:55+00:00",
+                        "mime": "image/jpeg",
+                        "size": 129572,
+                        "width": 1200,
+                        "height": 1600,
+                        "uploaded_at": "2026-11-05T11:18:55+00:00"
+                      },
+                      "back": {
+                        "uploaded": false
+                      },
+                      "uploaded_count": 1,
+                      "complete": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "order_code mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "This does not belong to order ENG-1003. Nothing was saved.",
+                  "code": 409,
+                  "data": {
+                    "reason": "order_mismatch"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid image (reasons: validation_failed, image_type_not_allowed, image_too_large, image_too_small, image_unreadable, upload_incomplete)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Only JPG, PNG or WebP photos can be uploaded.",
+                  "code": 422,
+                  "data": {
+                    "reason": "image_type_not_allowed",
+                    "fields": {
+                      "image": "Only JPG, PNG or WebP photos can be uploaded."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown order or side",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Order not found.",
+                  "code": 404,
+                  "data": {
+                    "reason": "order_not_found"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Storage failure (nothing saved)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Could not save the photo on the server. Please try again.",
+                  "code": 500,
+                  "data": {
+                    "reason": "storage_failed"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/orders/{id}/builty/{side}/image": {
+      "get": {
+        "tags": [
+          "Builty"
+        ],
+        "summary": "Image bytes (signed link, no bearer token)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "fmcg_orders.id — take it from `data.orders[].id` where `origin` is `website`."
+          },
+          {
+            "name": "side",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "front",
+                "back"
+              ]
+            }
+          },
+          {
+            "name": "expires",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Image version (first 12 chars of its SHA-256)"
+          },
+          {
+            "name": "signature",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "description": "Use the `path`/`url` returned by the API — do not build it yourself. Served with Cache-Control: private and X-Content-Type-Options: nosniff. When calling it by hand (e.g. in Swagger), copy `expires`, `v` and `signature` from that link unchanged; the signature covers the query in this order.",
+        "responses": {
+          "200": {
+            "description": "The image",
+            "content": {
+              "image/jpeg": {},
+              "image/png": {},
+              "image/webp": {}
+            }
+          },
+          "403": {
+            "description": "Bad / tampered / expired signature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "This image link has expired. Open the order again.",
+                  "code": 403,
+                  "data": {
+                    "reason": "link_expired"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No image on that side",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "No Builty back image for this order.",
+                  "code": 404,
+                  "data": {
+                    "reason": "image_not_found"
+                  }
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Image was replaced since the link was issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "This image has been replaced. Open the order again.",
+                  "code": 410,
+                  "data": {
+                    "reason": "image_replaced"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/orders/{id}/slip": {
+      "post": {
+        "tags": [
+          "Legacy (APK 1.1.x)"
+        ],
+        "deprecated": true,
+        "summary": "Legacy: upload the FRONT image (field `slip`)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "fmcg_orders.id — take it from `data.orders[].id` where `origin` is `website`."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "order_code": {
+                    "type": "string"
+                  },
+                  "slip": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Same as POST /builty/front",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Builty front image saved.",
+                  "code": 201,
+                  "data": {
+                    "order_id": 1,
+                    "order_code": "ENG-1001",
+                    "side": "front",
+                    "builty": {
+                      "front": {
+                        "uploaded": true,
+                        "path": "/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>",
+                        "url": "https://englandwaly.com/api/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>",
+                        "url_expires_at": "2026-11-05T11:48:55+00:00",
+                        "mime": "image/jpeg",
+                        "size": 129572,
+                        "width": 1200,
+                        "height": 1600,
+                        "uploaded_at": "2026-11-05T11:18:55+00:00"
+                      },
+                      "back": {
+                        "uploaded": false
+                      },
+                      "uploaded_count": 1,
+                      "complete": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Legacy (APK 1.1.x)"
+        ],
+        "deprecated": true,
+        "summary": "Legacy: stream the FRONT image with the bearer token",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "fmcg_orders.id — take it from `data.orders[].id` where `origin` is `website`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/erp-sales/sync": {
+      "post": {
+        "tags": [
+          "ERP sales"
+        ],
+        "summary": "Refresh ERP sales now",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Pulls new/changed posted sales from the ERP feed and hides sales the ERP no longer lists (deleted / unposted). Never writes to the ERP, never touches fmcg_orders. The same refresh runs automatically from GET /app/orders and every 5 minutes from the scheduler (`php artisan erp:sync-sales`). Throttled 6/min per user.",
+        "responses": {
+          "200": {
+            "description": "Refreshed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "ERP sales refreshed.",
+                  "code": 200,
+                  "data": {
+                    "summary": {
+                      "fetched": 0,
+                      "upserted": 0,
+                      "removed": 0,
+                      "restored": 0,
+                      "pages": 1,
+                      "reconciled": false
+                    },
+                    "erp": {
+                      "enabled": true,
+                      "last_success_at": "2026-11-06T08:02:13+00:00",
+                      "last_attempt_at": "2026-11-06T08:02:13+00:00",
+                      "ok": true,
+                      "error": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "ERP unreachable — the last copied sales stay listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Could not reach the ERP. The last copied sales are still shown.",
+                  "code": 502,
+                  "data": {
+                    "reason": "erp_unreachable",
+                    "erp": {
+                      "enabled": true,
+                      "last_success_at": "2026-11-06T08:02:13+00:00",
+                      "last_attempt_at": "2026-11-06T08:20:00+00:00",
+                      "ok": false,
+                      "error": "erp_unreachable"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ERP_SALES_URL / ERP_SALES_TOKEN not set on this server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "ERP sales are not connected on this server.",
+                  "code": 503,
+                  "data": {
+                    "reason": "erp_not_configured"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Too many requests. Please wait a moment and try again.",
+                  "code": 429,
+                  "data": {
+                    "reason": "rate_limited"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/erp-sales/{id}": {
+      "get": {
+        "tags": [
+          "ERP sales"
+        ],
+        "summary": "ERP sale detail (invoice no., customer, items, total, delivery, Builty)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "fmcg_erp_sales.id — take it from `data.orders[].id` where `origin` is `erp` (NOT the ERP's own sale id; that is `erp.sale_id`)."
+          }
+        ],
+        "description": "`code` is the ERP invoice number. `erp` holds the values as typed on the ERP invoice. `pandi_name` / `adda_name` show the value saved in the app, else the ERP value (`pandi_from_erp` / `adda_from_erp` = true). `total` is the ERP net total (read-only). Mixed invoices (England items plus other companies' items): only the England lines are listed; `erp.other_company_lines` says how many other-company lines the invoice also has. `total` is always the ERP net total of the WHOLE invoice (`total_scope: whole_invoice`) — line prices are not copied, so there is no England-only amount. The ERP invoice is never changed.",
+        "responses": {
+          "200": {
+            "description": "ERP sale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "examples": {
+                  "england_only": {
+                    "summary": "England-only invoice",
+                    "value": {
+                      "error": false,
+                      "message": "ERP sale retrieved.",
+                      "code": 200,
+                      "data": {
+                        "order": {
+                          "id": 1,
+                          "key": "erp-1",
+                          "origin": "erp",
+                          "code": "1",
+                          "status": "posted",
+                          "source": "erp",
+                          "erp": {
+                            "sale_id": 1,
+                            "invoice_no": "1",
+                            "offline_no": null,
+                            "vehicle": null,
+                            "remarks": "TEST sale — local integration rig",
+                            "pandi_name": "TEST Pandi Akram",
+                            "pandi_phone": "03001112233",
+                            "adda_name": "TEST Adda Daewoo",
+                            "synced_at": "2026-11-06T08:01:22+00:00",
+                            "other_company_lines": 0
+                          },
+                          "placed_at": "2026-11-06T08:00:04+00:00",
+                          "order_date": "2026-11-06",
+                          "delivery_date": "2026-11-07",
+                          "effective_date": "2026-11-07",
+                          "today": "2026-11-06",
+                          "total": 21233.44,
+                          "total_scope": "whole_invoice",
+                          "note": "TEST sale — local integration rig",
+                          "customer": {
+                            "name": "TEST ERP Kiryana Store",
+                            "phone": "03217654321",
+                            "address": "TEST Shop 9, Hussain Agahi",
+                            "city": "Multan"
+                          },
+                          "items": [
+                            {
+                              "id": 1,
+                              "name": "England Today Razor",
+                              "urdu_name": "ٹوڈے ریزر",
+                              "sub": "CTN = 576 PCS",
+                              "unit": "CTN",
+                              "qty": 2,
+                              "qty_text": "2 CTN + 24 PCS",
+                              "bonus": "6 PCS",
+                              "type": "sale"
+                            }
+                          ],
+                          "items_count": 1,
+                          "pandi_name": "TEST Pandi Bashir",
+                          "adda_name": "TEST Adda Faisal Movers",
+                          "pandi_from_erp": false,
+                          "adda_from_erp": false,
+                          "builty": {
+                            "front": {
+                              "uploaded": true,
+                              "path": "/app/erp-sales/1/builty/front/image?expires=1793961151&v=29ff0bca6a95&signature=<signature>",
+                              "url": "http://127.0.0.1:8010/app/erp-sales/1/builty/front/image?expires=1793961151&v=29ff0bca6a95&signature=<signature>",
+                              "url_expires_at": "2026-11-06T10:32:31+00:00",
+                              "mime": "image/jpeg",
+                              "size": 30627,
+                              "width": 1200,
+                              "height": 1600,
+                              "uploaded_at": "2026-11-06T08:01:59+00:00"
+                            },
+                            "back": {
+                              "uploaded": true,
+                              "path": "/app/erp-sales/1/builty/back/image?expires=1793961151&v=e393c1630d7f&signature=<signature>",
+                              "url": "http://127.0.0.1:8010/app/erp-sales/1/builty/back/image?expires=1793961151&v=e393c1630d7f&signature=<signature>",
+                              "url_expires_at": "2026-11-06T10:32:31+00:00",
+                              "mime": "image/jpeg",
+                              "size": 18465,
+                              "width": 900,
+                              "height": 1200,
+                              "uploaded_at": "2026-11-06T08:14:27+00:00"
+                            },
+                            "uploaded_count": 2,
+                            "complete": true
+                          },
+                          "history": []
+                        }
+                      }
+                    }
+                  },
+                  "mixed": {
+                    "summary": "Mixed invoice — 1 other-company line left out",
+                    "value": {
+                      "error": false,
+                      "message": "ERP sale retrieved.",
+                      "code": 200,
+                      "data": {
+                        "order": {
+                          "id": 26,
+                          "key": "erp-26",
+                          "origin": "erp",
+                          "code": "27",
+                          "status": "posted",
+                          "source": "erp",
+                          "erp": {
+                            "sale_id": 27,
+                            "invoice_no": "27",
+                            "offline_no": null,
+                            "vehicle": null,
+                            "remarks": "TEST mixed invoice — England + other brand",
+                            "pandi_name": "TEST Pandi Akram",
+                            "pandi_phone": "03001112233",
+                            "adda_name": "TEST Adda Daewoo",
+                            "synced_at": "2026-11-06T09:57:58+00:00",
+                            "other_company_lines": 1
+                          },
+                          "placed_at": "2026-11-06T09:57:51+00:00",
+                          "order_date": "2026-11-06",
+                          "delivery_date": null,
+                          "effective_date": "2026-11-06",
+                          "today": "2026-11-06",
+                          "total": 52433.44,
+                          "total_scope": "whole_invoice",
+                          "note": "TEST mixed invoice — England + other brand",
+                          "customer": {
+                            "name": "TEST ERP Kiryana Store",
+                            "phone": "03217654321",
+                            "address": "TEST Shop 9, Hussain Agahi",
+                            "city": "Multan"
+                          },
+                          "items": [
+                            {
+                              "id": 27,
+                              "name": "England Today Razor",
+                              "urdu_name": "ٹوڈے ریزر",
+                              "sub": "CTN = 576 PCS",
+                              "unit": "CTN",
+                              "qty": 2,
+                              "qty_text": "2 CTN + 24 PCS",
+                              "bonus": "6 PCS",
+                              "type": "sale"
+                            }
+                          ],
+                          "items_count": 1,
+                          "pandi_name": "TEST Pandi Akram",
+                          "adda_name": "TEST Adda Daewoo",
+                          "pandi_from_erp": true,
+                          "adda_from_erp": true,
+                          "builty": {
+                            "front": {
+                              "uploaded": false
+                            },
+                            "back": {
+                              "uploaded": false
+                            },
+                            "uploaded_count": 0,
+                            "complete": false
+                          },
+                          "history": []
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such ERP sale (or the ERP deleted it)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "ERP sale not found.",
+                  "code": 404,
+                  "data": {
+                    "reason": "order_not_found"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/erp-sales/{id}/delivery": {
+      "patch": {
+        "tags": [
+          "ERP sales"
+        ],
+        "summary": "Set delivery date / Pandi / Adda for an ERP sale",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "fmcg_erp_sales.id — take it from `data.orders[].id` where `origin` is `erp` (NOT the ERP's own sale id; that is `erp.sale_id`)."
+          }
+        ],
+        "description": "Saved only in England's fmcg_erp_sale_deliveries — the ERP invoice is not changed, and later ERP syncs never overwrite these values. Only fields sent change; empty string clears. order_code (the invoice number) is optional; when sent it must match.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "order_code": {
+                    "type": "string",
+                    "description": "ERP invoice number"
+                  },
+                  "delivery_date": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "pandi_name": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "adda_name": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                }
+              },
+              "example": {
+                "order_code": "1",
+                "delivery_date": "2026-11-07",
+                "pandi_name": "TEST Pandi Bashir",
+                "adda_name": "TEST Adda Faisal Movers"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Delivery details saved.",
+                  "code": 200,
+                  "data": {
+                    "order": {
+                      "id": 1,
+                      "key": "erp-1",
+                      "origin": "erp",
+                      "code": "1",
+                      "status": "posted",
+                      "source": "erp",
+                      "erp": {
+                        "sale_id": 1,
+                        "invoice_no": "1",
+                        "offline_no": null,
+                        "vehicle": null,
+                        "remarks": "TEST sale — local integration rig",
+                        "pandi_name": "TEST Pandi Akram",
+                        "pandi_phone": "03001112233",
+                        "adda_name": "TEST Adda Daewoo",
+                        "synced_at": "2026-11-06T08:01:22+00:00"
+                      },
+                      "placed_at": "2026-11-06T08:00:04+00:00",
+                      "order_date": "2026-11-06",
+                      "delivery_date": "2026-11-07",
+                      "effective_date": "2026-11-07",
+                      "today": "2026-11-06",
+                      "total": 21233.44,
+                      "note": "TEST sale — local integration rig",
+                      "customer": {
+                        "name": "TEST ERP Kiryana Store",
+                        "phone": "03217654321",
+                        "address": "TEST Shop 9, Hussain Agahi",
+                        "city": "Multan"
+                      },
+                      "items": [
+                        {
+                          "id": 1,
+                          "name": "England Today Razor",
+                          "urdu_name": "ٹوڈے ریزر",
+                          "sub": "CTN = 576 PCS",
+                          "unit": "CTN",
+                          "qty": 2,
+                          "qty_text": "2 CTN + 24 PCS",
+                          "bonus": "6 PCS",
+                          "type": "sale"
+                        }
+                      ],
+                      "items_count": 1,
+                      "pandi_name": "TEST Pandi Bashir",
+                      "adda_name": "TEST Adda Faisal Movers",
+                      "pandi_from_erp": false,
+                      "adda_from_erp": false,
+                      "builty": {
+                        "front": {
+                          "uploaded": false
+                        },
+                        "back": {
+                          "uploaded": false
+                        },
+                        "uploaded_count": 0,
+                        "complete": false
+                      },
+                      "history": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such ERP sale (or the ERP deleted it)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "ERP sale not found.",
+                  "code": 404,
+                  "data": {
+                    "reason": "order_not_found"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "order_code is not this sale's invoice number — nothing saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "This does not belong to order 1. Nothing was saved.",
+                  "code": 409,
+                  "data": {
+                    "reason": "order_mismatch"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Please check the highlighted fields.",
+                  "code": 422,
+                  "data": {
+                    "reason": "validation_failed",
+                    "fields": {
+                      "delivery_date": "Choose a valid date."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/erp-sales/{id}/builty": {
+      "get": {
+        "tags": [
+          "ERP sales"
+        ],
+        "summary": "Builty images of an ERP sale (signed links)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "fmcg_erp_sales.id — take it from `data.orders[].id` where `origin` is `erp` (NOT the ERP's own sale id; that is `erp.sale_id`)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Builty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Builty images retrieved.",
+                  "code": 200,
+                  "data": {
+                    "origin": "erp",
+                    "order_id": 1,
+                    "order_code": "1",
+                    "builty": {
+                      "front": {
+                        "uploaded": true,
+                        "path": "/app/erp-sales/1/builty/front/image?expires=1793953919&v=29ff0bca6a95&signature=<signature>",
+                        "url": "http://127.0.0.1:8010/app/erp-sales/1/builty/front/image?expires=1793953919&v=29ff0bca6a95&signature=<signature>",
+                        "url_expires_at": "2026-11-06T08:31:59+00:00",
+                        "mime": "image/jpeg",
+                        "size": 30627,
+                        "width": 1200,
+                        "height": 1600,
+                        "uploaded_at": "2026-11-06T08:01:59+00:00"
+                      },
+                      "back": {
+                        "uploaded": false
+                      },
+                      "uploaded_count": 1,
+                      "complete": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such ERP sale (or the ERP deleted it)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "ERP sale not found.",
+                  "code": 404,
+                  "data": {
+                    "reason": "order_not_found"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/erp-sales/{id}/builty/{side}": {
+      "post": {
+        "tags": [
+          "ERP sales"
+        ],
+        "summary": "Upload / replace the front or back Builty image of an ERP sale",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "fmcg_erp_sales.id — take it from `data.orders[].id` where `origin` is `erp` (NOT the ERP's own sale id; that is `erp.sale_id`)."
+          },
+          {
+            "name": "side",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "front",
+                "back"
+              ]
+            }
+          }
+        ],
+        "description": "multipart/form-data. The image is saved ONLY to this ERP sale: order_code must equal its invoice number (else 409, nothing stored). Validation: JPG, PNG or WebP; max 10 MB (FMCG_SLIP_MAX_KB); shortest usable edge ≥ 200 px; images larger than 2400 px are scaled down (needs GD). Files are stored outside the web root under erp-<id>/. On replace the previous file of that side is deleted only after the new one is saved; if the database save fails the new file is removed (no orphans). Throttled 30/min.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "order_code",
+                  "image"
+                ],
+                "properties": {
+                  "order_code": {
+                    "type": "string",
+                    "example": "1"
+                  },
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPG / PNG / WebP, ≤ 10 MB"
+                  }
+                }
+              },
+              "encoding": {
+                "image": {
+                  "contentType": "image/jpeg, image/png, image/webp"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                "example": {
+                  "error": false,
+                  "message": "Builty front image saved.",
+                  "code": 201,
+                  "data": {
+                    "origin": "erp",
+                    "order_id": 1,
+                    "order_code": "1",
+                    "side": "front",
+                    "builty": {
+                      "front": {
+                        "uploaded": true,
+                        "path": "/app/erp-sales/1/builty/front/image?expires=1793953919&v=29ff0bca6a95&signature=<signature>",
+                        "url": "http://127.0.0.1:8010/app/erp-sales/1/builty/front/image?expires=1793953919&v=29ff0bca6a95&signature=<signature>",
+                        "url_expires_at": "2026-11-06T08:31:59+00:00",
+                        "mime": "image/jpeg",
+                        "size": 30627,
+                        "width": 1200,
+                        "height": 1600,
+                        "uploaded_at": "2026-11-06T08:01:59+00:00"
+                      },
+                      "back": {
+                        "uploaded": false
+                      },
+                      "uploaded_count": 1,
+                      "complete": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "order_code is not this sale's invoice number — nothing saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "This does not belong to order 1. Nothing was saved.",
+                  "code": 409,
+                  "data": {
+                    "reason": "order_mismatch"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid image (reasons: validation_failed, image_type_not_allowed, image_too_large, image_too_small, image_unreadable, upload_incomplete)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Only JPG, PNG or WebP photos can be uploaded.",
+                  "code": 422,
+                  "data": {
+                    "reason": "image_type_not_allowed",
+                    "fields": {
+                      "image": "Only JPG, PNG or WebP photos can be uploaded."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such ERP sale (or the ERP deleted it)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "ERP sale not found.",
+                  "code": 404,
+                  "data": {
+                    "reason": "order_not_found"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Your session has ended. Sign in again.",
+                  "code": 401,
+                  "data": {
+                    "reason": "unauthenticated"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Storage failure (nothing saved)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "Could not save the photo on the server. Please try again.",
+                  "code": 500,
+                  "data": {
+                    "reason": "storage_failed"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/erp-sales/{id}/builty/{side}/image": {
+      "get": {
+        "tags": [
+          "ERP sales"
+        ],
+        "summary": "Image bytes (signed link, no bearer token)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "fmcg_erp_sales.id — take it from `data.orders[].id` where `origin` is `erp` (NOT the ERP's own sale id; that is `erp.sale_id`)."
+          },
+          {
+            "name": "side",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "front",
+                "back"
+              ]
+            }
+          },
+          {
+            "name": "expires",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Image version (first 12 chars of its SHA-256)"
+          },
+          {
+            "name": "signature",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "description": "Use the `path`/`url` from the ERP sale's `builty` — do not build it yourself. Signed for this ERP sale and side only; a link for one record never opens another. Cache-Control: private, X-Content-Type-Options: nosniff. When calling it by hand (e.g. in Swagger), copy `expires`, `v` and `signature` from that link unchanged; the signature covers the query in this order.",
+        "responses": {
+          "200": {
+            "description": "The image",
+            "content": {
+              "image/jpeg": {},
+              "image/png": {},
+              "image/webp": {}
+            }
+          },
+          "403": {
+            "description": "Bad / tampered / expired signature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "This image link has expired. Open the order again.",
+                  "code": 403,
+                  "data": {
+                    "reason": "link_expired"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No image on that side",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "No Builty back image for this order.",
+                  "code": 404,
+                  "data": {
+                    "reason": "image_not_found"
+                  }
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Image was replaced since the link was issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": true,
+                  "message": "This image has been replaced. Open the order again.",
+                  "code": 410,
+                  "data": {
+                    "reason": "image_replaced"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Sanctum token from /app/auth/login"
+      }
+    },
+    "schemas": {
+      "Envelope": {
+        "type": "object",
+        "required": [
+          "error",
+          "message",
+          "code",
+          "data"
+        ],
+        "properties": {
+          "error": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string"
+          },
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "type": "object"
+          }
+        }
+      },
+      "ErrorData": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "unauthenticated",
+              "invalid_credentials",
+              "validation_failed",
+              "order_not_found",
+              "order_mismatch",
+              "image_type_not_allowed",
+              "image_too_large",
+              "image_too_small",
+              "image_unreadable",
+              "upload_incomplete",
+              "storage_failed",
+              "image_not_found",
+              "image_replaced",
+              "link_expired",
+              "not_found",
+              "method_not_allowed",
+              "rate_limited",
+              "server_error",
+              "request_failed",
+              "erp_unreachable",
+              "erp_not_configured"
+            ]
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Error": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "error": {
+                "enum": [
+                  true
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ErrorData"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

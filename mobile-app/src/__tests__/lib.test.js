@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bytes, dateTime, dayLabel, dayLabelLong, isRtl, money, relativeDay, telHref, unitUr } from '../lib/format.js';
-import { STATUS_LABEL, TABS } from '../config.js';
+import { STATUS_LABEL, TABS, codeLabel, recordNoun, recordPath } from '../config.js';
 import { ImageError, checkFile, targetSize } from '../lib/image.js';
-import { Api, ApiError, request, setToken, setUnauthorizedHandler, upload } from '../lib/api.js';
+import { Api, ApiError, friendly, multipartBoundary, request, setToken, setUnauthorizedHandler, upload } from '../lib/api.js';
+import { builtyState } from '../components/Builty.jsx';
+import { builtyFileName } from '../lib/builty.js';
 
 describe('format', () => {
   it('formats money, dates and plurals', () => {
@@ -24,7 +26,8 @@ describe('format', () => {
     const latin = /[A-Za-z]/;
     Object.values(STATUS_LABEL).forEach((l) => expect(latin.test(l)).toBe(false));
     TABS.forEach((t) => expect(latin.test(t.label)).toBe(false));
-    expect(TABS.map((t) => t.label)).toEqual(['آج کے آرڈر', 'کل کے آرڈر', 'پچھلے آرڈر', 'تمام آرڈر']);
+    expect(TABS.map((t) => t.label)).toEqual(['آج کے آرڈر', 'کل کے آرڈر', 'پچھلے آرڈرز', 'تمام آرڈر']);
+    expect(TABS.map((t) => t.key)).toEqual(['today', 'tomorrow', 'previous', 'all']);
     expect(unitUr('Carton')).toBe('کارٹن');
     expect(unitUr('packet')).toBe('پیکٹ');
     expect(unitUr('')).toBe('عدد');
@@ -62,34 +65,63 @@ describe('slip image rules', () => {
   });
 });
 
-describe('api client', () => {
+const ok = (data, code = 200) => JSON.stringify({ error: false, message: 'ok', code, data });
+const fail = (code, reason, extra = {}) => JSON.stringify({ error: true, message: 'English text', code, data: { reason, ...extra } });
+
+describe('api client (app envelope)', () => {
   afterEach(() => { vi.unstubAllGlobals(); setToken(null); setUnauthorizedHandler(null); });
 
-  it('sends the bearer token and drops empty query values', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true, data: [] }), { status: 200 }));
+  it('sends the bearer token, drops empty query values and returns data', async () => {
+    const fetchMock = vi.fn(async () => new Response(ok({ orders: [{ id: 1 }], meta: {}, counts: {} }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     setToken('abc');
-    await Api.orders({ tab: 'today', q: '', status: undefined, page: 2 });
+    const r = await Api.orders({ tab: 'today', q: '', status: undefined, page: 2 });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toMatch(/\/app\/orders\?tab=today&page=2$/);
     expect(init.headers.Authorization).toBe('Bearer abc');
+    expect(r.orders[0].id).toBe(1);
   });
 
-  it('turns server errors into friendly ApiErrors and signs out on 401', async () => {
+  it('maps data.reason to Urdu, keeps fields, and signs out on 401', async () => {
     const out = vi.fn();
     setUnauthorizedHandler(out);
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: false, error: 'Unauthenticated.' }), { status: 401 })));
-    await expect(request('/app/orders')).rejects.toMatchObject({ status: 401, message: 'آپ کا سیشن ختم ہو گیا ہے۔ دوبارہ لاگ اِن کریں۔' });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(fail(401, 'unauthenticated'), { status: 401 })));
+    await expect(request('/app/orders')).rejects.toMatchObject({ status: 401, reason: 'unauthenticated', message: 'آپ کا سیشن ختم ہو گیا ہے۔ دوبارہ لاگ اِن کریں۔' });
     expect(out).toHaveBeenCalledOnce();
 
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: false, error: 'Bad', fields: { pandi_name: 'Too long' } }), { status: 422 })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(fail(422, 'validation_failed', { fields: { pandi_name: 'Too long' } }), { status: 422 })));
     const e = await request('/x').catch((x) => x);
     expect(e).toBeInstanceOf(ApiError);
     expect(e.fields.pandi_name).toBe('پنڈی کا نام 120 حروف سے زیادہ نہیں ہو سکتا۔');
     expect(e.message).toBe('معلومات درست نہیں۔ نشان زدہ خانے چیک کریں۔');
 
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: false, error: 'Wrong username or password.' }), { status: 401 })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(fail(401, 'invalid_credentials'), { status: 401 })));
     await expect(request('/app/auth/login', { method: 'POST', auth: false })).rejects.toMatchObject({ message: 'یوزر نیم یا پاس ورڈ غلط ہے۔' });
+
+    // A 200 that is not our envelope (captive portal / proxy page) is an error, not success.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>wifi login</html>', { status: 200 })));
+    await expect(request('/app/orders')).rejects.toBeInstanceOf(ApiError);
+    // The old website envelope is not mistaken for success either.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })));
+    await expect(request('/app/orders')).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('says the server is outdated when an /app call gets the website envelope (live 1.1 backend)', async () => {
+    const signOut = vi.fn();
+    setUnauthorizedHandler(signOut);
+    // What englandwaly.com/api answered on 2026-11-05: an old backend with {ok:...} replies and no Builty routes.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: true, orders: [], counts: {} }), { status: 200 })));
+    await expect(request('/app/orders')).rejects.toMatchObject({ reason: 'server_outdated', message: expect.stringContaining('سرور اپ ڈیٹ') });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: false, error: 'The route app/orders/1/builty could not be found.' }), { status: 404 })));
+    await expect(request('/app/orders/1/builty')).rejects.toMatchObject({ status: 404, reason: 'server_outdated' });
+    expect(signOut).not.toHaveBeenCalled();
+    // A 401 from the old server still means "sign in again".
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: false, error: 'Admin authentication required' }), { status: 401 })));
+    await expect(request('/app/orders')).rejects.toMatchObject({ status: 401, message: expect.stringContaining('دوبارہ لاگ اِن') });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    // A 200 that is not JSON at all (captive portal) gets its own message, not the generic one.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>wifi login</html>', { status: 200 })));
+    await expect(request('/app/orders')).rejects.toMatchObject({ reason: 'bad_response', message: expect.stringContaining('درست جواب') });
   });
 
   it('reports offline when the server cannot be reached', async () => {
@@ -97,12 +129,13 @@ describe('api client', () => {
     await expect(request('/app/orders')).rejects.toMatchObject({ offline: true });
   });
 
-  it('upload resolves only on a confirmed 2xx save', async () => {
+  it('uploads one Builty side with the order code and resolves only on a confirmed save', async () => {
     class FakeXHR {
       constructor() { this.upload = {}; this.headers = {}; FakeXHR.last = this; }
       open(m, u) { this.url = u; }
       setRequestHeader(k, v) { this.headers[k] = v; }
-      send() {
+      send(body) {
+        this.body = body;
         this.upload.onprogress?.({ lengthComputable: true, loaded: 50, total: 100 });
         this.status = FakeXHR.status;
         this.responseText = FakeXHR.body;
@@ -112,15 +145,76 @@ describe('api client', () => {
     vi.stubGlobal('XMLHttpRequest', FakeXHR);
     const progress = vi.fn();
 
-    FakeXHR.status = 201; FakeXHR.body = JSON.stringify({ ok: true, order: { id: 7, slip: { uploaded: true } } });
-    const r = await upload('/app/orders/7/slip', new FormData(), { onProgress: progress });
-    expect(r.order.slip.uploaded).toBe(true);
+    FakeXHR.status = 201; FakeXHR.body = ok({ order_id: 7, side: 'back', builty: { back: { uploaded: true } } }, 201);
+    const r = await Api.uploadBuilty(7, 'ENG-1007', 'back', new Blob(['x'], { type: 'image/jpeg' }), 'ENG-1007-back.jpg', progress);
+    expect(FakeXHR.last.url).toMatch(/\/app\/orders\/7\/builty\/back$/);
+    expect(FakeXHR.last.body.get('order_code')).toBe('ENG-1007');
+    expect(FakeXHR.last.body.get('image')).toBeInstanceOf(Blob);
+    expect(r.builty.back.uploaded).toBe(true);
     expect(progress).toHaveBeenCalledWith(0.5);
 
-    FakeXHR.status = 409; FakeXHR.body = JSON.stringify({ ok: false, error: 'This slip is for a different order.' });
-    await expect(upload('/app/orders/7/slip', new FormData())).rejects.toMatchObject({ status: 409, message: expect.stringContaining('یہ سلپ اس آرڈر کی نہیں') });
-
+    FakeXHR.status = 409; FakeXHR.body = fail(409, 'order_mismatch');
+    await expect(upload('/app/orders/7/builty/front', new FormData())).rejects.toMatchObject({ status: 409, reason: 'order_mismatch', message: expect.stringContaining('اس آرڈر کی نہیں') });
+    FakeXHR.status = 422; FakeXHR.body = fail(422, 'image_too_small', { fields: { image: 'Too small' } });
+    await expect(upload('/app/orders/7/builty/front', new FormData())).rejects.toMatchObject({ message: expect.stringContaining('بہت چھوٹی') });
     FakeXHR.status = 200; FakeXHR.body = '<html>proxy page</html>';
-    await expect(upload('/app/orders/7/slip', new FormData())).rejects.toBeInstanceOf(ApiError);
+    await expect(upload('/app/orders/7/builty/front', new FormData())).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe('native Builty upload (CapacitorHttp)', () => {
+  it('sends a multipart Content-Type with a boundary on Android, never in the browser', async () => {
+    const { Capacitor } = await import('@capacitor/core');
+    class FakeXHR {
+      constructor() { this.upload = {}; this.headers = {}; FakeXHR.last = this; }
+      open(m, u) { this.url = u; }
+      setRequestHeader(k, v) { this.headers[k] = v; }
+      send(body) { this.body = body; this.status = 201; this.responseText = JSON.stringify({ error: false, message: 'ok', code: 201, data: { side: 'front' } }); this.onload(); }
+    }
+    vi.stubGlobal('XMLHttpRequest', FakeXHR);
+    const spy = vi.spyOn(Capacitor, 'isNativePlatform');
+
+    spy.mockReturnValue(true);
+    await Api.uploadBuilty(19, 'TEST-003', 'front', new Blob(['x'], { type: 'image/jpeg' }), 'TEST-003-front.jpg');
+    expect(FakeXHR.last.headers['Content-Type']).toMatch(/^multipart\/form-data; boundary=EnglandOrders[0-9a-f]{24}$/);
+    expect(FakeXHR.last.body.get('order_code')).toBe('TEST-003');
+
+    spy.mockReturnValue(false);
+    await Api.uploadBuilty(19, 'TEST-003', 'front', new Blob(['x'], { type: 'image/jpeg' }), 'TEST-003-front.jpg');
+    expect(FakeXHR.last.headers['Content-Type']).toBeUndefined();
+
+    expect(multipartBoundary()).not.toBe(multipartBoundary());
+    spy.mockRestore();
+  });
+});
+
+describe('builty helpers', () => {
+  it('derives none / partial / complete', () => {
+    expect(builtyState(undefined)).toEqual({ kind: 'none', missing: ['front', 'back'] });
+    expect(builtyState({ front: { uploaded: true }, back: { uploaded: false } })).toEqual({ kind: 'partial', missing: ['back'] });
+    expect(builtyState({ front: { uploaded: false }, back: { uploaded: true } })).toEqual({ kind: 'partial', missing: ['front'] });
+    expect(builtyState({ front: { uploaded: true }, back: { uploaded: true } }).kind).toBe('complete');
+  });
+
+  it('names downloaded files safely per order and side', () => {
+    expect(builtyFileName('ENG-1001', 'front', 'image/jpeg')).toBe('ENG-1001-builty-front.jpg');
+    expect(builtyFileName('ENG/../1001', 'back', 'image/png')).toBe('ENG1001-builty-back.png');
+    expect(builtyFileName('', 'back', undefined)).toBe('order-builty-back.jpg');
+  });
+});
+
+describe('website orders vs ERP sales wording and paths', () => {
+  it('names the number and the record by origin', () => {
+    expect(codeLabel('erp')).toBe('انوائس نمبر');
+    expect(codeLabel('website')).toBe('آرڈر نمبر');
+    expect(recordNoun('erp')).toBe('سیل');
+    expect(recordNoun('website')).toBe('آرڈر');
+    expect(recordPath('erp', 7)).toBe('/erp-sales/7');
+    expect(recordPath('website', 7)).toBe('/orders/7');
+  });
+  it('says an ERP sale (not an order) was not found', () => {
+    const body = { error: true, code: 404, data: { reason: 'order_not_found' } };
+    expect(friendly(404, body, '/app/erp-sales/5')).toBe('یہ ERP سیل نہیں ملی۔ ہو سکتا ہے ERP میں حذف ہو گئی ہو۔');
+    expect(friendly(404, body, '/app/orders/5')).toBe('یہ آرڈر نہیں ملا۔');
   });
 });

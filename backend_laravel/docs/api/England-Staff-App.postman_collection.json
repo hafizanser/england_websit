@@ -1,0 +1,1619 @@
+{
+  "info": {
+    "name": "England Orders — Staff App API",
+    "description": "API behind the England Orders staff app (internal team, admin accounts). Source of truth: fmcg_orders, fmcg_customers, fmcg_order_items; the app writes only fmcg_order_deliveries (delivery date, Pandi, Adda, Builty images). No prices are returned. Order status, quantities, prices and stock are never changed.\n\nEvery response uses one envelope (same as the Masoom app API): `{error, message, code, data}`; `code` equals the HTTP status; failures carry a stable `data.reason` (and `data.fields` for validation). Examples are real responses captured from the local test server (tokens/signatures redacted).\n\n**Accountrix ERP sales (v1.3).** Posted ERP sales are listed with website orders. The England backend pulls them from the ERP's read-only feed (`GET {ERP}/api/integrations/england/sales`, server-to-server bearer token, never sent to the app) into `fmcg_erp_sales` — one row per ERP sale (unique `erp_sale_id`), keeping the ERP invoice number, customer, date and net total. ERP sales are NOT copied into fmcg_orders and the ERP is never written. Every list card and detail carries `origin` (`website` | `erp`) and a unique `key` (`web-<id>` / `erp-<id>`); ids are only unique within one origin, so ERP records are opened via `/app/erp-sales/{id}`. Delivery date, Pandi, Adda and Builty images for an ERP sale are stored in England's `fmcg_erp_sale_deliveries`.\n\nExamples come from the local integration rig (TEST records created through the real website order service and the real ERP SaleService). Ids in your database will differ: take them from `GET /app/orders`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if ((pm.response.headers.get('Content-Type')||'').includes('json')) {",
+          "  const j = pm.response.json();",
+          "  pm.test('envelope {error,message,code,data}', () => { pm.expect(j).to.have.keys('error','message','code','data'); pm.expect(j.code).to.eql(pm.response.code); });",
+          "  if (j.error) pm.test('has data.reason', () => pm.expect(j.data.reason).to.be.a('string'));",
+          "  else if (j.data && j.data.builty && j.data.builty.front && j.data.builty.front.path) pm.collectionVariables.set('front_image_path', j.data.builty.front.path);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8010"
+    },
+    {
+      "key": "username",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "description": "Filled automatically by \"Orders list\" from the first website order / ERP sale returned. Do not type a guessed id."
+    },
+    {
+      "key": "order_code",
+      "value": "",
+      "description": "Filled automatically by \"Orders list\" from the first website order / ERP sale returned. Do not type a guessed id."
+    },
+    {
+      "key": "erp_sale_id",
+      "value": "",
+      "description": "Filled automatically by \"Orders list\" from the first website order / ERP sale returned. Do not type a guessed id."
+    },
+    {
+      "key": "erp_invoice_no",
+      "value": "",
+      "description": "Filled automatically by \"Orders list\" from the first website order / ERP sale returned. Do not type a guessed id."
+    },
+    {
+      "key": "front_image_path",
+      "value": ""
+    },
+    {
+      "key": "erp_front_image_path",
+      "value": ""
+    },
+    {
+      "key": "image_file",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "200 Signed in",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/auth/login",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Signed in.\",\n  \"code\": 200,\n  \"data\": {\n    \"token\": \"1|<token>\",\n    \"user\": {\n      \"id\": 1,\n      \"username\": \"teamlead\",\n      \"role\": \"admin\"\n    }\n  }\n}"
+            },
+            {
+              "name": "401 Wrong password",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/auth/login",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": true,\n  \"message\": \"Wrong username or password.\",\n  \"code\": 401,\n  \"data\": {\n    \"reason\": \"invalid_credentials\"\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('envelope', () => { pm.expect(j).to.have.keys('error','message','code','data'); pm.expect(j.code).to.eql(pm.response.code); });",
+                  "if (!j.error && j.data.token) pm.collectionVariables.set('token', j.data.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "auth",
+                "me"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "200",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/auth/me",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "auth",
+                    "me"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Signed-in user.\",\n  \"code\": 200,\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"username\": \"teamlead\",\n      \"role\": \"admin\"\n    }\n  }\n}"
+            },
+            {
+              "name": "401",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/auth/me",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "auth",
+                    "me"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": true,\n  \"message\": \"Your session has ended. Sign in again.\",\n  \"code\": 401,\n  \"data\": {\n    \"reason\": \"unauthenticated\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Orders list (website + ERP)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/orders?tab=all&page=1&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "tab",
+                  "value": "all",
+                  "description": "today | tomorrow | previous | all"
+                },
+                {
+                  "key": "origin",
+                  "value": "",
+                  "disabled": true,
+                  "description": "website | erp (omit for both)"
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "tab: today | tomorrow | previous | all. Optional: q, status, builty (uploaded|partial|pending), from, to."
+          },
+          "response": [
+            {
+              "name": "200 all (website + ERP)",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Orders retrieved.\",\n  \"code\": 200,\n  \"data\": {\n    \"orders\": [\n      {\n        \"id\": 3,\n        \"key\": \"erp-3\",\n        \"origin\": \"erp\",\n        \"code\": \"3\",\n        \"status\": \"posted\",\n        \"source\": \"erp\",\n        \"placed_at\": \"2026-11-06T08:01:30+00:00\",\n        \"order_date\": \"2026-11-07\",\n        \"delivery_date\": null,\n        \"effective_date\": \"2026-11-07\",\n        \"customer\": {\n          \"name\": \"TEST ERP Kiryana Store\",\n          \"phone\": \"03217654321\",\n          \"city\": \"Multan\"\n        },\n        \"pandi_name\": \"TEST Pandi Akram\",\n        \"adda_name\": \"TEST Adda Daewoo\",\n        \"items\": [\n          {\n            \"id\": 3,\n            \"name\": \"England Today Razor\",\n            \"urdu_name\": \"ٹوڈے ریزر\",\n            \"sub\": \"CTN = 576 PCS\",\n            \"unit\": \"CTN\",\n            \"qty\": 2,\n            \"qty_text\": \"2 CTN + 24 PCS\",\n            \"bonus\": \"6 PCS\",\n            \"type\": \"sale\"\n          }\n        ],\n        \"items_count\": 1,\n        \"builty\": {\n          \"front\": {\n            \"uploaded\": false,\n            \"uploaded_at\": null\n          },\n          \"back\": {\n            \"uploaded\": false,\n            \"uploaded_at\": null\n          },\n          \"uploaded_count\": 0,\n          \"complete\": false\n        }\n      },\n      {\n        \"id\": 2,\n        \"key\": \"erp-2\",\n        \"origin\": \"erp\",\n        \"code\": \"2\",\n        \"status\": \"posted\",\n        \"source\": \"erp\",\n        \"placed_at\": \"2026-11-06T08:01:29+00:00\",\n        \"order_date\": \"2026-11-05\",\n        \"delivery_date\": null,\n        \"effective_date\": \"2026-11-05\",\n        \"customer\": {\n          \"name\": \"TEST ERP Kiryana Store\",\n          \"phone\": \"03217654321\",\n          \"city\": \"Multan\"\n        },\n        \"pandi_name\": \"TEST Pandi Akram\",\n        \"adda_name\": \"TEST Adda Daewoo\",\n        \"items\": [\n          {\n            \"id\": 2,\n            \"name\": \"England Today Razor\",\n            \"urdu_name\": \"ٹوڈے ریزر\",\n            \"sub\": \"CTN = 576 PCS\",\n            \"unit\": \"CTN\",\n            \"qty\": 2,\n            \"qty_text\": \"2 CTN + 24 PCS\",\n            \"bonus\": \"6 PCS\",\n            \"type\": \"sale\"\n          }\n        ],\n        \"items_count\": 1,\n        \"builty\": {\n          \"front\": {\n            \"uploaded\": false,\n            \"uploaded_at\": null\n          },\n          \"back\": {\n            \"uploaded\": false,\n            \"uploaded_at\": null\n          },\n          \"uploaded_count\": 0,\n          \"complete\": false\n        }\n      },\n      {\n        \"id\": 1,\n        \"key\": \"web-1\",\n        \"origin\": \"website\",\n        \"code\": \"ENG-1001\",\n        \"status\": \"pending\",\n        \"source\": \"admin\",\n        \"placed_at\": \"2026-11-06T08:00:53+00:00\",\n        \"order_date\": \"2026-11-06\",\n        \"delivery_date\": null,\n        \"effective_date\": \"2026-11-06\",\n        \"customer\": {\n          \"name\": \"TEST Website Kiryana\",\n          \"phone\": \"03001234567\",\n          \"city\": \"Lahore\"\n        },\n        \"pandi_name\": \"TEST Pandi Website\",\n        \"adda_name\": \"TEST Adda Lahore\",\n        \"items\": [\n          {\n            \"id\": 1,\n            \"name\": \"England Classic Razer\",\n            \"sub\": \"48 pcs/box · 12 box/ctn\",\n            \"unit\": \"Carton\",\n            \"qty\": 2\n          }\n        ],\n        \"items_count\": 1,\n        \"builty\": {\n          \"front\": {\n            \"uploaded\": false,\n            \"uploaded_at\": null\n          },\n          \"back\": {\n            \"uploaded\": false,\n            \"uploaded_at\": null\n          },\n          \"uploaded_count\": 0,\n          \"complete\": false\n        }\n      },\n      {\n        \"id\": 1,\n        \"key\": \"erp-1\",\n        \"origin\": \"erp\",\n        \"code\": \"1\",\n        \"status\": \"posted\",\n        \"source\": \"erp\",\n        \"placed_at\": \"2026-11-06T08:00:04+00:00\",\n        \"order_date\": \"2026-11-06\",\n        \"delivery_date\": \"2026-11-07\",\n        \"effective_date\": \"2026-11-07\",\n        \"customer\": {\n          \"name\": \"TEST ERP Kiryana Store\",\n          \"phone\": \"03217654321\",\n          \"city\": \"Multan\"\n        },\n        \"pandi_name\": \"TEST Pandi Bashir\",\n        \"adda_name\": \"TEST Adda Faisal Movers\",\n        \"items\": [\n          {\n            \"id\": 1,\n            \"name\": \"England Today Razor\",\n            \"urdu_name\": \"ٹوڈے ریزر\",\n            \"sub\": \"CTN = 576 PCS\",\n            \"unit\": \"CTN\",\n            \"qty\": 2,\n            \"qty_text\": \"2 CTN + 24 PCS\",\n            \"bonus\": \"6 PCS\",\n            \"type\": \"sale\"\n          }\n        ],\n        \"items_count\": 1,\n        \"builty\": {\n          \"front\": {\n            \"uploaded\": true,\n            \"uploaded_at\": \"2026-11-06T08:01:59+00:00\"\n          },\n          \"back\": {\n            \"uploaded\": false,\n            \"uploaded_at\": null\n          },\n          \"uploaded_count\": 1,\n          \"complete\": false\n        }\n      }\n    ],\n    \"meta\": {\n      \"tab\": \"all\",\n      \"page\": 1,\n      \"per_page\": 5,\n      \"total\": 4,\n      \"last_page\": 1,\n      \"has_more\": false,\n      \"today\": \"2026-11-06\",\n      \"timezone\": \"Asia/Karachi\"\n    },\n    \"counts\": {\n      \"today\": 1,\n      \"tomorrow\": 2,\n      \"previous\": 1,\n      \"all\": 4\n    },\n    \"sources\": {\n      \"website\": {\n        \"enabled\": true\n      },\n      \"erp\": {\n        \"enabled\": true,\n        \"last_success_at\": \"2026-11-06T08:08:22+00:00\",\n        \"last_attempt_at\": \"2026-11-06T08:08:22+00:00\",\n        \"ok\": true,\n        \"error\": null\n      }\n    }\n  }\n}",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/orders?tab=all&page=1&per_page=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "orders"
+                  ],
+                  "query": [
+                    {
+                      "key": "tab",
+                      "value": "all",
+                      "description": "today | tomorrow | previous | all"
+                    },
+                    {
+                      "key": "origin",
+                      "value": "",
+                      "disabled": true,
+                      "description": "website | erp (omit for both)"
+                    },
+                    {
+                      "key": "q",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "tab: today | tomorrow | previous | all. Optional: q, status, builty (uploaded|partial|pending), from, to."
+              }
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const rows = (pm.response.json().data || {}).orders || [];",
+                  "const w = rows.find(r => r.origin === 'website'); const e = rows.find(r => r.origin === 'erp');",
+                  "if (w) { pm.collectionVariables.set('order_id', String(w.id)); pm.collectionVariables.set('order_code', w.code); }",
+                  "if (e) { pm.collectionVariables.set('erp_sale_id', String(e.id)); pm.collectionVariables.set('erp_invoice_no', e.code); }",
+                  "pm.test('every card has origin and key', () => rows.forEach(r => { pm.expect(['website','erp']).to.include(r.origin); pm.expect(r.key).to.eql((r.origin==='erp'?'erp-':'web-')+r.id); }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/orders/{{order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Order retrieved.\",\n  \"code\": 200,\n  \"data\": {\n    \"order\": {\n      \"id\": 1,\n      \"key\": \"web-1\",\n      \"origin\": \"website\",\n      \"code\": \"ENG-1001\",\n      \"status\": \"pending\",\n      \"source\": \"admin\",\n      \"placed_at\": \"2026-11-06T08:00:53+00:00\",\n      \"order_date\": \"2026-11-06\",\n      \"delivery_date\": null,\n      \"effective_date\": \"2026-11-06\",\n      \"today\": \"2026-11-06\",\n      \"total\": 57600,\n      \"note\": \"TEST order — local integration rig\",\n      \"customer\": {\n        \"name\": \"TEST Website Kiryana\",\n        \"phone\": \"03001234567\",\n        \"address\": \"TEST Shop 4, Akbari Mandi\",\n        \"city\": \"Lahore\"\n      },\n      \"items\": [\n        {\n          \"id\": 1,\n          \"name\": \"England Classic Razer\",\n          \"sub\": \"48 pcs/box · 12 box/ctn\",\n          \"unit\": \"Carton\",\n          \"qty\": 2\n        }\n      ],\n      \"items_count\": 1,\n      \"pandi_name\": null,\n      \"adda_name\": null,\n      \"builty\": {\n        \"front\": {\n          \"uploaded\": false\n        },\n        \"back\": {\n          \"uploaded\": false\n        },\n        \"uploaded_count\": 0,\n        \"complete\": false\n      },\n      \"history\": [\n        {\n          \"status\": \"pending\",\n          \"note\": \"Order admin dashboard se banaya gaya\",\n          \"at\": \"2026-11-06T08:00:53+00:00\"\n        }\n      ]\n    }\n  }\n}",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/orders/{{order_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "orders",
+                    "{{order_id}}"
+                  ]
+                },
+                "description": ""
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update delivery (Adda / Pandi / date)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/orders/{{order_id}}/delivery",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "orders",
+                "{{order_id}}",
+                "delivery"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_code\": \"{{order_code}}\",\n  \"adda_name\": \"بادامی باغ اڈا\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Delivery details saved.\",\n  \"code\": 200,\n  \"data\": {\n    \"order\": {\n      \"id\": 1,\n      \"key\": \"web-1\",\n      \"origin\": \"website\",\n      \"code\": \"ENG-1001\",\n      \"status\": \"pending\",\n      \"source\": \"admin\",\n      \"placed_at\": \"2026-11-06T08:00:53+00:00\",\n      \"order_date\": \"2026-11-06\",\n      \"delivery_date\": null,\n      \"effective_date\": \"2026-11-06\",\n      \"today\": \"2026-11-06\",\n      \"total\": 57600,\n      \"note\": \"TEST order — local integration rig\",\n      \"customer\": {\n        \"name\": \"TEST Website Kiryana\",\n        \"phone\": \"03001234567\",\n        \"address\": \"TEST Shop 4, Akbari Mandi\",\n        \"city\": \"Lahore\"\n      },\n      \"items\": [\n        {\n          \"id\": 1,\n          \"name\": \"England Classic Razer\",\n          \"sub\": \"48 pcs/box · 12 box/ctn\",\n          \"unit\": \"Carton\",\n          \"qty\": 2\n        }\n      ],\n      \"items_count\": 1,\n      \"pandi_name\": \"TEST Pandi Website\",\n      \"adda_name\": \"TEST Adda Lahore\",\n      \"builty\": {\n        \"front\": {\n          \"uploaded\": false\n        },\n        \"back\": {\n          \"uploaded\": false\n        },\n        \"uploaded_count\": 0,\n        \"complete\": false\n      },\n      \"history\": [\n        {\n          \"status\": \"pending\",\n          \"note\": \"Order admin dashboard se banaya gaya\",\n          \"at\": \"2026-11-06T08:00:53+00:00\"\n        }\n      ]\n    }\n  }\n}",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/orders/{{order_id}}/delivery",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "orders",
+                    "{{order_id}}",
+                    "delivery"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"order_code\": \"{{order_code}}\",\n  \"adda_name\": \"بادامی باغ اڈا\"\n}"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Builty",
+      "item": [
+        {
+          "name": "Get Builty images (signed links)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/orders/{{order_id}}/builty",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "orders",
+                "{{order_id}}",
+                "builty"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "200",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/orders/{{order_id}}/builty",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "orders",
+                    "{{order_id}}",
+                    "builty"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Builty images retrieved.\",\n  \"code\": 200,\n  \"data\": {\n    \"order_id\": 1,\n    \"order_code\": \"ENG-1001\",\n    \"builty\": {\n      \"front\": {\n        \"uploaded\": true,\n        \"path\": \"/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>\",\n        \"url\": \"https://englandwaly.com/api/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>\",\n        \"url_expires_at\": \"2026-11-05T11:48:55+00:00\",\n        \"mime\": \"image/jpeg\",\n        \"size\": 129572,\n        \"width\": 1200,\n        \"height\": 1600,\n        \"uploaded_at\": \"2026-11-05T11:18:55+00:00\"\n      },\n      \"back\": {\n        \"uploaded\": true,\n        \"path\": \"/app/orders/1/builty/back/image?expires=1793879335&v=e4cc21c7bbb1&signature=<signature>\",\n        \"url\": \"https://englandwaly.com/api/app/orders/1/builty/back/image?expires=1793879335&v=e4cc21c7bbb1&signature=<signature>\",\n        \"url_expires_at\": \"2026-11-05T11:48:55+00:00\",\n        \"mime\": \"image/jpeg\",\n        \"size\": 124817,\n        \"width\": 1200,\n        \"height\": 1600,\n        \"uploaded_at\": \"2026-11-05T11:18:55+00:00\"\n      },\n      \"uploaded_count\": 2,\n      \"complete\": true\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Upload Builty FRONT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/orders/{{order_id}}/builty/front",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "orders",
+                "{{order_id}}",
+                "builty",
+                "front"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "order_code",
+                  "value": "{{order_code}}",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "{{image_file}}",
+                  "description": "JPG/PNG/WebP ≤ 10 MB"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "201 Saved",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/orders/{{order_id}}/builty/front",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "orders",
+                    "{{order_id}}",
+                    "builty",
+                    "front"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "order_code",
+                      "value": "{{order_code}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "image",
+                      "type": "file",
+                      "src": [],
+                      "description": "JPG/PNG/WebP ≤ 10 MB"
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Builty front image saved.\",\n  \"code\": 201,\n  \"data\": {\n    \"order_id\": 1,\n    \"order_code\": \"ENG-1001\",\n    \"side\": \"front\",\n    \"builty\": {\n      \"front\": {\n        \"uploaded\": true,\n        \"path\": \"/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>\",\n        \"url\": \"https://englandwaly.com/api/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>\",\n        \"url_expires_at\": \"2026-11-05T11:48:55+00:00\",\n        \"mime\": \"image/jpeg\",\n        \"size\": 129572,\n        \"width\": 1200,\n        \"height\": 1600,\n        \"uploaded_at\": \"2026-11-05T11:18:55+00:00\"\n      },\n      \"back\": {\n        \"uploaded\": false\n      },\n      \"uploaded_count\": 1,\n      \"complete\": false\n    }\n  }\n}"
+            },
+            {
+              "name": "409 Wrong order",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/orders/{{order_id}}/builty/front",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "orders",
+                    "{{order_id}}",
+                    "builty",
+                    "front"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "order_code",
+                      "value": "{{order_code}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "image",
+                      "type": "file",
+                      "src": [],
+                      "description": "JPG/PNG/WebP ≤ 10 MB"
+                    }
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": true,\n  \"message\": \"This does not belong to order ENG-1003. Nothing was saved.\",\n  \"code\": 409,\n  \"data\": {\n    \"reason\": \"order_mismatch\"\n  }\n}"
+            },
+            {
+              "name": "422 Not an image",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/orders/{{order_id}}/builty/front",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "orders",
+                    "{{order_id}}",
+                    "builty",
+                    "front"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "order_code",
+                      "value": "{{order_code}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "image",
+                      "type": "file",
+                      "src": [],
+                      "description": "JPG/PNG/WebP ≤ 10 MB"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": true,\n  \"message\": \"Only JPG, PNG or WebP photos can be uploaded.\",\n  \"code\": 422,\n  \"data\": {\n    \"reason\": \"image_type_not_allowed\",\n    \"fields\": {\n      \"image\": \"Only JPG, PNG or WebP photos can be uploaded.\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Upload Builty BACK",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/orders/{{order_id}}/builty/back",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "orders",
+                "{{order_id}}",
+                "builty",
+                "back"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "order_code",
+                  "value": "{{order_code}}",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "{{image_file}}",
+                  "description": "JPG/PNG/WebP ≤ 10 MB"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "201 Saved",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/orders/{{order_id}}/builty/back",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "orders",
+                    "{{order_id}}",
+                    "builty",
+                    "back"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "order_code",
+                      "value": "{{order_code}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "image",
+                      "type": "file",
+                      "src": [],
+                      "description": "JPG/PNG/WebP ≤ 10 MB"
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Builty back image saved.\",\n  \"code\": 201,\n  \"data\": {\n    \"order_id\": 1,\n    \"order_code\": \"ENG-1001\",\n    \"side\": \"back\",\n    \"builty\": {\n      \"front\": {\n        \"uploaded\": true,\n        \"path\": \"/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>\",\n        \"url\": \"https://englandwaly.com/api/app/orders/1/builty/front/image?expires=1793879335&v=50540d6b3dac&signature=<signature>\",\n        \"url_expires_at\": \"2026-11-05T11:48:55+00:00\",\n        \"mime\": \"image/jpeg\",\n        \"size\": 129572,\n        \"width\": 1200,\n        \"height\": 1600,\n        \"uploaded_at\": \"2026-11-05T11:18:55+00:00\"\n      },\n      \"back\": {\n        \"uploaded\": true,\n        \"path\": \"/app/orders/1/builty/back/image?expires=1793879335&v=e4cc21c7bbb1&signature=<signature>\",\n        \"url\": \"https://englandwaly.com/api/app/orders/1/builty/back/image?expires=1793879335&v=e4cc21c7bbb1&signature=<signature>\",\n        \"url_expires_at\": \"2026-11-05T11:48:55+00:00\",\n        \"mime\": \"image/jpeg\",\n        \"size\": 124817,\n        \"width\": 1200,\n        \"height\": 1600,\n        \"uploaded_at\": \"2026-11-05T11:18:55+00:00\"\n      },\n      \"uploaded_count\": 2,\n      \"complete\": true\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Open FRONT image (signed path from Get Builty)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}{{front_image_path}}",
+            "description": "Run 'Get Builty images' first; it stores the signed path. No bearer token needed; the link expires after 30 minutes.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('image bytes', () => { pm.response.to.have.status(200); pm.expect(pm.response.headers.get('Content-Type')).to.match(/^image\\//); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ERP sales",
+      "description": "Accountrix ERP sales (read-only copy). Run \"Orders list\" first: it fills erp_sale_id and erp_invoice_no.",
+      "item": [
+        {
+          "name": "Refresh ERP sales now",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/erp-sales/sync",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "erp-sales",
+                "sync"
+              ]
+            },
+            "description": "Pull new/changed posted ERP sales now (also runs automatically). 502 erp_unreachable, 503 erp_not_configured. Throttled 6/min."
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"ERP sales refreshed.\",\n  \"code\": 200,\n  \"data\": {\n    \"summary\": {\n      \"fetched\": 0,\n      \"upserted\": 0,\n      \"removed\": 0,\n      \"restored\": 0,\n      \"pages\": 1,\n      \"reconciled\": false\n    },\n    \"erp\": {\n      \"enabled\": true,\n      \"last_success_at\": \"2026-11-06T08:02:13+00:00\",\n      \"last_attempt_at\": \"2026-11-06T08:02:13+00:00\",\n      \"ok\": true,\n      \"error\": null\n    }\n  }\n}",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/erp-sales/sync",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "erp-sales",
+                    "sync"
+                  ]
+                },
+                "description": "Pull new/changed posted ERP sales now (also runs automatically). 502 erp_unreachable, 503 erp_not_configured. Throttled 6/min."
+              }
+            }
+          ]
+        },
+        {
+          "name": "ERP sale detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "erp-sales",
+                "{{erp_sale_id}}"
+              ]
+            },
+            "description": "erp_sale_id = fmcg_erp_sales.id from the Orders list (origin = erp). Mixed invoices list only England lines; erp.other_company_lines counts the rest, and total is the whole invoice (total_scope: whole_invoice)."
+          },
+          "response": [
+            {
+              "name": "200 England-only invoice",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"ERP sale retrieved.\",\n  \"code\": 200,\n  \"data\": {\n    \"order\": {\n      \"id\": 1,\n      \"key\": \"erp-1\",\n      \"origin\": \"erp\",\n      \"code\": \"1\",\n      \"status\": \"posted\",\n      \"source\": \"erp\",\n      \"erp\": {\n        \"sale_id\": 1,\n        \"invoice_no\": \"1\",\n        \"offline_no\": null,\n        \"vehicle\": null,\n        \"remarks\": \"TEST sale — local integration rig\",\n        \"pandi_name\": \"TEST Pandi Akram\",\n        \"pandi_phone\": \"03001112233\",\n        \"adda_name\": \"TEST Adda Daewoo\",\n        \"synced_at\": \"2026-11-06T08:01:22+00:00\",\n        \"other_company_lines\": 0\n      },\n      \"placed_at\": \"2026-11-06T08:00:04+00:00\",\n      \"order_date\": \"2026-11-06\",\n      \"delivery_date\": \"2026-11-07\",\n      \"effective_date\": \"2026-11-07\",\n      \"today\": \"2026-11-06\",\n      \"total\": 21233.44,\n      \"total_scope\": \"whole_invoice\",\n      \"note\": \"TEST sale — local integration rig\",\n      \"customer\": {\n        \"name\": \"TEST ERP Kiryana Store\",\n        \"phone\": \"03217654321\",\n        \"address\": \"TEST Shop 9, Hussain Agahi\",\n        \"city\": \"Multan\"\n      },\n      \"items\": [\n        {\n          \"id\": 1,\n          \"name\": \"England Today Razor\",\n          \"urdu_name\": \"ٹوڈے ریزر\",\n          \"sub\": \"CTN = 576 PCS\",\n          \"unit\": \"CTN\",\n          \"qty\": 2,\n          \"qty_text\": \"2 CTN + 24 PCS\",\n          \"bonus\": \"6 PCS\",\n          \"type\": \"sale\"\n        }\n      ],\n      \"items_count\": 1,\n      \"pandi_name\": \"TEST Pandi Bashir\",\n      \"adda_name\": \"TEST Adda Faisal Movers\",\n      \"pandi_from_erp\": false,\n      \"adda_from_erp\": false,\n      \"builty\": {\n        \"front\": {\n          \"uploaded\": true,\n          \"path\": \"/app/erp-sales/1/builty/front/image?expires=1793961151&v=29ff0bca6a95&signature=<signature>\",\n          \"url\": \"http://127.0.0.1:8010/app/erp-sales/1/builty/front/image?expires=1793961151&v=29ff0bca6a95&signature=<signature>\",\n          \"url_expires_at\": \"2026-11-06T10:32:31+00:00\",\n          \"mime\": \"image/jpeg\",\n          \"size\": 30627,\n          \"width\": 1200,\n          \"height\": 1600,\n          \"uploaded_at\": \"2026-11-06T08:01:59+00:00\"\n        },\n        \"back\": {\n          \"uploaded\": true,\n          \"path\": \"/app/erp-sales/1/builty/back/image?expires=1793961151&v=e393c1630d7f&signature=<signature>\",\n          \"url\": \"http://127.0.0.1:8010/app/erp-sales/1/builty/back/image?expires=1793961151&v=e393c1630d7f&signature=<signature>\",\n          \"url_expires_at\": \"2026-11-06T10:32:31+00:00\",\n          \"mime\": \"image/jpeg\",\n          \"size\": 18465,\n          \"width\": 900,\n          \"height\": 1200,\n          \"uploaded_at\": \"2026-11-06T08:14:27+00:00\"\n        },\n        \"uploaded_count\": 2,\n        \"complete\": true\n      },\n      \"history\": []\n    }\n  }\n}",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "erp-sales",
+                    "{{erp_sale_id}}"
+                  ]
+                },
+                "description": "erp_sale_id = fmcg_erp_sales.id from the Orders list (origin = erp)."
+              }
+            },
+            {
+              "name": "200 mixed invoice (1 other-company line left out)",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"ERP sale retrieved.\",\n  \"code\": 200,\n  \"data\": {\n    \"order\": {\n      \"id\": 26,\n      \"key\": \"erp-26\",\n      \"origin\": \"erp\",\n      \"code\": \"27\",\n      \"status\": \"posted\",\n      \"source\": \"erp\",\n      \"erp\": {\n        \"sale_id\": 27,\n        \"invoice_no\": \"27\",\n        \"offline_no\": null,\n        \"vehicle\": null,\n        \"remarks\": \"TEST mixed invoice — England + other brand\",\n        \"pandi_name\": \"TEST Pandi Akram\",\n        \"pandi_phone\": \"03001112233\",\n        \"adda_name\": \"TEST Adda Daewoo\",\n        \"synced_at\": \"2026-11-06T09:57:58+00:00\",\n        \"other_company_lines\": 1\n      },\n      \"placed_at\": \"2026-11-06T09:57:51+00:00\",\n      \"order_date\": \"2026-11-06\",\n      \"delivery_date\": null,\n      \"effective_date\": \"2026-11-06\",\n      \"today\": \"2026-11-06\",\n      \"total\": 52433.44,\n      \"total_scope\": \"whole_invoice\",\n      \"note\": \"TEST mixed invoice — England + other brand\",\n      \"customer\": {\n        \"name\": \"TEST ERP Kiryana Store\",\n        \"phone\": \"03217654321\",\n        \"address\": \"TEST Shop 9, Hussain Agahi\",\n        \"city\": \"Multan\"\n      },\n      \"items\": [\n        {\n          \"id\": 27,\n          \"name\": \"England Today Razor\",\n          \"urdu_name\": \"ٹوڈے ریزر\",\n          \"sub\": \"CTN = 576 PCS\",\n          \"unit\": \"CTN\",\n          \"qty\": 2,\n          \"qty_text\": \"2 CTN + 24 PCS\",\n          \"bonus\": \"6 PCS\",\n          \"type\": \"sale\"\n        }\n      ],\n      \"items_count\": 1,\n      \"pandi_name\": \"TEST Pandi Akram\",\n      \"adda_name\": \"TEST Adda Daewoo\",\n      \"pandi_from_erp\": true,\n      \"adda_from_erp\": true,\n      \"builty\": {\n        \"front\": {\n          \"uploaded\": false\n        },\n        \"back\": {\n          \"uploaded\": false\n        },\n        \"uploaded_count\": 0,\n        \"complete\": false\n      },\n      \"history\": []\n    }\n  }\n}",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "erp-sales",
+                    "{{erp_sale_id}}"
+                  ]
+                },
+                "description": "erp_sale_id = fmcg_erp_sales.id from the Orders list (origin = erp). Mixed invoices list only England lines; erp.other_company_lines counts the rest, and total is the whole invoice (total_scope: whole_invoice)."
+              }
+            },
+            {
+              "name": "404",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": true,\n  \"message\": \"ERP sale not found.\",\n  \"code\": 404,\n  \"data\": {\n    \"reason\": \"order_not_found\"\n  }\n}",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "erp-sales",
+                    "{{erp_sale_id}}"
+                  ]
+                },
+                "description": "erp_sale_id = fmcg_erp_sales.id from the Orders list (origin = erp)."
+              }
+            }
+          ]
+        },
+        {
+          "name": "ERP sale delivery date / Pandi / Adda",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}/delivery",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "erp-sales",
+                "{{erp_sale_id}}",
+                "delivery"
+              ]
+            },
+            "description": "Saved in England only (fmcg_erp_sale_deliveries); the ERP invoice is never changed. Only the fields sent change; empty string clears. Remove fields you do not want to change.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_code\": \"{{erp_invoice_no}}\",\n  \"delivery_date\": \"\",\n  \"pandi_name\": \"\",\n  \"adda_name\": \"\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Delivery details saved.\",\n  \"code\": 200,\n  \"data\": {\n    \"order\": {\n      \"id\": 1,\n      \"key\": \"erp-1\",\n      \"origin\": \"erp\",\n      \"code\": \"1\",\n      \"status\": \"posted\",\n      \"source\": \"erp\",\n      \"erp\": {\n        \"sale_id\": 1,\n        \"invoice_no\": \"1\",\n        \"offline_no\": null,\n        \"vehicle\": null,\n        \"remarks\": \"TEST sale — local integration rig\",\n        \"pandi_name\": \"TEST Pandi Akram\",\n        \"pandi_phone\": \"03001112233\",\n        \"adda_name\": \"TEST Adda Daewoo\",\n        \"synced_at\": \"2026-11-06T08:01:22+00:00\"\n      },\n      \"placed_at\": \"2026-11-06T08:00:04+00:00\",\n      \"order_date\": \"2026-11-06\",\n      \"delivery_date\": \"2026-11-07\",\n      \"effective_date\": \"2026-11-07\",\n      \"today\": \"2026-11-06\",\n      \"total\": 21233.44,\n      \"note\": \"TEST sale — local integration rig\",\n      \"customer\": {\n        \"name\": \"TEST ERP Kiryana Store\",\n        \"phone\": \"03217654321\",\n        \"address\": \"TEST Shop 9, Hussain Agahi\",\n        \"city\": \"Multan\"\n      },\n      \"items\": [\n        {\n          \"id\": 1,\n          \"name\": \"England Today Razor\",\n          \"urdu_name\": \"ٹوڈے ریزر\",\n          \"sub\": \"CTN = 576 PCS\",\n          \"unit\": \"CTN\",\n          \"qty\": 2,\n          \"qty_text\": \"2 CTN + 24 PCS\",\n          \"bonus\": \"6 PCS\",\n          \"type\": \"sale\"\n        }\n      ],\n      \"items_count\": 1,\n      \"pandi_name\": \"TEST Pandi Bashir\",\n      \"adda_name\": \"TEST Adda Faisal Movers\",\n      \"pandi_from_erp\": false,\n      \"adda_from_erp\": false,\n      \"builty\": {\n        \"front\": {\n          \"uploaded\": false\n        },\n        \"back\": {\n          \"uploaded\": false\n        },\n        \"uploaded_count\": 0,\n        \"complete\": false\n      },\n      \"history\": []\n    }\n  }\n}",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}/delivery",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "erp-sales",
+                    "{{erp_sale_id}}",
+                    "delivery"
+                  ]
+                },
+                "description": "Saved in England only (fmcg_erp_sale_deliveries); the ERP invoice is never changed. Only the fields sent change; empty string clears. Remove fields you do not want to change.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"order_code\": \"{{erp_invoice_no}}\",\n  \"delivery_date\": \"\",\n  \"pandi_name\": \"\",\n  \"adda_name\": \"\"\n}"
+                }
+              }
+            },
+            {
+              "name": "409",
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": true,\n  \"message\": \"This does not belong to order 1. Nothing was saved.\",\n  \"code\": 409,\n  \"data\": {\n    \"reason\": \"order_mismatch\"\n  }\n}",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}/delivery",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "erp-sales",
+                    "{{erp_sale_id}}",
+                    "delivery"
+                  ]
+                },
+                "description": "Saved in England only (fmcg_erp_sale_deliveries); the ERP invoice is never changed. Only the fields sent change; empty string clears. Remove fields you do not want to change.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"order_code\": \"{{erp_invoice_no}}\",\n  \"delivery_date\": \"\",\n  \"pandi_name\": \"\",\n  \"adda_name\": \"\"\n}"
+                }
+              }
+            },
+            {
+              "name": "422",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": true,\n  \"message\": \"Please check the highlighted fields.\",\n  \"code\": 422,\n  \"data\": {\n    \"reason\": \"validation_failed\",\n    \"fields\": {\n      \"delivery_date\": \"Choose a valid date.\"\n    }\n  }\n}",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}/delivery",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "erp-sales",
+                    "{{erp_sale_id}}",
+                    "delivery"
+                  ]
+                },
+                "description": "Saved in England only (fmcg_erp_sale_deliveries); the ERP invoice is never changed. Only the fields sent change; empty string clears. Remove fields you do not want to change.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"order_code\": \"{{erp_invoice_no}}\",\n  \"delivery_date\": \"\",\n  \"pandi_name\": \"\",\n  \"adda_name\": \"\"\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "ERP sale Builty",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}/builty",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "erp-sales",
+                "{{erp_sale_id}}",
+                "builty"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Builty images retrieved.\",\n  \"code\": 200,\n  \"data\": {\n    \"origin\": \"erp\",\n    \"order_id\": 1,\n    \"order_code\": \"1\",\n    \"builty\": {\n      \"front\": {\n        \"uploaded\": true,\n        \"path\": \"/app/erp-sales/1/builty/front/image?expires=1793953919&v=29ff0bca6a95&signature=<signature>\",\n        \"url\": \"http://127.0.0.1:8010/app/erp-sales/1/builty/front/image?expires=1793953919&v=29ff0bca6a95&signature=<signature>\",\n        \"url_expires_at\": \"2026-11-06T08:31:59+00:00\",\n        \"mime\": \"image/jpeg\",\n        \"size\": 30627,\n        \"width\": 1200,\n        \"height\": 1600,\n        \"uploaded_at\": \"2026-11-06T08:01:59+00:00\"\n      },\n      \"back\": {\n        \"uploaded\": false\n      },\n      \"uploaded_count\": 1,\n      \"complete\": false\n    }\n  }\n}",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}/builty",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "erp-sales",
+                    "{{erp_sale_id}}",
+                    "builty"
+                  ]
+                },
+                "description": ""
+              }
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = ((pm.response.json().data||{}).builty)||((pm.response.json().data||{}).order||{}).builty;",
+                  "if (b && b.front && b.front.path) pm.collectionVariables.set('erp_front_image_path', b.front.path);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload ERP sale Builty — front",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}/builty/front",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "erp-sales",
+                "{{erp_sale_id}}",
+                "builty",
+                "front"
+              ]
+            },
+            "description": "order_code must be the ERP invoice number of this sale (else 409, nothing stored). JPG/PNG/WebP ≤ 10 MB.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "order_code",
+                  "value": "{{erp_invoice_no}}",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "{{image_file}}"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "201",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Builty front image saved.\",\n  \"code\": 201,\n  \"data\": {\n    \"origin\": \"erp\",\n    \"order_id\": 1,\n    \"order_code\": \"1\",\n    \"side\": \"front\",\n    \"builty\": {\n      \"front\": {\n        \"uploaded\": true,\n        \"path\": \"/app/erp-sales/1/builty/front/image?expires=1793953919&v=29ff0bca6a95&signature=<signature>\",\n        \"url\": \"http://127.0.0.1:8010/app/erp-sales/1/builty/front/image?expires=1793953919&v=29ff0bca6a95&signature=<signature>\",\n        \"url_expires_at\": \"2026-11-06T08:31:59+00:00\",\n        \"mime\": \"image/jpeg\",\n        \"size\": 30627,\n        \"width\": 1200,\n        \"height\": 1600,\n        \"uploaded_at\": \"2026-11-06T08:01:59+00:00\"\n      },\n      \"back\": {\n        \"uploaded\": false\n      },\n      \"uploaded_count\": 1,\n      \"complete\": false\n    }\n  }\n}",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}/builty/front",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "app",
+                    "erp-sales",
+                    "{{erp_sale_id}}",
+                    "builty",
+                    "front"
+                  ]
+                },
+                "description": "order_code must be the ERP invoice number of this sale (else 409, nothing stored). JPG/PNG/WebP ≤ 10 MB.",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "order_code",
+                      "value": "{{erp_invoice_no}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "image",
+                      "type": "file",
+                      "src": "{{image_file}}"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = ((pm.response.json().data||{}).builty)||((pm.response.json().data||{}).order||{}).builty;",
+                  "if (b && b.front && b.front.path) pm.collectionVariables.set('erp_front_image_path', b.front.path);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload ERP sale Builty — back",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/erp-sales/{{erp_sale_id}}/builty/back",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "erp-sales",
+                "{{erp_sale_id}}",
+                "builty",
+                "back"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "order_code",
+                  "value": "{{erp_invoice_no}}",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "{{image_file}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = ((pm.response.json().data||{}).builty)||((pm.response.json().data||{}).order||{}).builty;",
+                  "if (b && b.front && b.front.path) pm.collectionVariables.set('erp_front_image_path', b.front.path);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ERP sale Builty image (signed link)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{base_url}}{{erp_front_image_path}}",
+            "description": "Uses the signed `path` saved from the last ERP Builty response."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sign out",
+      "item": [
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/auth/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -43,7 +43,7 @@ export default function Account() {
         </div>
 
         <section className="card dcard">
-          <div className="dcard__head"><h3><Icon name="sun" size={20} /> ایپ کا رنگ</h3></div>
+          <div className="dcard__head"><h3><span className="dcard__ic"><Icon name="sun" size={17} strokeWidth={2.1} /></span> ایپ کا رنگ</h3></div>
           <div className="choices choices--3">
             {THEMES.map(([v, l, ic]) => (
               <button key={v} type="button" className={cx('choice choice--tile', mode === v && 'is-on')} onClick={() => choose(v)} aria-pressed={mode === v}>
@@ -54,12 +54,12 @@ export default function Account() {
         </section>
 
         <section className="card dcard">
-          <div className="dcard__head"><h3><Icon name="info" size={20} /> ایپ کے بارے میں</h3></div>
+          <div className="dcard__head"><h3><span className="dcard__ic"><Icon name="info" size={17} strokeWidth={2.1} /></span> ایپ کے بارے میں</h3></div>
           <dl className="rows">
             <div className="rows__row"><dt>ورژن</dt><dd><Num>{APP_VERSION}</Num></dd></div>
             <div className="rows__row"><dt>سرور</dt><dd>{API_BASE ? <Num>{API_BASE.replace(/^https?:\/\//, '')}</Num> : 'مقامی سرور'}</dd></div>
           </dl>
-          <p className="muted small">یہ ایپ صرف آرڈر دیکھنے، ڈیلیوری کی معلومات لکھنے اور پنڈی سلپ لگانے کے لیے ہے۔ آرڈر کی رقم، سامان اور اسٹاک یہاں سے تبدیل نہیں ہوتے۔</p>
+          <p className="muted small">یہ ایپ صرف آرڈر دیکھنے، ڈیلیوری کی معلومات لکھنے اور بلٹی کی تصاویر لگانے کے لیے ہے۔ آرڈر کا سامان اور اسٹاک یہاں سے تبدیل نہیں ہوتے۔</p>
         </section>
 
         <div className="gutter">

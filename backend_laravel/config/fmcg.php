@@ -43,6 +43,20 @@ return [
     // back to a signed-in admin through GET /app/orders/{id}/slip.
     'slips_path' => env('FMCG_SLIPS_PATH') ?: storage_path('app/pandi-slips'),
     'slip_max_kb' => (int) env('FMCG_SLIP_MAX_KB', 10240),
+    // How long a Builty image URL given to the staff app stays valid (signed, per order and side).
+    'builty_url_minutes' => (int) env('FMCG_BUILTY_URL_MINUTES', 30),
+
+    // Accountrix ERP sales shown in the staff app (App\Services\ErpSalesSync). Pulled
+    // server-to-server from the ERP's read-only feed /api/integrations/england/*; off
+    // (website orders only) until both the URL and the token are set.
+    'erp_sales' => [
+        'url' => rtrim((string) env('ERP_SALES_URL', ''), '/'),   // e.g. https://codelps.com/accountrix_erp
+        'token' => (string) env('ERP_SALES_TOKEN', ''),            // the ERP keeps only its sha256
+        'timeout' => (int) env('ERP_SALES_TIMEOUT', 8),            // seconds per request
+        'sync_seconds' => (int) env('ERP_SALES_SYNC_SECONDS', 60), // a list request refreshes at most this often
+        'reconcile_days' => (int) env('ERP_SALES_RECONCILE_DAYS', 120), // window checked for sales deleted in the ERP
+        'max_pages' => (int) env('ERP_SALES_MAX_PAGES', 20),       // per sync run (100 sales a page)
+    ],
 
     'ffmpeg_path'  => env('FMCG_FFMPEG_PATH', 'ffmpeg'),
     'ffprobe_path' => env('FMCG_FFPROBE_PATH', 'ffprobe'),

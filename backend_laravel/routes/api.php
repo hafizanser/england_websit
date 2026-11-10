@@ -236,11 +236,35 @@ Route::post('/app/auth/login', [\App\Http\Controllers\MobileApp\OrderAppControll
     ->middleware(['cache.private', 'throttle:10,1']);
 Route::post('/app/auth/logout', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'logout'])
     ->middleware('cache.private');
-Route::middleware(['cache.private', 'admin.auth'])->prefix('app')->group(function () {
+// Builty image bytes: opened by a temporary signed URL (bound to order id + side + image
+// version, 30 min) so the app's <img> and native download work without a bearer header.
+Route::get('/app/orders/{id}/builty/{side}/image', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'builtyImage'])
+    ->middleware(['signed:relative', 'throttle:120,1'])
+    ->whereNumber('id')->whereIn('side', ['front', 'back'])
+    ->name('app.builty.image');
+Route::get('/app/erp-sales/{id}/builty/{side}/image', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'erpBuiltyImage'])
+    ->middleware(['signed:relative', 'throttle:120,1'])
+    ->whereNumber('id')->whereIn('side', ['front', 'back'])
+    ->name('app.erp.builty.image');
+Route::middleware(['cache.private', 'app.admin'])->prefix('app')->group(function () {
     Route::get('/auth/me', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'me']);
     Route::get('/orders', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'index']);
     Route::get('/orders/{id}', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'show'])->whereNumber('id');
     Route::patch('/orders/{id}/delivery', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'updateDelivery'])->whereNumber('id');
+    Route::get('/orders/{id}/builty', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'builty'])->whereNumber('id');
+    Route::post('/orders/{id}/builty/{side}', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'uploadBuilty'])
+        ->whereNumber('id')->whereIn('side', ['front', 'back'])->middleware('throttle:30,1');
+    // Legacy (APK 1.1.x): the single "slip" is the Builty FRONT image.
     Route::post('/orders/{id}/slip', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'uploadSlip'])->whereNumber('id');
     Route::get('/orders/{id}/slip', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'slip'])->whereNumber('id');
+
+    // Accountrix ERP sales (read-only copy, see App\Services\ErpSalesSync). They appear in GET /orders
+    // with origin "erp"; these act on one of them. Delivery details and Builty images are kept in
+    // the England database (fmcg_erp_sale_deliveries) — the ERP's invoice is never changed.
+    Route::post('/erp-sales/sync', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'erpSync'])->middleware('throttle:erp-sync');
+    Route::get('/erp-sales/{id}', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'erpShow'])->whereNumber('id');
+    Route::patch('/erp-sales/{id}/delivery', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'erpUpdateDelivery'])->whereNumber('id');
+    Route::get('/erp-sales/{id}/builty', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'erpBuilty'])->whereNumber('id');
+    Route::post('/erp-sales/{id}/builty/{side}', [\App\Http\Controllers\MobileApp\OrderAppController::class, 'erpUploadBuilty'])
+        ->whereNumber('id')->whereIn('side', ['front', 'back'])->middleware('throttle:30,1');
 });
