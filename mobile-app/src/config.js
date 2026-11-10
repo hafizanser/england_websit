@@ -8,7 +8,7 @@ const raw = (import.meta.env.VITE_API_BASE || '').trim().replace(/\/+$/, '');
 
 export const API_BASE = raw;
 export const APP_NAME = 'انگلینڈ آرڈرز';
-export const APP_VERSION = '1.3.2';
+export const APP_VERSION = '1.3.3';
 
 /** Order statuses exactly as the England backend stores them (fmcg.order_statuses). Only the labels are Urdu. */
 export const STATUSES = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
@@ -42,6 +42,15 @@ export const codeLabel = (origin) => (origin === 'erp' ? 'انوائس نمبر'
 export const recordNoun = (origin) => (origin === 'erp' ? 'سیل' : 'آرڈر');
 
 export const ORIGIN_LABEL = { website: 'ویب سائٹ', erp: 'ERP' };
+
+/**
+ * Exact source of one record, from the stored fmcg_orders.source (set by the code path that
+ * created it: storefront checkout = website, admin dashboard = admin) or 'erp' for ERP sales.
+ * Anything else is shown as unknown — never guessed.
+ */
+export const SOURCE_LABEL = { website: 'انگلینڈ ویب سائٹ', admin: 'ڈیش بورڈ', erp: 'Accountrix ERP' };
+export const SOURCE_UNKNOWN = 'ذریعہ دستیاب نہیں';
+export const sourceLabel = (source) => SOURCE_LABEL[source] || SOURCE_UNKNOWN;
 /** App route of one record (details screen; /builty and /builty/upload hang off it). */
 export const recordPath = (origin, id) => `${origin === 'erp' ? '/erp-sales' : '/orders'}/${id}`;
 

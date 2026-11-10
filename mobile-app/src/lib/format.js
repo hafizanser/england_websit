@@ -48,19 +48,50 @@ export function relativeDay(ymd, today) {
   return dayLabel(ymd);
 }
 
-/** "4 نومبر 2026، 10:42 صبح" in Pakistan time from an ISO timestamp. */
-export function dateTime(iso) {
-  if (!iso) return '—';
+/** Pakistan-time parts of an ISO timestamp (UTC+5, no daylight saving), independent of the phone's zone. */
+function pkTime(iso) {
+  if (!iso) return null;
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  // Shift to Pakistan time (UTC+5, no daylight saving) so the result does not depend on the phone's zone.
+  if (Number.isNaN(d.getTime())) return null;
   const pk = new Date(d.getTime() + 5 * 3600000);
   const h = pk.getUTCHours();
   const min = String(pk.getUTCMinutes()).padStart(2, '0');
-  const h12 = h % 12 || 12;
   const part = h < 12 ? 'صبح' : h < 16 ? 'دوپہر' : h < 19 ? 'شام' : 'رات';
-  return `${pk.getUTCDate()} ${MONTHS[pk.getUTCMonth()]} ${pk.getUTCFullYear()}، ${h12}:${min} ${part}`;
+  const ymd = `${pk.getUTCFullYear()}-${String(pk.getUTCMonth() + 1).padStart(2, '0')}-${String(pk.getUTCDate()).padStart(2, '0')}`;
+  return { ymd, y: pk.getUTCFullYear(), m: pk.getUTCMonth(), d: pk.getUTCDate(), time: `${h % 12 || 12}:${min} ${part}` };
 }
+
+/** "4 نومبر 2026، 10:42 صبح" in Pakistan time from an ISO timestamp. */
+export function dateTime(iso) {
+  const t = pkTime(iso);
+  return t ? `${t.d} ${MONTHS[t.m]} ${t.y}، ${t.time}` : '—';
+}
+
+/** "10:42 صبح" in Pakistan time, or null when the timestamp is missing. */
+export function timeOnly(iso) {
+  return pkTime(iso)?.time ?? null;
+}
+
+/** The Pakistan business day (YYYY-MM-DD) of an ISO timestamp, or null. */
+export function pkDay(iso) {
+  return pkTime(iso)?.ymd ?? null;
+}
+
+/**
+ * Which list a record sits in, exactly as the server's tabs decide it: its effective date
+ * (delivery date if set, else the order / invoice day) against the server's business today.
+ * 'upcoming' = after tomorrow (only under "تمام"). null when either date is missing.
+ */
+export function dateTab(effectiveYmd, todayYmd) {
+  if (!isYmd(effectiveYmd) || !isYmd(todayYmd)) return null;
+  const diff = Math.round((Date.UTC(...split(effectiveYmd)) - Date.UTC(...split(todayYmd))) / 86400000);
+  if (diff === 0) return 'today';
+  if (diff === 1) return 'tomorrow';
+  if (diff < 0) return 'previous';
+  return 'upcoming';
+}
+
+export const DATE_TAB_LABEL = { today: 'آج کا آرڈر', tomorrow: 'کل کا آرڈر', previous: 'پرانا آرڈر', upcoming: 'آنے والا آرڈر' };
 
 /** Digits for a tel: link, keeping a leading +. */
 export function telHref(phone) {

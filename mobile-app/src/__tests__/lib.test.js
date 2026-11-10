@@ -218,3 +218,20 @@ describe('website orders vs ERP sales wording and paths', () => {
     expect(friendly(404, body, '/app/orders/5')).toBe('یہ آرڈر نہیں ملا۔');
   });
 });
+
+describe('date category (mirrors the server tabs)', () => {
+  it('today / tomorrow / previous / upcoming against the server business day', async () => {
+    const { dateTab, DATE_TAB_LABEL } = await import('../lib/format.js');
+    expect(dateTab('2026-11-10', '2026-11-10')).toBe('today');
+    expect(dateTab('2026-11-11', '2026-11-10')).toBe('tomorrow');
+    expect(dateTab('2026-11-09', '2026-11-10')).toBe('previous');
+    expect(dateTab('2026-10-31', '2026-11-01')).toBe('previous');
+    expect(dateTab('2026-12-01', '2026-11-30')).toBe('tomorrow');
+    expect(dateTab('2026-11-13', '2026-11-10')).toBe('upcoming');
+    expect(dateTab(null, '2026-11-10')).toBeNull();
+    expect(dateTab('2026-11-10', undefined)).toBeNull();
+    expect(DATE_TAB_LABEL.today).toBe('آج کا آرڈر');
+    expect(DATE_TAB_LABEL.tomorrow).toBe('کل کا آرڈر');
+    expect(DATE_TAB_LABEL.previous).toBe('پرانا آرڈر');
+  });
+});

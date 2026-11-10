@@ -97,3 +97,98 @@ describe('ERP sale detail: product units', () => {
     expect(text()).not.toContain('576');
   });
 });
+
+describe('Order detail: when is this order from, and where did it come from', () => {
+  // placed 2026-11-10 14:09 UTC = 7:09 رات in Karachi; server business today = 2026-11-10.
+  const base = { ...webOrder, code: 'ENG-1024', placed_at: '2026-11-10T14:09:00+00:00', order_date: '2026-11-10', effective_date: '2026-11-10', today: '2026-11-10',
+    history: [{ status: 'pending', note: 'Order admin dashboard se banaya gaya', at: '2026-11-10T14:09:00+00:00' }] };
+  const chip = () => host.querySelector('[data-testid="date-tab"]').textContent.trim();
+  const chips = () => [...host.querySelectorAll('[data-testid="date-tab"]')].map((n) => n.textContent.trim());
+
+  it('today: "آج کا آرڈر", real date and Karachi time (19:09 → 7:09 رات), never "نیا آرڈر"', async () => {
+    Api.order.mockResolvedValue({ order: { ...base, source: 'admin' } });
+    await mount('/orders/24');
+    expect(chip()).toBe('آج کا آرڈر');
+    expect(text()).toContain('منگل');
+    expect(text()).toContain('10 نومبر 2026');
+    expect(host.querySelector('[data-testid="order-time"]').textContent).toContain('7:09 رات');
+    expect(text()).not.toContain('نیا آرڈر');
+    expect(text()).not.toContain('ریکارڈ کہاں سے');
+    expect(text()).not.toContain('آرڈر کی حالت');
+    // the opening timeline entry carries the date category too
+    expect(chips()).toEqual(['آج کا آرڈر', 'آج کا آرڈر']);
+  });
+
+  it('tomorrow: a delivery date of tomorrow puts it in the Tomorrow tab → "کل کا آرڈر"', async () => {
+    Api.order.mockResolvedValue({ order: { ...base, delivery_date: '2026-11-11', effective_date: '2026-11-11' } });
+    await mount('/orders/24');
+    expect(chip()).toBe('کل کا آرڈر');
+    // the order date itself stays the real one; the delivery move is spelled out
+    expect(text()).toContain('10 نومبر 2026');
+    expect(host.querySelector('[data-testid="moved-delivery"]').textContent).toContain('کل');
+  });
+
+  it('previous: an older order → "پرانا آرڈر"', async () => {
+    Api.order.mockResolvedValue({ order: { ...base, placed_at: '2026-11-03T05:30:00+00:00', order_date: '2026-11-03', effective_date: '2026-11-03' } });
+    await mount('/orders/24');
+    expect(chip()).toBe('پرانا آرڈر');
+    expect(text()).toContain('3 نومبر 2026');
+    expect(host.querySelector('[data-testid="order-time"]').textContent).toContain('10:30 صبح');
+  });
+
+  it('uses the Karachi business day: 20:30 UTC on the 9th is the 10th in Pakistan', async () => {
+    Api.order.mockResolvedValue({ order: { ...base, placed_at: '2026-11-09T20:30:00+00:00', order_date: '2026-11-10', effective_date: '2026-11-10' } });
+    await mount('/orders/24');
+    expect(chip()).toBe('آج کا آرڈر');
+    expect(host.querySelector('[data-testid="order-time"]').textContent).toContain('1:30 صبح');
+  });
+
+  it.each([
+    ['website', 'انگلینڈ ویب سائٹ'],
+    ['admin', 'ڈیش بورڈ'],
+    ['', 'ذریعہ دستیاب نہیں'],
+    ['something-new', 'ذریعہ دستیاب نہیں'],
+  ])('source "%s" is shown as "%s"', async (source, label) => {
+    Api.order.mockResolvedValue({ order: { ...base, source } });
+    await mount('/orders/24');
+    expect(host.querySelector('[data-testid="order-source"]').textContent).toContain(label);
+  });
+
+  it('an ERP sale names Accountrix ERP as its source', async () => {
+    Api.order.mockResolvedValue({ order: erpSale(0) });
+    await mount('/erp-sales/4', 'erp');
+    expect(host.querySelector('[data-testid="order-source"]').textContent).toContain('Accountrix ERP');
+    expect(chip()).toBe('آج کا آرڈر');
+  });
+
+  it('keeps the real status: a shipped order still says روانہ, a cancelled one warns; later timeline steps keep their status', async () => {
+    Api.order.mockResolvedValue({ order: { ...base, status: 'shipped', history: [...base.history, { status: 'shipped', note: null, at: '2026-11-10T15:00:00+00:00' }] } });
+    await mount('/orders/24');
+    expect(text()).toContain('روانہ ہو گیا');
+    act(() => root.unmount()); host.remove();
+    Api.order.mockResolvedValue({ order: { ...base, status: 'cancelled' } });
+    await mount('/orders/24');
+    expect(text()).toContain('منسوخ ہو چکا ہے');
+  });
+
+  it('missing date or time is never filled in with "now"', async () => {
+    Api.order.mockResolvedValue({ order: { ...base, placed_at: null, order_date: null, effective_date: null, history: [] } });
+    await mount('/orders/24');
+    expect(host.querySelector('[data-testid="date-tab"]')).toBeNull();
+    expect(host.querySelector('[data-testid="order-time"]')).toBeNull();
+    expect(text()).toContain('آرڈر کی تاریخ دستیاب نہیں');
+  });
+
+  it('keeps customer, phone, city, Pandi/Adda and quantities; never shows item prices', async () => {
+    Api.order.mockResolvedValue({ order: { ...base, pandi_name: 'نیازی پنڈی', adda_name: 'پیر ودھائی اڈا', items: [{ id: 1, name: 'England Tissue 480 pcs 3 Ply', sub: '10 Bundle / 80 Box', unit: 'Carton', qty: 3, price: 999 }] } });
+    await mount('/orders/24');
+    expect(text()).toContain('ویب گاہک');
+    expect(text()).toContain('03001234567');
+    expect(text()).toContain('Lahore');
+    expect(text()).toContain('نیازی پنڈی');
+    expect(text()).toContain('پیر ودھائی اڈا');
+    expect(host.querySelector('.item__qty').textContent).toContain('3');
+    expect(text()).not.toContain('999');
+    expect(host.querySelector('a.btn--call').getAttribute('href')).toBe('tel:03001234567');
+  });
+});

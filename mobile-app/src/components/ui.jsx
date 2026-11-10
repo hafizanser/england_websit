@@ -47,6 +47,7 @@ const PATHS = {
   zoom: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6M11 8v6M8 11h6" /></>,
   cash: <><rect x="2.5" y="6" width="19" height="12" rx="2" /><circle cx="12" cy="12" r="2.6" /><path d="M6 9.5v.01M18 14.5v.01" /></>,
   note: <><path d="M5 3.5h10l4 4v13H5z" /><path d="M15 3.5v4h4M8.5 12h7M8.5 16h5" /></>,
+  dashboard: <><rect x="3.5" y="3.5" width="7.5" height="9" rx="1.8" /><rect x="13" y="3.5" width="7.5" height="5.5" rx="1.8" /><rect x="3.5" y="14.5" width="7.5" height="6" rx="1.8" /><rect x="13" y="11" width="7.5" height="9.5" rx="1.8" /></>,
   store: <><path d="M4 9.5 5.5 4h13L20 9.5" /><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0" /><path d="M5.5 12v8.5h13V12M10 20.5v-5h4v5" /></>,
 };
 
